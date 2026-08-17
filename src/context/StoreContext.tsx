@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   Product,
+  ProductReview,
   CartItem,
   PackagingOption,
   PersonalizationConfig,
@@ -21,10 +22,13 @@ import {
   YouTubeVideoItem,
   SocialLinksConfig,
   EmailNotification,
-  SupabaseConfigStatus
+  SupabaseConfigStatus,
+  BillingInvoice,
+  ThemeConfig
 } from '../types';
 import {
   INITIAL_PRODUCTS,
+  INITIAL_REVIEWS,
   INITIAL_PACKAGING_OPTIONS,
   INITIAL_COUPLE_TEMPLATES,
   INITIAL_BOT_PANEL_SERVICES,
@@ -40,7 +44,9 @@ import {
   INITIAL_BILLING_PORTAL,
   INITIAL_YOUTUBE_VIDEOS,
   INITIAL_SOCIAL_LINKS,
-  INITIAL_EMAIL_NOTIFICATIONS
+  INITIAL_EMAIL_NOTIFICATIONS,
+  INITIAL_BILLING_INVOICES,
+  INITIAL_THEME_CONFIG
 } from '../data/initialData';
 import {
   generateAccountCreatedEmail,
@@ -51,23 +57,14 @@ import {
 import {
   isSupabaseConfigured,
   checkSupabaseConnection,
-  syncStoreWithSupabase
+  syncStoreWithSupabase,
+  supabaseSignUp,
+  supabaseSignIn,
+  supabaseSignInWithGoogle,
+  supabaseSignOut
 } from '../lib/supabase';
 
-export type CurrencyCode = 'INR' | 'USD' | 'EUR' | 'GBP';
-
-interface CurrencyRate {
-  symbol: string;
-  rate: number;
-  isINR?: boolean;
-}
-
-const CURRENCY_MAP: Record<CurrencyCode, CurrencyRate> = {
-  INR: { symbol: '₹', rate: 86.5, isINR: true },
-  USD: { symbol: '$', rate: 1.0 },
-  EUR: { symbol: '€', rate: 0.92 },
-  GBP: { symbol: '£', rate: 0.79 },
-};
+export type CurrencyCode = 'INR';
 
 export interface UserAddress {
   fullName: string;
@@ -111,12 +108,12 @@ interface StoreContextType {
   adminLogin: (u: string, p: string) => { success: boolean; message: string };
   adminLogout: () => void;
 
-  // Currency & Localisation (India / Global)
+  // Currency & Localisation (Strictly INR)
   currency: CurrencyCode;
   setCurrency: (c: CurrencyCode) => void;
   formatPrice: (amount: number) => string;
 
-  // Catalog
+  // Catalog & Reviews
   products: Product[];
   packagingOptions: PackagingOption[];
   coupleTemplates: CoupleWebsiteTemplate[];
@@ -124,6 +121,8 @@ interface StoreContextType {
   addProduct: (product: Product) => void;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
+  reviews: ProductReview[];
+  addProductReview: (review: Omit<ProductReview, 'id' | 'date'>) => void;
 
   // Cart
   cart: CartItem[];
@@ -149,6 +148,30 @@ interface StoreContextType {
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
   isInWishlist: (productId: string) => boolean;
+  clearWishlist: () => void;
+
+  // Theme Mode (Dark / Light)
+  themeMode: 'dark' | 'light';
+  toggleThemeMode: () => void;
+
+  // Store Theme Branding & Dynamic Styling
+  themeConfig: ThemeConfig;
+  updateThemeConfig: (cfg: Partial<ThemeConfig>) => void;
+
+  // Product Comparison (Up to 3 products)
+  comparisonProductIds: string[];
+  addToComparison: (productId: string) => void;
+  removeFromComparison: (productId: string) => void;
+  clearComparison: () => void;
+  isInComparison: (productId: string) => boolean;
+
+  // Local Browsing History for Recommendations
+  browsingHistory: string[];
+  recordProductView: (productId: string) => void;
+
+  // Billing & Invoices
+  invoices: BillingInvoice[];
+  addBillingInvoice: (invoice: BillingInvoice) => void;
 
   // Orders
   orders: Order[];
@@ -278,7 +301,107 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [wishlist, setWishlist] = useState<string[]>(() => {
     const saved = localStorage.getItem('hx_wishlist');
-    return saved ? JSON.parse(saved) : ['prod-couple-1'];
+    return saved ? JSON.parse(saved) : ['prod-couple-1', 'prod-couple-2'];
+  });
+
+  // Dark / Light Theme Mode (persists in localStorage & updates <html> class)
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('hx_theme_mode');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hx_theme_mode', themeMode);
+    const root = document.documentElement;
+    if (themeMode === 'light') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    } else {
+      root.classList.remove('light');
+      root.classList.add('dark');
+    }
+  }, [themeMode]);
+
+  const toggleThemeMode = () => {
+    setThemeMode(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  // Dynamic Theme Config & Branding
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
+    const saved = localStorage.getItem('hx_theme_config');
+    return saved ? JSON.parse(saved) : INITIAL_THEME_CONFIG;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hx_theme_config', JSON.stringify(themeConfig));
+  }, [themeConfig]);
+
+  const updateThemeConfig = (cfg: Partial<ThemeConfig>) => {
+    setThemeConfig(prev => ({ ...prev, ...cfg }));
+  };
+
+  // Side-by-Side Product Comparison (up to 3 products)
+  const [comparisonProductIds, setComparisonProductIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('hx_comparison');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hx_comparison', JSON.stringify(comparisonProductIds));
+  }, [comparisonProductIds]);
+
+  const addToComparison = (productId: string) => {
+    setComparisonProductIds(prev => {
+      if (prev.includes(productId)) return prev;
+      if (prev.length >= 3) {
+        showToast('Comparison is limited to 3 products. Removed the oldest item.');
+        return [...prev.slice(1), productId];
+      }
+      return [...prev, productId];
+    });
+    showToast('Added product to comparison list');
+  };
+
+  const removeFromComparison = (productId: string) => {
+    setComparisonProductIds(prev => prev.filter(id => id !== productId));
+    showToast('Removed from comparison');
+  };
+
+  const clearComparison = () => {
+    setComparisonProductIds([]);
+    showToast('Cleared product comparison');
+  };
+
+  const isInComparison = (productId: string) => comparisonProductIds.includes(productId);
+
+  // Local Browsing History for Product Recommendations
+  const [browsingHistory, setBrowsingHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem('hx_browsing_history');
+    return saved ? JSON.parse(saved) : ['prod-couple-1', 'prod-couple-2', 'prod-men-1'];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hx_browsing_history', JSON.stringify(browsingHistory));
+  }, [browsingHistory]);
+
+  const recordProductView = (productId: string) => {
+    setBrowsingHistory(prev => {
+      const filtered = prev.filter(id => id !== productId);
+      return [productId, ...filtered].slice(0, 10); // Keep last 10 viewed
+    });
+  };
+
+  // Reviews State
+  const [reviews, setReviews] = useState<ProductReview[]>(() => {
+    const saved = localStorage.getItem('hx_reviews');
+    return saved ? JSON.parse(saved) : INITIAL_REVIEWS;
+  });
+
+  // Invoices & Billing State
+  const [invoices, setInvoices] = useState<BillingInvoice[]>(() => {
+    const saved = localStorage.getItem('hx_invoices');
+    return saved ? JSON.parse(saved) : INITIAL_BILLING_INVOICES;
   });
 
   // Orders
@@ -410,6 +533,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [wishlist]);
 
   useEffect(() => {
+    localStorage.setItem('hx_reviews', JSON.stringify(reviews));
+  }, [reviews]);
+
+  useEffect(() => {
+    localStorage.setItem('hx_invoices', JSON.stringify(invoices));
+  }, [invoices]);
+
+  useEffect(() => {
     localStorage.setItem('hx_orders', JSON.stringify(orders));
   }, [orders]);
 
@@ -490,12 +621,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const formatPrice = (amount: number) => {
-    const { symbol, rate, isINR } = CURRENCY_MAP[currency];
-    const converted = amount * rate;
-    if (isINR) {
-      return `₹${Math.round(converted).toLocaleString('en-IN')}`;
-    }
-    return `${symbol}${converted.toFixed(2)}`;
+    const converted = amount * 86.5;
+    return `₹${Math.round(converted).toLocaleString('en-IN')}`;
   };
 
   // ADMIN AUTHENTICATION
@@ -859,6 +986,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const isInWishlist = (productId: string) => wishlist.includes(productId);
 
+  const clearWishlist = () => {
+    setWishlist([]);
+    showToast('Wishlist cleared.');
+  };
+
+  // Product Reviews
+  const addProductReview = (reviewData: Omit<ProductReview, 'id' | 'date'>) => {
+    const newReview: ProductReview = {
+      ...reviewData,
+      id: `rev-${Date.now()}`,
+      date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      likes: reviewData.likes || 0,
+      verified: reviewData.verified !== undefined ? reviewData.verified : true
+    };
+
+    const updatedReviews = [newReview, ...reviews];
+    setReviews(updatedReviews);
+
+    // Recalculate average rating & review count for the product
+    const productReviews = updatedReviews.filter(r => r.productId === reviewData.productId);
+    const avgRating = Number((productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length).toFixed(1));
+    
+    setProducts(prevProducts =>
+      prevProducts.map(p => {
+        if (p.id === reviewData.productId) {
+          return {
+            ...p,
+            rating: avgRating,
+            reviewCount: (p.reviewCount || 0) + 1
+          };
+        }
+        return p;
+      })
+    );
+
+    syncStoreWithSupabase({
+      orders,
+      products,
+      customOrders,
+      emailLogs: emailNotifications,
+      reviews: updatedReviews
+    });
+
+    showToast('✨ Thank you! Your verified product review is published.');
+  };
+
+  // Billing & Invoices
+  const addBillingInvoice = (invoice: BillingInvoice) => {
+    setInvoices(prev => [invoice, ...prev]);
+  };
+
   // Product Catalog CRUD (Admin)
   const addProduct = (prod: Product) => {
     setProducts(prev => [prod, ...prev]);
@@ -901,6 +1079,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setOrders(prev => [newOrder, ...prev]);
     clearCart();
+
+    // Auto generate Tax Invoice record
+    const rawTotalInr = newOrder.total * 86.5;
+    const cgst = Number(((rawTotalInr * 0.025)).toFixed(2));
+    const sgst = Number(((rawTotalInr * 0.025)).toFixed(2));
+    const newInvoice: BillingInvoice = {
+      id: `inv-${Date.now()}`,
+      invoiceNumber: `INV-HX-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      transactionId: `TXN-${Math.floor(10000000 + Math.random() * 90000000)}`,
+      orderId: newOrder.id,
+      orderNumber: newOrder.orderNumber,
+      customerName: newOrder.customerName,
+      customerEmail: newOrder.customerEmail,
+      amount: rawTotalInr,
+      currency: 'INR',
+      paymentMethod: (newOrder.paymentMethod as any) || 'UPI / QR',
+      paymentGateway: 'Cashfree UPI',
+      status: 'Paid',
+      gstNumber: '29AABCH8821K1ZM',
+      cgst,
+      sgst,
+      date: new Date().toISOString(),
+      itemsSummary: newOrder.items.map(i => `${i.product.name} (x${i.quantity})`).join(', '),
+      receiptUrl: `https://harconxs.com/receipt/${newOrder.orderNumber}`
+    };
+    setInvoices(prev => [newInvoice, ...prev]);
 
     // Trigger Order Confirmed Email Notification
     const orderEmail = generateOrderConfirmedEmail(newOrder);
@@ -1176,6 +1380,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addProduct,
         updateProduct,
         deleteProduct,
+        reviews,
+        addProductReview,
         cart,
         addToCart,
         removeFromCart,
@@ -1195,6 +1401,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         wishlist,
         toggleWishlist,
         isInWishlist,
+        clearWishlist,
+        themeMode,
+        toggleThemeMode,
+        themeConfig,
+        updateThemeConfig,
+        comparisonProductIds,
+        addToComparison,
+        removeFromComparison,
+        clearComparison,
+        isInComparison,
+        browsingHistory,
+        recordProductView,
+        invoices,
+        addBillingInvoice,
         orders,
         createOrder,
         updateOrderStatus,

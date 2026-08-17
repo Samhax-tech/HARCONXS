@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ShoppingBag, Heart, User, Shield, Sparkles, Menu, X, Info, Phone, LogIn, Truck } from 'lucide-react';
+import { Search, ShoppingBag, Heart, Sparkles, Menu, X, LogIn, Truck, Shield } from 'lucide-react';
 import { useStore, CurrencyCode } from '../../context/StoreContext';
 import { CategoryType } from '../../types';
 
@@ -136,24 +136,16 @@ export const Navbar: React.FC = () => {
             <span className="font-medium">AI Gift Helper</span>
           </button>
 
-          {/* Currency dropdown with INR support */}
-          <select
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-            className="bg-zinc-900 text-zinc-300 text-xs border border-zinc-800 rounded-lg px-2 py-1.5 outline-none focus:border-zinc-600 cursor-pointer font-mono"
-            aria-label="Select Currency"
-          >
-            <option value="INR">INR (₹)</option>
-            <option value="USD">USD ($)</option>
-            <option value="EUR">EUR (€)</option>
-            <option value="GBP">GBP (£)</option>
-          </select>
+          {/* Strict Currency Display (INR ₹) */}
+          <div className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-amber-400 select-none">
+            <span className="font-bold">₹ INR</span>
+          </div>
 
           {/* Wishlist */}
           <button
             onClick={() => handleNavClick('account')}
             className="relative p-2 text-zinc-300 hover:text-rose-400 transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
-            title="Wishlist"
+            title="Saved Wishlist"
             aria-label="Wishlist"
           >
             <Heart className="w-5 h-5" />
@@ -168,7 +160,7 @@ export const Navbar: React.FC = () => {
           <button
             onClick={() => setIsCartOpen(true)}
             className="relative p-2 text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
-            title="Bag"
+            title="Shopping Bag"
             aria-label="Bag"
           >
             <ShoppingBag className="w-5 h-5" />
@@ -201,8 +193,8 @@ export const Navbar: React.FC = () => {
             </button>
           )}
 
-          {/* Admin Atelier Switch */}
-          <div className="flex items-center gap-1 pl-1 border-l border-zinc-800">
+          {/* Hidden Admin Indicator - Only shown when authenticated as Admin */}
+          {isAdminAuthenticated && (
             <button
               onClick={handleAdminToggle}
               className={`p-2 rounded-lg transition-colors cursor-pointer ${
@@ -210,12 +202,12 @@ export const Navbar: React.FC = () => {
                   ? 'text-amber-400 bg-amber-500/20 border border-amber-500/40'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
               }`}
-              title="Admin Atelier Console (Protected)"
+              title="HAX Portal Active"
               aria-label="Admin Atelier Console"
             >
               <Shield className="w-4 h-4" />
             </button>
-          </div>
+          )}
 
           {/* Mobile Menu Toggle */}
           <button
@@ -299,13 +291,15 @@ export const Navbar: React.FC = () => {
             >
               My Account & Orders
             </button>
-            <button
-              onClick={handleAdminToggle}
-              className="text-left px-3 py-2 text-sm text-amber-400 bg-amber-950/30 rounded-md font-medium flex items-center justify-between"
-            >
-              <span>{isAdminMode ? 'Exit Admin Mode' : 'Admin Atelier Console (Login)'}</span>
-              <Shield className="w-4 h-4" />
-            </button>
+            {isAdminAuthenticated && (
+              <button
+                onClick={handleAdminToggle}
+                className="text-left px-3 py-2 text-sm text-amber-400 bg-amber-950/30 rounded-md font-medium flex items-center justify-between"
+              >
+                <span>{isAdminMode ? 'Exit Admin Mode' : 'HAX Admin Portal'}</span>
+                <Shield className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       )}

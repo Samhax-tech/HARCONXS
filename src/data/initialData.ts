@@ -1,5 +1,6 @@
 import {
   Product,
+  ProductReview,
   PackagingOption,
   CoupleWebsiteTemplate,
   BotPanelService,
@@ -15,7 +16,8 @@ import {
   BillingPortalConfig,
   YouTubeVideoItem,
   SocialLinksConfig,
-  EmailNotification
+  EmailNotification,
+  BillingInvoice
 } from '../types';
 
 
@@ -853,4 +855,115 @@ export const INITIAL_EMAIL_NOTIFICATIONS: EmailNotification[] = [
     trackingNumber: 'HX-FEDEX-99824102'
   }
 ];
+
+export const INITIAL_REVIEWS: ProductReview[] = [
+  {
+    id: 'rev-cpl-1',
+    productId: 'prod-couple-1',
+    userName: 'Rohan & Ananya Sharma',
+    rating: 5,
+    title: 'Flawless laser engraving & coordinates accuracy!',
+    comment: 'Ordered our anniversary coordinates in gold. The engraving precision is stunning and the velvet presentation box felt ultra-luxurious. She cried happy tears during our date night.',
+    date: 'August 10, 2026',
+    verified: true,
+    likes: 24,
+    images: ['https://images.unsplash.com/photo-1611591475168-52219c676770?w=500&auto=format&fit=crop&q=80']
+  },
+  {
+    id: 'rev-cpl-2',
+    productId: 'prod-couple-1',
+    userName: 'Priya Mukherjee',
+    rating: 5,
+    title: 'Best long-distance anniversary gift',
+    comment: 'Heavy stainless steel feel with scratch-resistant coating. Delivered in Bengaluru within 48 hours. The custom font matched the preview 100%.',
+    date: 'July 29, 2026',
+    verified: true,
+    likes: 18
+  },
+  {
+    id: 'rev-cpl-3',
+    productId: 'prod-couple-1',
+    userName: 'Vikram Mehta',
+    rating: 4,
+    title: 'Very premium quality, fast delivery',
+    comment: 'Great weight and finish. Would love if they provided extra links for larger wrists, but otherwise completely top-notch craftsmanship.',
+    date: 'July 14, 2026',
+    verified: true,
+    likes: 9
+  },
+  {
+    id: 'rev-cpl-4',
+    productId: 'prod-couple-2',
+    userName: 'Kavita Reddy',
+    rating: 5,
+    title: 'The projected photo is crystal clear!',
+    comment: 'Holding the stone up to a phone torch displays our proposal memory on the wall like magic! My fiancé was amazed.',
+    date: 'August 02, 2026',
+    verified: true,
+    likes: 31
+  },
+  {
+    id: 'rev-men-1',
+    productId: 'prod-men-1',
+    userName: 'Aditya Sen',
+    rating: 5,
+    title: 'A masterpiece timepiece in gunmetal',
+    comment: 'Exceeds watches 3x its price. The sapphire coating and butterfly clasp feel substantial. Highly recommended.',
+    date: 'August 08, 2026',
+    verified: true,
+    likes: 15
+  },
+  {
+    id: 'rev-wmn-1',
+    productId: 'prod-women-1',
+    userName: 'Tara Singhania',
+    rating: 5,
+    title: 'Iridescent opal glow is mesmerizing',
+    comment: 'Shimmers between pink, turquoise, and gold in daylight. 18K gold vermeil has not tarnished after continuous wear.',
+    date: 'August 05, 2026',
+    verified: true,
+    likes: 22
+  }
+];
+
+export const INITIAL_BILLING_INVOICES: BillingInvoice[] = [
+  {
+    id: 'inv-hx-001',
+    invoiceNumber: 'INV-HX-2026-0891',
+    transactionId: 'TXN-UPI-98214208',
+    orderId: 'ord-init-1',
+    orderNumber: 'HX-90821',
+    customerName: 'Hamza Shahid',
+    customerEmail: 'hamzashahid1152901@gmail.com',
+    amount: 6711.53,
+    currency: 'INR',
+    paymentMethod: 'UPI / QR',
+    paymentGateway: 'Cashfree UPI',
+    status: 'Paid',
+    gstNumber: '29AABCH8821K1ZM',
+    cgst: 511.89,
+    sgst: 511.89,
+    date: '2026-08-14T10:02:00Z',
+    itemsSummary: 'Custom Coordinates Matching Bracelet Set (x1) + Velvet Luxury Box',
+    receiptUrl: 'https://harconxs.com/receipt/INV-HX-2026-0891'
+  }
+];
+
+export const INITIAL_THEME_CONFIG = {
+  siteName: 'HARCONXS',
+  tagline: 'LUXURY COMMERCE & SANCTUARY ATELIER',
+  announcementText: 'Use code WELCOME15 for 15% off your first order',
+  announcementDiscountCode: 'WELCOME15',
+  heroHeadline: 'SHOP • PERSONALIZE • CUSTOMIZE • CREATE',
+  heroSubheadline: 'Find something you love, personalize it your way, request something completely bespoke, or generate a lifetime couple website & bot automation suite.',
+  primaryColor: '#f59e0b',
+  accentColor: '#f43f5e',
+  secondaryColor: '#38bdf8',
+  fontFamily: 'serif' as const,
+  bannerImageUrl: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=1600&auto=format&fit=crop&q=80',
+  footerTagline: 'Premium commerce destination engineered for couples, handcrafted laser engravings, lifetime cloud memory portals, and bespoke digital automation.',
+  supportEmail: 'care@harconxs.com',
+  supportPhone: '+91 98200 12890',
+  freeShippingThreshold: 1500
+};
 

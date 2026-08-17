@@ -438,3 +438,43 @@ export interface SupabaseConfigStatus {
   };
 }
 
+export interface ThemeConfig {
+  siteName: string;
+  tagline: string;
+  announcementText: string;
+  announcementDiscountCode: string;
+  heroHeadline: string;
+  heroSubheadline: string;
+  primaryColor: string;
+  accentColor: string;
+  secondaryColor: string;
+  fontFamily: 'serif' | 'sans' | 'mono';
+  bannerImageUrl: string;
+  logoImageUrl?: string;
+  footerTagline: string;
+  supportEmail: string;
+  supportPhone: string;
+  freeShippingThreshold: number;
+}
+
+export interface BillingInvoice {
+  id: string;
+  invoiceNumber: string;
+  transactionId: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  amount: number;
+  currency: 'INR';
+  paymentMethod: 'UPI / QR' | 'Credit / Debit Card' | 'Net Banking' | 'Cash on Delivery';
+  paymentGateway: 'Razorpay PG' | 'Cashfree UPI' | 'PhonePe Switch' | 'Direct Atelier';
+  status: 'Paid' | 'Authorized' | 'Settled' | 'Refunded';
+  gstNumber?: string;
+  cgst: number;
+  sgst: number;
+  date: string;
+  itemsSummary: string;
+  receiptUrl?: string;
+}
+

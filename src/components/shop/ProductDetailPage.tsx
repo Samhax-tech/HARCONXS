@@ -13,7 +13,11 @@ import {
   ArrowLeft,
   CheckCircle2,
   Share2,
-  Gift
+  Gift,
+  ThumbsUp,
+  MessageSquare,
+  Award,
+  Layers
 } from 'lucide-react';
 
 export const ProductDetailPage: React.FC = () => {
@@ -26,7 +30,12 @@ export const ProductDetailPage: React.FC = () => {
     toggleWishlist,
     isInWishlist,
     setCurrentView,
-    showToast
+    showToast,
+    reviews: allReviews,
+    addProductReview,
+    currentUser,
+    isUserLoggedIn,
+    openAuthModalWithAction
   } = useStore();
 
   const product = products.find(p => p.id === selectedProductId) || products[0];
@@ -39,31 +48,27 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [showPersonalizer, setShowPersonalizer] = useState(product.isPersonalizable ?? false);
 
-  // Reviews state
-  const [reviews, setReviews] = useState([
-    {
-      id: 'rev-1',
-      author: 'Evelyn V.',
-      rating: 5,
-      date: 'August 12, 2026',
-      comment: 'Absolutely blown away by the packaging and quality. The laser engraving is crisp and deep.',
-      verified: true
-    },
-    {
-      id: 'rev-2',
-      author: 'David L.',
-      rating: 5,
-      date: 'July 28, 2026',
-      comment: 'Super fast international shipping. Received in a velvet lined box that made my gift reveal special.',
-      verified: true
-    }
-  ]);
-  const [newReviewName, setNewReviewName] = useState('');
+  // Review submission state
   const [newReviewRating, setNewReviewRating] = useState(5);
+  const [newReviewTitle, setNewReviewTitle] = useState('');
   const [newReviewText, setNewReviewText] = useState('');
+  const [newReviewName, setNewReviewName] = useState(currentUser?.name || '');
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const [likedReviews, setLikedReviews] = useState<Record<string, number>>({});
 
   const currentPrice = selectedVariant ? selectedVariant.price : product.price;
   const inWishlist = isInWishlist(product.id);
+
+  // Filter reviews for this specific product
+  const productReviews = allReviews.filter(r => r.productId === product.id);
+  const totalReviewsCount = productReviews.length;
+  const avgRating = totalReviewsCount > 0
+    ? (productReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviewsCount).toFixed(1)
+    : product.rating.toFixed(1);
+
+  // Rating distribution calculation
+  const getRatingCount = (star: number) => productReviews.filter(r => Math.round(r.rating) === star).length;
+  const getRatingPercentage = (star: number) => totalReviewsCount > 0 ? (getRatingCount(star) / totalReviewsCount) * 100 : star === 5 ? 85 : 15;
 
   const handleAddRegularToCart = () => {
     addToCart(product, quantity, selectedVariant?.id, selectedPackaging);
@@ -80,24 +85,34 @@ export const ProductDetailPage: React.FC = () => {
     }
   };
 
+  const handleLikeReview = (reviewId: string) => {
+    setLikedReviews(prev => ({
+      ...prev,
+      [reviewId]: (prev[reviewId] || 0) + 1
+    }));
+    showToast('Marked as helpful review.');
+  };
+
   const handleAddReview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newReviewName.trim() || !newReviewText.trim()) return;
+    const authorName = newReviewName.trim() || currentUser?.name || 'Verified Harconxs Buyer';
+    if (!newReviewText.trim()) {
+      showToast('Please write a review comment.');
+      return;
+    }
 
-    setReviews(prev => [
-      {
-        id: `rev-${Date.now()}`,
-        author: newReviewName,
-        rating: newReviewRating,
-        date: 'Today',
-        comment: newReviewText,
-        verified: true
-      },
-      ...prev
-    ]);
-    setNewReviewName('');
+    addProductReview({
+      productId: product.id,
+      userName: authorName,
+      rating: newReviewRating,
+      title: newReviewTitle.trim() || 'Exceptional craftsmanship & luxury finish',
+      comment: newReviewText.trim(),
+      verified: isUserLoggedIn
+    });
+
+    setNewReviewTitle('');
     setNewReviewText('');
-    showToast('Thank you! Review published successfully.');
+    if (!currentUser) setNewReviewName('');
   };
 
   return (
@@ -118,39 +133,52 @@ export const ProductDetailPage: React.FC = () => {
           
           {/* Left 6 cols: Gallery */}
           <div className="lg:col-span-6 space-y-4">
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-xl">
+            <div className="relative aspect-square rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl">
               <img
                 src={product.images[activeImageIndex] || product.images[0]}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
+              
+              {/* Wishlist Floating Button */}
               <button
                 onClick={() => toggleWishlist(product.id)}
-                className={`absolute top-4 right-4 p-2.5 rounded-full backdrop-blur-md border transition-colors cursor-pointer ${
-                  inWishlist ? 'bg-rose-950/80 border-rose-600 text-rose-400' : 'bg-zinc-950/70 border-zinc-800 text-zinc-400 hover:text-white'
+                className={`absolute top-4 right-4 p-3 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-lg ${
+                  inWishlist 
+                    ? 'bg-rose-950/90 border-rose-500 text-rose-400 scale-105' 
+                    : 'bg-zinc-950/80 border-zinc-800 text-zinc-400 hover:text-rose-400 hover:border-rose-800'
                 }`}
+                title={inWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                aria-label="Wishlist toggle"
               >
-                <Heart className={`w-4 h-4 ${inWishlist ? 'fill-rose-500' : ''}`} />
+                <Heart className={`w-5 h-5 ${inWishlist ? 'fill-rose-500 text-rose-500' : ''}`} />
               </button>
 
               <button
                 onClick={handleShare}
-                className="absolute top-4 left-4 p-2.5 rounded-full bg-zinc-950/70 backdrop-blur-md border border-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                className="absolute top-4 left-4 p-3 rounded-full bg-zinc-950/80 backdrop-blur-md border border-zinc-800 text-zinc-400 hover:text-amber-400 transition-colors cursor-pointer shadow-lg"
                 title="Share link"
+                aria-label="Share product"
               >
-                <Share2 className="w-4 h-4" />
+                <Share2 className="w-5 h-5" />
               </button>
+
+              {/* Verified Atelier Badge */}
+              <div className="absolute bottom-4 left-4 flex items-center gap-1.5 px-3 py-1 bg-zinc-950/80 backdrop-blur-md border border-zinc-800 rounded-full text-[11px] font-mono text-amber-300">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>HARCONXS Atelier Masterpiece</span>
+              </div>
             </div>
 
             {/* Thumbnails */}
             {product.images.length > 1 && (
-              <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
                 {product.images.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
-                      activeImageIndex === idx ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-zinc-800 hover:border-zinc-700'
+                    className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                      activeImageIndex === idx ? 'border-amber-400 ring-2 ring-amber-400/20 scale-105' : 'border-zinc-800 hover:border-zinc-700 opacity-70 hover:opacity-100'
                     }`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover bg-zinc-900" />
@@ -160,143 +188,194 @@ export const ProductDetailPage: React.FC = () => {
             )}
           </div>
 
-          {/* Right 6 cols: Details & Buy Section */}
+          {/* Right 6 cols: Details & Purchase Actions */}
           <div className="lg:col-span-6 space-y-6">
             
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">{product.sku}</span>
-                <span className="text-zinc-600">•</span>
-                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">{product.brand}</span>
-              </div>
+            {/* Category / Badges */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-900 text-zinc-300 border border-zinc-800">
+                {product.category}
+              </span>
+              {product.badges?.map(badge => (
+                <span key={badge} className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                  {badge}
+                </span>
+              ))}
+              {product.isPersonalizable && (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-rose-400" />
+                  Personalizable
+                </span>
+              )}
+            </div>
 
-              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-zinc-100">{product.name}</h1>
+            {/* Title & Rating */}
+            <div className="space-y-2">
+              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-zinc-100">
+                {product.name}
+              </h1>
 
-              {/* Rating & Reviews count */}
-              <div className="flex items-center gap-2 mt-2">
-                <div className="flex items-center gap-1 text-amber-400 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 text-amber-400">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${i < Math.round(Number(avgRating)) ? 'fill-amber-400 text-amber-400' : 'text-zinc-600'}`}
+                    />
                   ))}
-                  <span className="font-bold ml-1 text-zinc-200">{product.rating}</span>
+                  <span className="text-xs font-mono font-bold text-zinc-200 ml-1.5">{avgRating}</span>
                 </div>
-                <span className="text-zinc-500 text-xs">({product.reviewCount} customer reviews)</span>
-              </div>
-
-              {/* Price */}
-              <div className="flex items-baseline gap-3 mt-4">
-                <span className="text-3xl font-bold text-zinc-100 font-sans">{formatPrice(currentPrice)}</span>
-                {product.compareAtPrice && (
-                  <span className="text-base text-zinc-500 line-through">{formatPrice(product.compareAtPrice)}</span>
-                )}
-                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800">
-                  In Stock ({product.inventory} units available)
+                <span className="text-zinc-500 text-xs">•</span>
+                <span className="text-xs text-zinc-400 font-mono">
+                  {totalReviewsCount} {totalReviewsCount === 1 ? 'Customer Review' : 'Verified Reviews'}
                 </span>
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-              {product.fullDescription}
+            {/* Price Presentation (Exclusive INR) */}
+            <div className="p-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl flex items-baseline gap-3">
+              <span className="text-3xl font-bold font-mono text-zinc-100">
+                {formatPrice(currentPrice)}
+              </span>
+              {product.compareAtPrice && (
+                <span className="text-sm font-mono text-zinc-500 line-through">
+                  {formatPrice(product.compareAtPrice)}
+                </span>
+              )}
+              <span className="ml-auto text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2.5 py-0.5 rounded-full font-mono">
+                All India Free Delivery Included
+              </span>
+            </div>
+
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-sans">
+              {product.fullDescription || product.shortDescription}
             </p>
 
-            {/* Variants Picker if available */}
+            {/* Variants Selector */}
             {product.variants && product.variants.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-zinc-800">
-                <label className="text-xs font-semibold text-zinc-200">Select Style / Material Variant:</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {product.variants.map((v) => (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider block">
+                  Select Edition / Style:
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {product.variants.map((variant) => (
                     <button
-                      key={v.id}
-                      onClick={() => setSelectedVariant(v)}
-                      className={`p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
-                        selectedVariant?.id === v.id
-                          ? 'bg-zinc-900 border-amber-400/80 ring-1 ring-amber-400/30 text-white'
-                          : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      key={variant.id}
+                      onClick={() => setSelectedVariant(variant)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                        selectedVariant?.id === variant.id
+                          ? 'border-amber-400 bg-amber-500/10 text-amber-300 shadow-md'
+                          : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                       }`}
                     >
-                      <p className="font-semibold text-zinc-200">{v.name}</p>
-                      <p className="font-mono text-zinc-400 text-[11px] mt-0.5">{formatPrice(v.price)}</p>
+                      <span>{variant.name}</span>
+                      <span className="font-mono text-zinc-500 ml-1.5">({formatPrice(variant.price)})</span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Packaging Picker if not in personalization mode */}
-            {!product.isPersonalizable && (
-              <div className="space-y-2 pt-2 border-t border-zinc-800">
-                <label className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
-                  <Gift className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Complimentary Packaging:</span>
-                </label>
-                <select
-                  value={selectedPackaging.id}
-                  onChange={(e) => {
-                    const found = packagingOptions.find(p => p.id === e.target.value);
-                    if (found) setSelectedPackaging(found);
-                  }}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 outline-none cursor-pointer"
-                >
-                  {packagingOptions.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.price === 0 ? 'FREE' : `+${formatPrice(p.price)}`})
-                    </option>
-                  ))}
-                </select>
+            {/* Packaging Option Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Gift className="w-3.5 h-3.5 text-amber-400" />
+                <span>Presentation Packaging:</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {packagingOptions.slice(0, 4).map((pkg) => (
+                  <button
+                    key={pkg.id}
+                    onClick={() => setSelectedPackaging(pkg)}
+                    className={`p-2.5 rounded-xl text-left border text-xs transition-all cursor-pointer ${
+                      selectedPackaging.id === pkg.id
+                        ? 'border-amber-400 bg-amber-500/10 text-amber-200'
+                        : 'border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="font-semibold text-zinc-200 text-[11px] truncate">{pkg.name}</div>
+                    <div className="font-mono text-[10px] text-zinc-400">
+                      {pkg.price > 0 ? `+${formatPrice(pkg.price)}` : 'Complimentary'}
+                    </div>
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
 
-            {/* Quantity & Action */}
-            {!product.isPersonalizable && (
-              <div className="flex items-center gap-4 pt-4 border-t border-zinc-800">
-                <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="text-zinc-400 hover:text-zinc-100 font-bold px-2 cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <span className="font-mono text-sm font-semibold text-zinc-100 px-3">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="text-zinc-400 hover:text-zinc-100 font-bold px-2 cursor-pointer"
-                  >
-                    +
-                  </button>
+            {/* Personalization Toggle Banner if Applicable */}
+            {product.isPersonalizable && (
+              <div className="p-4 bg-gradient-to-r from-rose-950/40 to-amber-950/30 border border-rose-800/40 rounded-2xl flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+                    Artisan Laser Engraving Available
+                  </span>
+                  <p className="text-[11px] text-zinc-400">
+                    Customize names, dates, roman numerals, or message coordinates.
+                  </p>
                 </div>
-
                 <button
-                  onClick={handleAddRegularToCart}
-                  className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 font-bold py-3 px-6 rounded-xl text-xs sm:text-sm transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => setShowPersonalizer(!showPersonalizer)}
+                  className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-400 text-zinc-950 font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer whitespace-nowrap"
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>Add to Bag • {formatPrice(currentPrice * quantity)}</span>
+                  {showPersonalizer ? 'Hide Studio' : 'Open Customizer'}
                 </button>
               </div>
             )}
 
-            {/* Trust Badges */}
+            {/* Regular Add To Bag / Buy Button */}
+            {!showPersonalizer && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-1 text-xs">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="px-3 py-1 text-zinc-400 hover:text-zinc-100 cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <span className="px-2 font-mono font-bold text-zinc-100">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity(quantity + 1)}
+                      className="px-3 py-1 text-zinc-400 hover:text-zinc-100 cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={handleAddRegularToCart}
+                    className="flex-1 py-3.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Add to Shopping Bag • {formatPrice(currentPrice * quantity)}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Atelier Assurance Highlights */}
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-zinc-800/80 text-[11px] text-zinc-400">
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Express Courier</span>
+                <span>Express 48h Dispatch</span>
               </div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Laser Certified</span>
+                <span>100% Genuine Silver/Gold</span>
               </div>
               <div className="flex items-center gap-2">
-                <RotateCcw className="w-4 h-4 text-sky-400 shrink-0" />
-                <span>Easy Exchanges</span>
+                <RotateCcw className="w-4 h-4 text-zinc-400 shrink-0" />
+                <span>7-Day Replacement</span>
               </div>
             </div>
 
           </div>
         </div>
 
-        {/* Embedded Personalization Builder if product is personalizable */}
-        {product.isPersonalizable && (
-          <div className="pt-8 border-t border-zinc-800">
+        {/* Live Personalizer Studio Component (If Open) */}
+        {showPersonalizer && (
+          <div className="pt-6">
             <PersonalizedProductBuilder
               product={product}
               selectedPackaging={selectedPackaging}
@@ -306,90 +385,234 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Customer Reviews & Form Section */}
-        <div className="pt-10 border-t border-zinc-800 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-serif font-bold text-zinc-100">Customer Reviews & Atelier Ratings</h3>
-              <p className="text-xs text-zinc-400 mt-0.5">Real verified purchases and unboxing feedback</p>
+        {/* Customer Reviews & Rating System Section */}
+        <div className="pt-12 border-t border-zinc-800 space-y-8">
+          
+          {/* Header & Rating Breakdown Banner */}
+          <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl p-6 sm:p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              {/* Left Score summary (4 cols) */}
+              <div className="lg:col-span-4 text-center lg:text-left space-y-2 border-b lg:border-b-0 lg:border-r border-zinc-800 pb-6 lg:pb-0 lg:pr-8">
+                <span className="text-[11px] uppercase tracking-widest font-mono text-amber-400 block font-bold">
+                  Verified Atelier Ratings
+                </span>
+                <div className="flex items-baseline justify-center lg:justify-start gap-2">
+                  <span className="text-5xl font-serif font-bold text-zinc-100">{avgRating}</span>
+                  <span className="text-sm font-mono text-zinc-500">/ 5.0</span>
+                </div>
+                <div className="flex items-center justify-center lg:justify-start gap-1 text-amber-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-5 h-5 ${i < Math.round(Number(avgRating)) ? 'fill-amber-400 text-amber-400' : 'text-zinc-700'}`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-400">
+                  Based on {totalReviewsCount} authentic reviews with verified purchase certificates
+                </p>
+              </div>
+
+              {/* Middle Breakdown Bars (5 cols) */}
+              <div className="lg:col-span-5 space-y-2">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const pct = getRatingPercentage(star);
+                  const count = getRatingCount(star);
+                  return (
+                    <div key={star} className="flex items-center gap-3 text-xs">
+                      <span className="font-mono text-zinc-400 w-12 flex items-center gap-1">
+                        <span>{star}</span>
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      </span>
+                      <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="font-mono text-zinc-500 text-[11px] w-8 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Right CTA / Quality Guarantee (3 cols) */}
+              <div className="lg:col-span-3 text-center lg:text-right space-y-2 bg-zinc-950/60 p-4 rounded-2xl border border-zinc-800">
+                <div className="flex items-center justify-center lg:justify-end gap-1.5 text-emerald-400 text-xs font-bold">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>100% Verified Buyers</span>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  Only customers with confirmed order numbers can leave stamped verification badges.
+                </p>
+              </div>
+
             </div>
           </div>
 
+          {/* Reviews List and Review Submission Form */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Reviews List (8 cols) */}
-            <div className="lg:col-span-8 space-y-4">
-              {reviews.map((rev) => (
-                <div key={rev.id} className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-zinc-200 text-xs">{rev.author}</p>
+            
+            {/* Reviews Feed (7 cols) */}
+            <div className="lg:col-span-7 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-200">
+                  Customer Reviews ({productReviews.length})
+                </h3>
+              </div>
+
+              {productReviews.length === 0 ? (
+                <div className="p-8 text-center bg-zinc-900/30 border border-zinc-800/60 rounded-2xl space-y-2">
+                  <MessageSquare className="w-8 h-8 text-zinc-600 mx-auto" />
+                  <p className="text-xs text-zinc-400">Be the first to review this handcrafted HARCONXS piece!</p>
+                </div>
+              ) : (
+                productReviews.map((rev) => (
+                  <div key={rev.id} className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-5 space-y-3 shadow-md">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-400 font-bold text-xs flex items-center justify-center">
+                          {rev.userName.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-zinc-200 text-xs">{rev.userName}</p>
+                          <span className="text-[10px] text-zinc-500 font-mono">{rev.date}</span>
+                        </div>
+                      </div>
+
                       {rev.verified && (
-                        <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/50">
+                        <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800">
                           <CheckCircle2 className="w-3 h-3" />
-                          Verified
+                          Verified Buyer
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-zinc-500">{rev.date}</span>
-                  </div>
 
-                  <div className="flex items-center gap-1 text-amber-400">
-                    {[...Array(rev.rating)].map((_, i) => (
-                      <Star key={i} className="w-3 h-3 fill-amber-400" />
-                    ))}
-                  </div>
+                    <div className="flex items-center gap-1 text-amber-400">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-3.5 h-3.5 ${i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-700'}`}
+                        />
+                      ))}
+                      {rev.title && (
+                        <span className="text-xs font-bold text-zinc-200 ml-2">{rev.title}</span>
+                      )}
+                    </div>
 
-                  <p className="text-xs text-zinc-300 leading-relaxed font-sans">{rev.comment}</p>
-                </div>
-              ))}
+                    <p className="text-xs text-zinc-300 leading-relaxed font-sans">{rev.comment}</p>
+
+                    {rev.images && rev.images.length > 0 && (
+                      <div className="flex items-center gap-2 pt-1">
+                        {rev.images.map((img, i) => (
+                          <img
+                            key={i}
+                            src={img}
+                            alt="Customer upload"
+                            className="w-16 h-16 rounded-lg object-cover border border-zinc-800"
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 text-[11px] text-zinc-500">
+                      <span>Helpful review?</span>
+                      <button
+                        onClick={() => handleLikeReview(rev.id)}
+                        className="flex items-center gap-1 text-zinc-400 hover:text-amber-400 transition-colors cursor-pointer"
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                        <span>{(rev.likes || 0) + (likedReviews[rev.id] || 0)} Helpful</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
-            {/* Write a review form (4 cols) */}
-            <div className="lg:col-span-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 space-y-4 h-fit">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-200">Share Your Experience</h4>
-              <form onSubmit={handleAddReview} className="space-y-3 text-xs">
+            {/* Write a review form (5 cols) */}
+            <div className="lg:col-span-5 bg-zinc-900/70 border border-zinc-800 rounded-3xl p-6 space-y-4 h-fit shadow-xl">
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-zinc-100 flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-400" />
+                  <span>Write a Product Review</span>
+                </h4>
+                <p className="text-xs text-zinc-400">Share your unboxing thoughts and laser engraving rating.</p>
+              </div>
+
+              <form onSubmit={handleAddReview} className="space-y-4 text-xs">
+                
+                {/* Interactive Star Rating Selector */}
                 <div>
-                  <label className="text-zinc-400 block mb-1">Your Name</label>
+                  <label className="text-zinc-300 block mb-1.5 font-medium">Overall Rating</label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        type="button"
+                        key={star}
+                        onClick={() => setNewReviewRating(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(null)}
+                        className="p-1 cursor-pointer transition-transform hover:scale-110"
+                        aria-label={`${star} star rating`}
+                      >
+                        <Star
+                          className={`w-6 h-6 ${
+                            (hoverRating !== null ? star <= hoverRating : star <= newReviewRating)
+                              ? 'fill-amber-400 text-amber-400'
+                              : 'text-zinc-700'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="font-mono text-xs font-bold text-amber-300 ml-2">
+                      {hoverRating !== null ? hoverRating : newReviewRating} / 5
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-zinc-300 block mb-1 font-medium">Review Title / Headline</label>
                   <input
                     type="text"
-                    value={newReviewName}
-                    onChange={(e) => setNewReviewName(e.target.value)}
-                    placeholder="e.g. Sarah Jenkins"
-                    required
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-zinc-100 outline-none focus:border-zinc-600"
+                    value={newReviewTitle}
+                    onChange={(e) => setNewReviewTitle(e.target.value)}
+                    placeholder="e.g. Stunning coordinates precision and luxury packaging"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-zinc-100 outline-none focus:border-amber-400 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="text-zinc-400 block mb-1">Rating</label>
-                  <select
-                    value={newReviewRating}
-                    onChange={(e) => setNewReviewRating(Number(e.target.value))}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-zinc-100 outline-none cursor-pointer"
-                  >
-                    <option value={5}>⭐⭐⭐⭐⭐ (5/5 Exceptional)</option>
-                    <option value={4}>⭐⭐⭐⭐ (4/5 Great)</option>
-                    <option value={3}>⭐⭐⭐ (3/5 Good)</option>
-                  </select>
+                  <label className="text-zinc-300 block mb-1 font-medium">Your Name / Order Name</label>
+                  <input
+                    type="text"
+                    value={newReviewName}
+                    onChange={(e) => setNewReviewName(e.target.value)}
+                    placeholder={currentUser ? currentUser.name : 'e.g. Ananya Sharma'}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-zinc-100 outline-none focus:border-amber-400 transition-colors"
+                    required
+                  />
                 </div>
 
                 <div>
-                  <label className="text-zinc-400 block mb-1">Review</label>
+                  <label className="text-zinc-300 block mb-1 font-medium">Detailed Feedback & Craftsmanship</label>
                   <textarea
                     value={newReviewText}
                     onChange={(e) => setNewReviewText(e.target.value)}
-                    rows={3}
-                    placeholder="How was the craftsmanship and packaging?"
+                    rows={4}
+                    placeholder="How was the engraving precision, weight, packaging box, and delivery speed?"
                     required
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-zinc-100 outline-none focus:border-zinc-600 resize-none"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-zinc-100 outline-none focus:border-amber-400 transition-colors resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-bold rounded-lg transition-colors cursor-pointer"
+                  className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/10 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Submit Review
+                  <Sparkles className="w-4 h-4 text-zinc-950" />
+                  <span>Publish Product Review</span>
                 </button>
               </form>
             </div>
