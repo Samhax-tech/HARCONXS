@@ -24,8 +24,12 @@ import {
   ShoppingBag,
   ExternalLink,
   Download,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  KeyRound,
+  Lock
 } from 'lucide-react';
+import { supabaseUpdatePassword, supabaseResetPasswordForEmail, supabaseResendVerification } from '../../lib/supabase';
 
 export const UserAccountDashboard: React.FC = () => {
   const {
@@ -34,6 +38,9 @@ export const UserAccountDashboard: React.FC = () => {
     orders,
     customOrders,
     coupleWebsites,
+    publishCoupleWebsite,
+    deleteCoupleWebsite,
+    setSelectedEditingProject,
     wishlist,
     products,
     tickets,
@@ -54,12 +61,62 @@ export const UserAccountDashboard: React.FC = () => {
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<
-    'tracking' | 'invoices' | 'orders' | 'emails' | 'wishlist' | 'custom' | 'websites' | 'affiliate' | 'loyalty' | 'support' | 'overview'
+    'tracking' | 'invoices' | 'orders' | 'emails' | 'wishlist' | 'custom' | 'websites' | 'affiliate' | 'loyalty' | 'support' | 'security' | 'overview'
   >('tracking');
 
   const [hasCopiedAffiliate, setHasCopiedAffiliate] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
+
+  // Security tab state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'Password must be at least 6 characters long.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+    setIsUpdatingPassword(true);
+    setPasswordMsg(null);
+    const { success, error } = await supabaseUpdatePassword(newPassword);
+    setIsUpdatingPassword(false);
+    if (success) {
+      setPasswordMsg({ type: 'success', text: 'Password updated successfully.' });
+      setNewPassword('');
+      setConfirmPassword('');
+      showToast('Password updated in Supabase Auth.');
+    } else {
+      setPasswordMsg({ type: 'error', text: error?.message || 'Failed to update password.' });
+    }
+  };
+
+  const handleSendResetEmail = async () => {
+    if (!currentUser?.email) return;
+    const { success, error } = await supabaseResetPasswordForEmail(currentUser.email);
+    if (success) {
+      showToast(`Password recovery link dispatched to ${currentUser.email}.`);
+    } else {
+      showToast(error?.message || 'Failed to send reset link.');
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!currentUser?.email) return;
+    const { success, error } = await supabaseResendVerification(currentUser.email);
+    if (success) {
+      showToast(`Verification email resent to ${currentUser.email}.`);
+    } else {
+      showToast(error?.message || 'Failed to resend verification email.');
+    }
+  };
 
   // IF NOT LOGGED IN
   if (!isUserLoggedIn || !currentUser) {
@@ -198,6 +255,7 @@ export const UserAccountDashboard: React.FC = () => {
             { id: 'affiliate', label: 'Affiliate Portal', icon: DollarSign },
             { id: 'loyalty', label: 'Loyalty Rewards', icon: Gift },
             { id: 'support', label: `Support Tickets (${tickets.length})`, icon: MessageSquare },
+            { id: 'security', label: 'Security & Supabase Auth', icon: Shield },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -554,34 +612,178 @@ export const UserAccountDashboard: React.FC = () => {
         {/* 7. COUPLE WEBSITES TAB */}
         {activeTab === 'websites' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-serif font-bold text-zinc-100">Your Live Couple Sanctuaries</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-serif font-bold text-zinc-100">Your Couple Sanctuaries & Domains</h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Manage your personalized couple websites, subdomains, timeline memories, and guestbook wishes.
+                </p>
+              </div>
               <button
-                onClick={() => setCurrentView('couple-websites')}
-                className="px-4 py-2 bg-amber-500 text-zinc-950 font-bold text-xs rounded-xl cursor-pointer"
+                onClick={() => {
+                  setSelectedEditingProject(null);
+                  setCurrentView('couple-websites');
+                }}
+                className="px-4 py-2.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1.5 shadow-lg shadow-rose-600/20"
               >
-                Create Couple Website
+                <Heart className="w-3.5 h-3.5 fill-white" />
+                <span>Create New Sanctuary</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {coupleWebsites.map(ws => (
-                <div key={ws.id} className="p-6 bg-zinc-900/60 border border-zinc-800 rounded-3xl space-y-4 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="font-mono text-emerald-400 font-bold">{ws.domain}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-[10px] text-emerald-400 border border-emerald-800">
-                      {ws.status}
-                    </span>
-                  </div>
-                  <h3 className="font-serif font-bold text-base text-zinc-100">{ws.partner1Name} & {ws.partner2Name}</h3>
-                  <p className="text-zinc-400 line-clamp-2">{ws.story}</p>
-                  <div className="pt-2 border-t border-zinc-800 flex justify-between items-center text-zinc-500">
-                    <span>Anniversary: {ws.anniversaryDate}</span>
-                    <span className="font-mono">Template: {ws.templateId}</span>
-                  </div>
+            {coupleWebsites.length === 0 ? (
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-3xl p-12 text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto">
+                  <Heart className="w-7 h-7" />
                 </div>
-              ))}
-            </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-serif font-bold text-zinc-100">No Couple Sanctuaries Yet</h3>
+                  <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                    Design a dedicated couple website with live anniversary countdown, photo galleries, romantic soundtrack, and guestbook wall.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedEditingProject(null);
+                    setCurrentView('couple-websites');
+                  }}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl cursor-pointer inline-flex items-center gap-2"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Explore Themes & Build Sanctuary</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {coupleWebsites.map(ws => {
+                  const liveUrl = `https://${ws.subdomain}.harconxsshop.com`;
+                  const isLive = ws.isPublished !== false && ws.status === 'active';
+
+                  return (
+                    <div
+                      key={ws.id}
+                      className="bg-zinc-900/70 border border-zinc-800 hover:border-zinc-700 rounded-3xl p-6 space-y-5 text-xs shadow-xl transition-all"
+                    >
+                      {/* Top Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-serif font-bold text-lg text-zinc-100">
+                              {ws.partner1Name} & {ws.partner2Name}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                                isLive
+                                  ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800'
+                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                              }`}
+                            >
+                              {isLive ? '● Live Online' : 'Draft / Paused'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-zinc-400 font-mono text-[11px]">
+                            <Globe className="w-3.5 h-3.5 text-amber-400" />
+                            <a
+                              href={liveUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-amber-400 hover:underline flex items-center gap-1"
+                            >
+                              <span>{ws.customDomain || `${ws.subdomain}.harconxsshop.com`}</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Thumbnail / Hero Photo */}
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 shrink-0">
+                          <img
+                            src={
+                              ws.photos?.[0] ||
+                              'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=400&auto=format&fit=crop&q=80'
+                            }
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Tagline / Story summary */}
+                      <p className="text-zinc-300 italic font-sans line-clamp-2">
+                        "{ws.heroTagline || ws.ourStoryText || 'Forever in love.'}"
+                      </p>
+
+                      {/* Stats & Metadata */}
+                      <div className="grid grid-cols-3 gap-2 py-3 border-y border-zinc-800/80 text-center">
+                        <div className="bg-zinc-950/60 p-2 rounded-xl border border-zinc-800/80">
+                          <span className="font-mono text-sm font-bold text-zinc-200">{ws.views || 1}</span>
+                          <span className="text-[10px] text-zinc-500 block">Unique Views</span>
+                        </div>
+                        <div className="bg-zinc-950/60 p-2 rounded-xl border border-zinc-800/80">
+                          <span className="font-mono text-sm font-bold text-rose-400">{ws.heartsGiven || 1}</span>
+                          <span className="text-[10px] text-zinc-500 block">Hearts Sent</span>
+                        </div>
+                        <div className="bg-zinc-950/60 p-2 rounded-xl border border-zinc-800/80">
+                          <span className="font-mono text-sm font-bold text-amber-400">
+                            {ws.guestbook?.length || 0}
+                          </span>
+                          <span className="text-[10px] text-zinc-500 block">Guest Notes</span>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedEditingProject(ws);
+                              setCurrentView('couple-websites');
+                            }}
+                            className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <span>Edit Studio</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(liveUrl);
+                              showToast('Unique Sanctuary URL copied to clipboard!');
+                            }}
+                            className="p-2 bg-zinc-950 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-xl cursor-pointer"
+                            title="Copy Link"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => publishCoupleWebsite(ws.id, !isLive)}
+                            className={`px-3 py-1.5 rounded-xl border text-[11px] font-semibold cursor-pointer transition-all ${
+                              isLive
+                                ? 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-amber-300'
+                                : 'bg-emerald-950 border-emerald-800 text-emerald-400 hover:bg-emerald-900'
+                            }`}
+                          >
+                            {isLive ? 'Pause (Draft)' : 'Publish Live'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this couple sanctuary?')) {
+                                deleteCoupleWebsite(ws.id);
+                              }
+                            }}
+                            className="p-2 text-zinc-600 hover:text-rose-400 rounded-xl hover:bg-rose-950/30 transition-all cursor-pointer"
+                            title="Delete Sanctuary"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -673,6 +875,136 @@ export const UserAccountDashboard: React.FC = () => {
                   <p className="text-zinc-400">{t.messages[0]?.text}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* 11. SECURITY & AUTHENTICATION TAB */}
+        {activeTab === 'security' && (
+          <div className="max-w-2xl bg-zinc-900/60 border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-amber-400" />
+                <h3 className="text-lg font-serif font-bold text-zinc-100">Supabase Security & Account Access</h3>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Manage your credentials, encrypted sessions, password recovery, and email verification.
+              </p>
+            </div>
+
+            {/* Account Info Details */}
+            <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-800 space-y-3 text-xs">
+              <div className="flex justify-between items-center py-1 border-b border-zinc-800/80">
+                <span className="text-zinc-400">Authentication Provider:</span>
+                <span className="font-mono text-amber-400 font-bold">Supabase Auth (PostgreSQL)</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-zinc-800/80">
+                <span className="text-zinc-400">Account Email:</span>
+                <span className="font-mono text-zinc-200">{currentUser.email}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-zinc-800/80">
+                <span className="text-zinc-400">User Identifier:</span>
+                <span className="font-mono text-zinc-400">{currentUser.id}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-zinc-400">Session Persistence:</span>
+                <span className="text-emerald-400 flex items-center gap-1 font-mono">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Active (Auto-refresh tokens)
+                </span>
+              </div>
+            </div>
+
+            {/* Password Update Form */}
+            <div className="p-5 bg-zinc-950 rounded-2xl border border-zinc-800 space-y-4">
+              <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                <KeyRound className="w-4 h-4 text-amber-400" />
+                <span>Update Password</span>
+              </h4>
+
+              {passwordMsg && (
+                <div
+                  className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                    passwordMsg.type === 'success'
+                      ? 'bg-emerald-950/40 border border-emerald-800/80 text-emerald-300'
+                      : 'bg-rose-950/40 border border-rose-800/80 text-rose-300'
+                  }`}
+                >
+                  {passwordMsg.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  )}
+                  <span>{passwordMsg.text}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleUpdatePassword} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-300 uppercase tracking-wider mb-1">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="At least 6 characters"
+                      required
+                      minLength={6}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 pl-10 pr-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-300 uppercase tracking-wider mb-1">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      required
+                      minLength={6}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 pl-10 pr-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isUpdatingPassword}
+                  className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer disabled:opacity-50"
+                >
+                  {isUpdatingPassword ? 'Updating Password in Supabase...' : 'Save New Password'}
+                </button>
+              </form>
+            </div>
+
+            {/* Recovery & Email Actions */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleSendResetEmail}
+                className="p-3.5 bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 hover:border-zinc-700 rounded-2xl text-xs text-zinc-200 font-medium transition-all text-left space-y-1 cursor-pointer"
+              >
+                <span className="font-bold text-zinc-100 block">Send Reset Link</span>
+                <span className="text-[11px] text-zinc-400 block">Dispatches a recovery magic link to {currentUser.email}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                className="p-3.5 bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 hover:border-zinc-700 rounded-2xl text-xs text-zinc-200 font-medium transition-all text-left space-y-1 cursor-pointer"
+              >
+                <span className="font-bold text-zinc-100 block">Resend Email Verification</span>
+                <span className="text-[11px] text-zinc-400 block">Request confirmation email for unverified accounts</span>
+              </button>
             </div>
           </div>
         )}

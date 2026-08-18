@@ -20,14 +20,43 @@ export interface ProductVariant {
 export interface ProductReview {
   id: string;
   productId: string;
+  orderId?: string;
+  orderItemId?: string;
+  userId?: string;
   userName: string;
+  userEmail?: string;
+  userAvatar?: string;
   rating: number;
   title: string;
   comment: string;
+  review?: string; // alias for comment
   date: string;
+  createdAt?: string;
+  updatedAt?: string;
   verified: boolean;
-  likes: number;
+  verifiedPurchase?: boolean; // alias for verified
+  likes: number; // alias for helpfulVotes
+  helpfulVotes?: number;
+  helpfulUserIds?: string[];
   images?: string[];
+  customerImages?: string[]; // alias for images
+  status?: 'approved' | 'pending' | 'rejected' | 'hidden';
+  isFeatured?: boolean;
+  reported?: boolean;
+  reportReason?: string;
+  reportCount?: number;
+  adminNotes?: string;
+}
+
+export type ReviewModerationStatus = 'approved' | 'pending' | 'rejected' | 'hidden';
+
+export interface ReviewReportSubmission {
+  reviewId: string;
+  reason: 'spam' | 'inappropriate' | 'fake' | 'irrelevant' | 'personal_info' | 'other';
+  reasonText: string;
+  details?: string;
+  reportedBy?: string;
+  createdAt: string;
 }
 
 export interface Product {
@@ -136,7 +165,7 @@ export interface Order {
   total: number;
   currency: string;
   status: OrderStatus;
-  paymentMethod: 'card' | 'paypal' | 'apple_pay' | 'google_pay' | 'cod' | 'crypto';
+  paymentMethod: 'card' | 'paypal' | 'apple_pay' | 'google_pay' | 'cod' | 'crypto' | 'upi' | 'netbanking';
   paymentStatus: 'paid' | 'pending' | 'failed' | 'refunded';
   shippingAddress: {
     fullName: string;
@@ -171,6 +200,8 @@ export interface CustomOrderQuote {
   packagingIncluded: string;
   validUntil: string;
   status: 'pending_review' | 'accepted' | 'rejected' | 'revised';
+  designProofUrl?: string;
+  revisedReason?: string;
 }
 
 export interface CustomOrderMessage {
@@ -198,7 +229,12 @@ export interface CustomOrder {
   preferredStyle: string;
   uploadedFiles: string[];
   selectedPackagingId?: string;
+  giftNote?: string;
   targetDeliveryDate?: string;
+  carrier?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  designProofUrl?: string;
   status: CustomOrderStatus;
   quote?: CustomOrderQuote;
   messages: CustomOrderMessage[];
@@ -206,16 +242,42 @@ export interface CustomOrder {
   updatedAt: string;
 }
 
+export type CoupleThemeCategory = 'Romantic' | 'Minimal' | 'Luxury' | 'Cute' | 'Dark' | 'Elegant' | 'Anniversary' | 'Wedding' | 'Proposal' | 'Long Distance';
+
 export interface CoupleWebsiteTemplate {
   id: string;
   name: string;
-  themeCategory: 'Romantic' | 'Minimal' | 'Luxury' | 'Cute' | 'Dark' | 'Elegant' | 'Anniversary' | 'Wedding' | 'Proposal';
+  version?: string;
+  themeCategory: CoupleThemeCategory;
   description: string;
   price: number;
   previewImage: string;
   demoSubdomain: string;
   features: string[];
   popular?: boolean;
+  tags?: string[];
+  isActive?: boolean;
+  colorPalette?: string[];
+  defaultFont?: string;
+  releaseDate?: string;
+}
+
+export interface CoupleMemoryItem {
+  id: string;
+  title: string;
+  date: string;
+  description: string;
+  image?: string;
+  location?: string;
+}
+
+export interface CoupleGuestbookEntry {
+  id: string;
+  author: string;
+  message: string;
+  date: string;
+  heartsCount?: number;
+  approved?: boolean;
 }
 
 export interface CoupleWebsiteProject {
@@ -223,32 +285,31 @@ export interface CoupleWebsiteProject {
   customerId: string;
   subdomain: string;
   templateId: string;
+  templateName?: string;
   partner1Name: string;
   partner2Name: string;
+  partner1Photo?: string;
+  partner2Photo?: string;
   anniversaryDate: string;
   ourStoryTitle: string;
   ourStoryText: string;
   heroTagline: string;
   primaryColor: string;
+  secondaryColor?: string;
   fontStyle: string;
   musicTrack?: string;
+  musicTitle?: string;
+  videoUrl?: string;
+  secretMessage?: string;
   photos: string[];
-  memories: {
-    id: string;
-    title: string;
-    date: string;
-    description: string;
-    image?: string;
-  }[];
-  guestbook: {
-    id: string;
-    author: string;
-    message: string;
-    date: string;
-  }[];
+  memories: CoupleMemoryItem[];
+  guestbook: CoupleGuestbookEntry[];
   status: 'active' | 'draft' | 'expired';
+  isPublished?: boolean;
   customDomain?: string;
   views: number;
+  heartsGiven?: number;
+  qrCodeUrl?: string;
   createdAt: string;
   expiresAt: string;
 }

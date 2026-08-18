@@ -1,18 +1,13 @@
 import React, { useState } from 'react';
-import { Search, ShoppingBag, Heart, Sparkles, Menu, X, LogIn, Truck, Shield } from 'lucide-react';
-import { useStore, CurrencyCode } from '../../context/StoreContext';
-import { CategoryType } from '../../types';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Search, ShoppingBag, Heart, Sparkles, Menu, X, LogIn, Truck, Shield, User } from 'lucide-react';
+import { useStore } from '../../context/StoreContext';
 
 export const Navbar: React.FC = () => {
   const {
-    currentView,
-    setCurrentView,
-    setSelectedCategory,
     cart,
     setIsCartOpen,
     wishlist,
-    currency,
-    setCurrency,
     isAdminMode,
     setIsAdminMode,
     isAdminAuthenticated,
@@ -25,93 +20,62 @@ export const Navbar: React.FC = () => {
   } = useStore();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
-  const handleNavClick = (view: string, category?: CategoryType | 'all') => {
-    if (category) {
-      setSelectedCategory(category);
+  const handleAdminToggle = () => {
+    if (isAdminAuthenticated) {
+      navigate('/admin');
+    } else {
+      setIsAdminLoginModalOpen(true);
     }
-    setCurrentView(view);
-    setIsMobileMenuOpen(false);
   };
 
-  const handleAdminToggle = () => {
-    if (isAdminMode) {
-      setIsAdminMode(false);
-      setCurrentView('home');
-    } else {
-      if (isAdminAuthenticated) {
-        setIsAdminMode(true);
-        setCurrentView('admin');
-      } else {
-        setIsAdminLoginModalOpen(true);
-      }
-    }
-  };
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors ${
+      isActive
+        ? 'text-white bg-zinc-800 font-semibold'
+        : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+    }`;
 
   return (
     <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
         {/* ZONE 1: BRAND TITLE (Single line text element) */}
-        <button
-          onClick={() => handleNavClick('home', 'all')}
-          className="text-left font-serif text-xl font-bold tracking-wider text-zinc-100 hover:text-white transition-colors uppercase whitespace-nowrap shrink-0 cursor-pointer"
+        <Link
+          to="/"
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="text-left font-serif text-xl font-bold tracking-wider text-zinc-100 hover:text-white transition-colors uppercase whitespace-nowrap shrink-0"
         >
           HARCONXS
-        </button>
+        </Link>
 
         {/* ZONE 2: 4-6 NAV LINKS (1-2 word labels, single line) */}
         <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
-          <button
-            onClick={() => handleNavClick('catalog', 'all')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors cursor-pointer ${
-              currentView === 'catalog' ? 'text-white bg-zinc-800' : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
-            }`}
-          >
+          <NavLink to="/shop" className={navLinkClass}>
             Shop
-          </button>
-          <button
-            onClick={() => handleNavClick('catalog', 'couples')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors cursor-pointer ${
-              currentView === 'catalog' ? 'text-rose-400 bg-zinc-900' : 'text-zinc-300 hover:text-rose-300 hover:bg-zinc-900'
-            }`}
-          >
+          </NavLink>
+          <NavLink to="/shop/couples" className={navLinkClass}>
             Couples
-          </button>
-          <button
-            onClick={() => handleNavClick('custom-builder')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors cursor-pointer ${
-              currentView === 'custom-builder' ? 'text-amber-300 bg-zinc-800' : 'text-zinc-300 hover:text-amber-300 hover:bg-zinc-900'
-            }`}
-          >
+          </NavLink>
+          <NavLink to="/custom-products" className={navLinkClass}>
             Custom Orders
-          </button>
-          <button
-            onClick={() => handleNavClick('couple-builder')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors cursor-pointer ${
-              currentView === 'couple-builder' ? 'text-rose-300 bg-zinc-800' : 'text-zinc-300 hover:text-rose-300 hover:bg-zinc-900'
-            }`}
-          >
+          </NavLink>
+          <NavLink to="/couple-websites" className={navLinkClass}>
             Couple Websites
-          </button>
-          <button
-            onClick={() => handleNavClick('about-us')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors cursor-pointer ${
-              currentView === 'about-us' ? 'text-amber-400 bg-zinc-800' : 'text-zinc-300 hover:text-amber-300 hover:bg-zinc-900'
-            }`}
-          >
+          </NavLink>
+          <NavLink to="/bot-panels" className={navLinkClass}>
+            Bot Panels
+          </NavLink>
+          <NavLink to="/about" className={navLinkClass}>
             About Us
-          </button>
-          <button
-            onClick={() => handleNavClick('contact-us')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors cursor-pointer ${
-              currentView === 'contact-us' ? 'text-zinc-100 bg-zinc-800' : 'text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900'
-            }`}
-          >
+          </NavLink>
+          <NavLink to="/contact" className={navLinkClass}>
             Contact
-          </button>
+          </NavLink>
         </nav>
 
         {/* ZONE 3: ACTIONS */}
@@ -142,9 +106,9 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Wishlist */}
-          <button
-            onClick={() => handleNavClick('account')}
-            className="relative p-2 text-zinc-300 hover:text-rose-400 transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
+          <Link
+            to="/account/wishlist"
+            className="relative p-2 text-zinc-300 hover:text-rose-400 transition-colors rounded-lg hover:bg-zinc-900"
             title="Saved Wishlist"
             aria-label="Wishlist"
           >
@@ -154,9 +118,9 @@ export const Navbar: React.FC = () => {
                 {wishlist.length}
               </span>
             )}
-          </button>
+          </Link>
 
-          {/* Cart Drawer Trigger */}
+          {/* Cart Drawer Trigger / Link */}
           <button
             onClick={() => setIsCartOpen(true)}
             className="relative p-2 text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
@@ -173,40 +137,40 @@ export const Navbar: React.FC = () => {
 
           {/* User Sign In / Account Button */}
           {isUserLoggedIn && currentUser ? (
-            <button
-              onClick={() => handleNavClick('account')}
-              className="flex items-center gap-1.5 p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-xs text-zinc-200 cursor-pointer transition-colors"
+            <Link
+              to="/account"
+              className="flex items-center gap-1.5 p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-xs text-zinc-200 transition-colors"
               title="My Account"
             >
               <div className="w-6 h-6 rounded-lg bg-amber-500 text-zinc-950 font-bold text-[11px] flex items-center justify-center">
                 {currentUser.name.charAt(0)}
               </div>
               <span className="hidden sm:inline font-medium max-w-[80px] truncate">{currentUser.name.split(' ')[0]}</span>
-            </button>
+            </Link>
           ) : (
-            <button
-              onClick={() => openAuthModalWithAction()}
-              className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 rounded-xl text-xs text-zinc-200 font-semibold cursor-pointer transition-all"
+            <Link
+              to="/login"
+              className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 rounded-xl text-xs text-zinc-200 font-semibold transition-all"
             >
               <LogIn className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden sm:inline">Sign In</span>
-            </button>
+            </Link>
           )}
 
-          {/* Hidden Admin Indicator - Only shown when authenticated as Admin */}
+          {/* Admin Indicator */}
           {isAdminAuthenticated && (
-            <button
-              onClick={handleAdminToggle}
-              className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                isAdminMode
+            <Link
+              to="/admin"
+              className={`p-2 rounded-lg transition-colors ${
+                location.pathname.startsWith('/admin')
                   ? 'text-amber-400 bg-amber-500/20 border border-amber-500/40'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
               }`}
-              title="HAX Portal Active"
+              title="HAX Admin Portal"
               aria-label="Admin Atelier Console"
             >
               <Shield className="w-4 h-4" />
-            </button>
+            </Link>
           )}
 
           {/* Mobile Menu Toggle */}
@@ -224,81 +188,114 @@ export const Navbar: React.FC = () => {
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-zinc-950 border-b border-zinc-800 px-4 pt-2 pb-4 space-y-2">
           <div className="flex flex-col gap-1">
-            <button
-              onClick={() => handleNavClick('catalog', 'all')}
+            <Link
+              to="/shop"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 rounded-md"
             >
               All Products
-            </button>
-            <button
-              onClick={() => handleNavClick('catalog', 'couples')}
+            </Link>
+            <Link
+              to="/shop/couples"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-rose-300 hover:bg-zinc-900 rounded-md font-medium"
             >
               Couples & Personalized
-            </button>
-            <button
-              onClick={() => handleNavClick('catalog', 'men')}
+            </Link>
+            <Link
+              to="/shop/men"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 rounded-md"
             >
               Men's Collection
-            </button>
-            <button
-              onClick={() => handleNavClick('catalog', 'women')}
+            </Link>
+            <Link
+              to="/shop/women"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 rounded-md"
             >
               Women's Collection
-            </button>
-            <button
-              onClick={() => handleNavClick('catalog', 'unisex')}
+            </Link>
+            <Link
+              to="/shop/unisex"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 rounded-md"
             >
               Unisex Carry Gear
-            </button>
-            <button
-              onClick={() => handleNavClick('custom-builder')}
+            </Link>
+            <Link
+              to="/custom-products"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-amber-300 hover:bg-zinc-900 rounded-md font-medium"
             >
               Create Custom Order
-            </button>
-            <button
-              onClick={() => handleNavClick('couple-builder')}
+            </Link>
+            <Link
+              to="/couple-websites"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-rose-300 hover:bg-zinc-900 rounded-md"
             >
               Couple Website Builder
-            </button>
-            <button
-              onClick={() => handleNavClick('about-us')}
+            </Link>
+            <Link
+              to="/bot-panels"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 rounded-md"
+            >
+              Bot Panels & APIs
+            </Link>
+            <Link
+              to="/about"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-amber-400 hover:bg-zinc-900 rounded-md"
             >
-              About Us & YouTube Videos
-            </button>
-            <button
-              onClick={() => handleNavClick('contact-us')}
+              About Us & Story
+            </Link>
+            <Link
+              to="/contact"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 rounded-md"
             >
               Contact Us & Support
-            </button>
-            <button
-              onClick={() => handleNavClick('tracking')}
+            </Link>
+            <Link
+              to="/faq"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-900 rounded-md"
+            >
+              FAQ & Help Center
+            </Link>
+            <Link
+              to="/reviews"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-900 rounded-md"
+            >
+              Customer Reviews
+            </Link>
+            <Link
+              to="/account/orders"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-amber-400 hover:bg-zinc-900 rounded-md font-medium flex items-center justify-between"
             >
               <span>Live Order Tracking</span>
               <Truck className="w-4 h-4 text-amber-400" />
-            </button>
-            <button
-              onClick={() => handleNavClick('account')}
+            </Link>
+            <Link
+              to="/account"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-900 rounded-md"
             >
               My Account & Orders
-            </button>
+            </Link>
             {isAdminAuthenticated && (
-              <button
-                onClick={handleAdminToggle}
+              <Link
+                to="/admin"
+                onClick={() => setIsMobileMenuOpen(false)}
                 className="text-left px-3 py-2 text-sm text-amber-400 bg-amber-950/30 rounded-md font-medium flex items-center justify-between"
               >
-                <span>{isAdminMode ? 'Exit Admin Mode' : 'HAX Admin Portal'}</span>
+                <span>HAX Admin Portal</span>
                 <Shield className="w-4 h-4" />
-              </button>
+              </Link>
             )}
           </div>
         </div>

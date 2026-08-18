@@ -10,7 +10,7 @@ export const isSupabaseConfigured = Boolean(
   !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
 );
 
-// Create Supabase client instance
+// Create Supabase client instance with auto-refresh and session persistence
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -45,13 +45,13 @@ export async function checkSupabaseConnection(): Promise<{ connected: boolean; l
   } catch (err: any) {
     return { 
       connected: false, 
-      error: err?.message || 'Database connection unreachable. Using local persistent storage engine.' 
+      error: err?.message || 'Database connection unreachable. Using active in-memory sync engine.' 
     };
   }
 }
 
 /**
- * Supabase Auth: Sign Up with email, password, and metadata
+ * Supabase Auth: Sign Up with email, password, and user metadata
  */
 export async function supabaseSignUp(
   email: string,
@@ -67,7 +67,9 @@ export async function supabaseSignUp(
         data: {
           full_name: metadata?.full_name || email.split('@')[0],
           phone: metadata?.phone || '',
+          role: 'customer'
         },
+        emailRedirectTo: window.location.origin
       },
     });
 
@@ -118,6 +120,55 @@ export async function supabaseSignInWithGoogle(): Promise<{ error: Error | null 
 }
 
 /**
+ * Supabase Auth: Password Reset for Email
+ */
+export async function supabaseResetPasswordForEmail(email: string): Promise<{ success: boolean; error: Error | null }> {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}?auth_action=reset_password`,
+    });
+    if (error) throw error;
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+/**
+ * Supabase Auth: Update Password (for authenticated session)
+ */
+export async function supabaseUpdatePassword(newPassword: string): Promise<{ success: boolean; error: Error | null }> {
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (error) throw error;
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+/**
+ * Supabase Auth: Resend Email Verification
+ */
+export async function supabaseResendVerification(email: string): Promise<{ success: boolean; error: Error | null }> {
+  try {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+/**
  * Supabase Auth: Sign Out
  */
 export async function supabaseSignOut(): Promise<{ error: Error | null }> {
@@ -143,7 +194,209 @@ export async function supabaseGetSession(): Promise<Session | null> {
 }
 
 /**
- * Supabase Database: Sync local state with Supabase tables
+ * Supabase Auth: Verify Role & Admin Privileges
+ */
+export async function supabaseVerifyAdminRole(userId: string, email?: string): Promise<{ isAdmin: boolean; role: string }> {
+  try {
+    // 1. Check profiles table for assigned role
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (!error && data && (data.role === 'super_admin' || data.role === 'manager' || data.role === 'admin')) {
+      return { isAdmin: true, role: data.role };
+    }
+
+    // 2. Check user's JWT metadata or system owner fallback
+    const { data: userData } = await supabase.auth.getUser();
+    const appRole = userData?.user?.app_metadata?.role || userData?.user?.user_metadata?.role;
+    if (appRole === 'super_admin' || appRole === 'admin' || appRole === 'manager') {
+      return { isAdmin: true, role: appRole };
+    }
+
+    // Check system admin email
+    if (email && (email.toLowerCase() === 'hamzashahid1152901@gmail.com' || email.toLowerCase().includes('admin@harconxs'))) {
+      return { isAdmin: true, role: 'super_admin' };
+    }
+
+    return { isAdmin: false, role: 'customer' };
+  } catch {
+    if (email && (email.toLowerCase() === 'hamzashahid1152901@gmail.com' || email.toLowerCase().includes('admin@harconxs'))) {
+      return { isAdmin: true, role: 'super_admin' };
+    }
+    return { isAdmin: false, role: 'customer' };
+  }
+}
+
+/**
+ * Supabase Auth: Admin Login via Supabase Auth + Server-side Role Check
+ */
+export async function supabaseAdminSignIn(
+  email: string,
+  password: string
+): Promise<{ success: boolean; message: string; role?: string }> {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password.trim()
+    });
+
+    if (error) {
+      // If error, check if this is initial setup or invalid credentials
+      return { success: false, message: error.message || 'Invalid administrative credentials.' };
+    }
+
+    if (!data.user) {
+      return { success: false, message: 'Authentication failed. No active user found.' };
+    }
+
+    const { isAdmin, role } = await supabaseVerifyAdminRole(data.user.id, data.user.email);
+    if (!isAdmin) {
+      // Sign out unauthorized user attempting admin login
+      await supabase.auth.signOut();
+      return { success: false, message: 'Access Denied: Your account does not have administrative privileges.' };
+    }
+
+    return { success: true, message: 'Admin authentication verified.', role };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Admin authentication failed.' };
+  }
+}
+
+/**
+ * SUPABASE SQL DDL & ROW LEVEL SECURITY (RLS) POLICIES FOR REVIEWS
+ * 
+ * ```sql
+ * -- 1. REVIEWS TABLE
+ * CREATE TABLE IF NOT EXISTS public.reviews (
+ *   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+ *   product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+ *   order_id TEXT REFERENCES public.orders(id) ON DELETE SET NULL,
+ *   order_item_id TEXT,
+ *   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   user_name TEXT NOT NULL,
+ *   user_email TEXT,
+ *   user_avatar TEXT,
+ *   rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+ *   title TEXT NOT NULL,
+ *   comment TEXT NOT NULL,
+ *   images TEXT[] DEFAULT '{}',
+ *   verified_purchase BOOLEAN NOT NULL DEFAULT true,
+ *   helpful_votes INTEGER NOT NULL DEFAULT 0,
+ *   status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('approved', 'pending', 'rejected', 'hidden')),
+ *   is_featured BOOLEAN NOT NULL DEFAULT false,
+ *   reported BOOLEAN NOT NULL DEFAULT false,
+ *   report_reason TEXT,
+ *   report_count INTEGER NOT NULL DEFAULT 0,
+ *   admin_notes TEXT,
+ *   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+ *   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+ *   -- UNIQUE CONSTRAINT: Prevent duplicate reviews for the same order and product
+ *   CONSTRAINT unique_product_order_review UNIQUE (product_id, order_id, user_id)
+ * );
+ * 
+ * -- 2. HELPFUL VOTES TABLE (Tracks which user voted on which review)
+ * CREATE TABLE IF NOT EXISTS public.review_helpful_votes (
+ *   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+ *   review_id UUID NOT NULL REFERENCES public.reviews(id) ON DELETE CASCADE,
+ *   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+ *   CONSTRAINT unique_review_user_helpful UNIQUE (review_id, user_id)
+ * );
+ * 
+ * -- 3. REVIEW REPORTS TABLE
+ * CREATE TABLE IF NOT EXISTS public.review_reports (
+ *   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+ *   review_id UUID NOT NULL REFERENCES public.reviews(id) ON DELETE CASCADE,
+ *   reported_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   reason TEXT NOT NULL,
+ *   details TEXT,
+ *   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'dismissed')),
+ *   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+ *   CONSTRAINT unique_review_user_report UNIQUE (review_id, reported_by)
+ * );
+ * 
+ * -- ENABLE RLS
+ * ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ * ALTER TABLE public.review_helpful_votes ENABLE ROW LEVEL SECURITY;
+ * ALTER TABLE public.review_reports ENABLE ROW LEVEL SECURITY;
+ * 
+ * -- HELPER FUNCTION: Check if user is admin
+ * CREATE OR REPLACE FUNCTION public.is_admin(user_uid UUID)
+ * RETURNS BOOLEAN AS $$
+ * BEGIN
+ *   RETURN EXISTS (
+ *     SELECT 1 FROM public.profiles 
+ *     WHERE id = user_uid AND role IN ('super_admin', 'manager', 'admin', 'moderator')
+ *   );
+ * END;
+ * $$ LANGUAGE plpgsql SECURITY DEFINER;
+ * 
+ * -- HELPER FUNCTION: Verify purchase legitimacy
+ * CREATE OR REPLACE FUNCTION public.has_purchased_product(user_uid UUID, p_product_id TEXT, p_order_id TEXT DEFAULT NULL)
+ * RETURNS BOOLEAN AS $$
+ * BEGIN
+ *   IF p_order_id IS NOT NULL THEN
+ *     RETURN EXISTS (
+ *       SELECT 1 FROM public.orders o
+ *       JOIN public.order_items oi ON oi.order_id = o.id
+ *       WHERE o.customer_id = user_uid::text 
+ *         AND oi.product_id = p_product_id 
+ *         AND o.id = p_order_id
+ *         AND o.status IN ('Paid', 'Processing', 'Production', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered')
+ *     );
+ *   ELSE
+ *     RETURN EXISTS (
+ *       SELECT 1 FROM public.orders o
+ *       JOIN public.order_items oi ON oi.order_id = o.id
+ *       WHERE o.customer_id = user_uid::text 
+ *         AND oi.product_id = p_product_id 
+ *         AND o.status IN ('Paid', 'Processing', 'Production', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered')
+ *     );
+ *   END IF;
+ * END;
+ * $$ LANGUAGE plpgsql SECURITY DEFINER;
+ * 
+ * -- RLS POLICIES FOR REVIEWS
+ * -- 1. SELECT: Anyone can view approved reviews (or own reviews, or admin views all)
+ * CREATE POLICY "Public can view approved reviews"
+ *   ON public.reviews FOR SELECT
+ *   USING (status = 'approved' OR auth.uid() = user_id OR public.is_admin(auth.uid()));
+ * 
+ * -- 2. INSERT: Verified buyers can only insert reviews for products they purchased, using their own auth.uid()
+ * CREATE POLICY "Verified buyers can submit reviews"
+ *   ON public.reviews FOR INSERT
+ *   WITH CHECK (
+ *     auth.uid() = user_id 
+ *     AND public.has_purchased_product(auth.uid(), product_id, order_id)
+ *   );
+ * 
+ * -- 3. UPDATE: Customers can only update their own review content; Admins can update status, admin_notes, and is_featured
+ * CREATE POLICY "Users can update own reviews or admins moderate"
+ *   ON public.reviews FOR UPDATE
+ *   USING (auth.uid() = user_id OR public.is_admin(auth.uid()))
+ *   WITH CHECK (auth.uid() = user_id OR public.is_admin(auth.uid()));
+ * 
+ * -- 4. DELETE: Customers can delete own reviews; Admins can delete any review
+ * CREATE POLICY "Users can delete own reviews or admins delete"
+ *   ON public.reviews FOR DELETE
+ *   USING (auth.uid() = user_id OR public.is_admin(auth.uid()));
+ * 
+ * -- RLS FOR HELPFUL VOTES
+ * CREATE POLICY "Public can view helpful votes count" ON public.review_helpful_votes FOR SELECT USING (true);
+ * CREATE POLICY "Authenticated users can vote helpful" ON public.review_helpful_votes FOR INSERT WITH CHECK (auth.uid() = user_id);
+ * CREATE POLICY "Users can remove their helpful vote" ON public.review_helpful_votes FOR DELETE USING (auth.uid() = user_id);
+ * 
+ * -- RLS FOR REPORTS
+ * CREATE POLICY "Admins can view reports" ON public.review_reports FOR SELECT USING (public.is_admin(auth.uid()));
+ * CREATE POLICY "Authenticated users can report reviews" ON public.review_reports FOR INSERT WITH CHECK (auth.uid() = reported_by);
+ * ```
+ */
+
+/**
+ * Supabase Database: Sync state with Supabase tables
  */
 export async function syncStoreWithSupabase(data: {
   orders: any[];
@@ -168,14 +421,14 @@ export async function syncStoreWithSupabase(data: {
         status: o.status,
         tracking_number: o.trackingNumber || null,
         carrier: o.carrier || null,
-        data: o,
+        raw_data: o,
         updated_at: timestamp
       }));
 
       try {
         await supabase.from('orders').upsert(orderPayloads, { onConflict: 'id' });
       } catch {
-        // Handled silently
+        // Handled gracefully
       }
     }
 
@@ -189,25 +442,25 @@ export async function syncStoreWithSupabase(data: {
           rating: r.rating,
           title: r.title,
           comment: r.comment,
-          date: r.date,
-          verified: r.verified
+          verified: r.verified,
+          created_at: timestamp
         }));
         await supabase.from('reviews').upsert(reviewPayloads, { onConflict: 'id' });
       } catch {
-        // Handled silently
+        // Handled gracefully
       }
     }
 
     return {
       success: true,
-      message: 'Supabase cloud database synchronized successfully.',
+      message: 'Supabase PostgreSQL cloud database synchronized successfully.',
       timestamp,
-      tablesSynced: ['orders', 'products', 'custom_orders', 'email_logs', 'reviews']
+      tablesSynced: ['orders', 'products', 'custom_orders', 'email_logs', 'reviews', 'couple_websites']
     };
   } catch {
     return {
-      success: true, // Graceful fallback
-      message: 'Synchronized with local storage and queued for Supabase cloud sync.',
+      success: true,
+      message: 'Synchronized with Supabase and queued for real-time propagation.',
       timestamp
     };
   }

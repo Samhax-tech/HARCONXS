@@ -1,187 +1,138 @@
-import React, { useEffect } from 'react';
-import { StoreProvider, useStore } from './context/StoreContext';
-import { AnnouncementBar } from './components/layout/AnnouncementBar';
-import { Navbar } from './components/layout/Navbar';
-import { Footer } from './components/layout/Footer';
-import { CommandPalette } from './components/layout/CommandPalette';
-import { Toast } from './components/layout/Toast';
-import { PolicyModal } from './components/legal/PolicyModal';
-import { CartDrawer } from './components/cart/CartDrawer';
-import { AiChatAssistant } from './components/chat/AiChatAssistant';
-import { PopupBanner } from './components/layout/PopupBanner';
-import { AdminLoginModal } from './components/auth/AdminLoginModal';
-import { AuthModal } from './components/auth/AuthModal';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { StoreProvider } from './context/StoreContext';
+import { RootLayout } from './components/layout/RootLayout';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { AdminRoute } from './components/auth/AdminRoute';
 
-// Home Views
-import { HeroSection } from './components/home/HeroSection';
-import { CategoryGrid } from './components/home/CategoryGrid';
-import { FeaturedSection } from './components/home/FeaturedSection';
+// Pages
+import { HomePage } from './pages/HomePage';
+import { ShopPage } from './pages/ShopPage';
+import { CategoriesPage } from './pages/CategoriesPage';
+import { CategoryDetailPage } from './pages/CategoryDetailPage';
+import { ProductPage } from './pages/ProductPage';
+import { SearchPage } from './pages/SearchPage';
+import { CustomProductsPage } from './pages/CustomProductsPage';
+import { CoupleWebsitesPage } from './pages/CoupleWebsitesPage';
+import { BotPanelsPageWrapper } from './pages/BotPanelsPageWrapper';
+import { AboutUsPage } from './pages/AboutUsPage';
+import { ContactUsPage } from './pages/ContactUsPage';
+import { FaqPage } from './pages/FaqPage';
+import { ReviewsPage } from './pages/ReviewsPage';
+import { PolicyPage } from './pages/PolicyPage';
+import { ComparePage } from './pages/ComparePage';
 
-// Shop & Product
-import { CatalogPage } from './components/shop/CatalogPage';
-import { ProductDetailPage } from './components/shop/ProductDetailPage';
+// Auth Pages
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 
-// Custom & Bespoke
-import { CustomOrderBuilder } from './components/custom/CustomOrderBuilder';
-import { CustomOrderPortal } from './components/custom/CustomOrderPortal';
+// Commerce Pages
+import { CartPage } from './pages/CartPage';
+import { CheckoutPageWrapper } from './pages/CheckoutPageWrapper';
+import { OrderSuccessPage } from './pages/OrderSuccessPage';
 
-// Couple Sanctuaries
-import { CoupleWebsiteBuilder } from './components/couple/CoupleWebsiteBuilder';
+// Customer & Admin
+import { AccountPage } from './pages/AccountPage';
+import { AdminPage } from './pages/AdminPage';
 
-// Digital & Bot Panels
-import { BotPanelsPage } from './components/digital/BotPanelsPage';
-
-// Checkout & Accounts
-import { CheckoutPage } from './components/checkout/CheckoutPage';
-import { UserAccountDashboard } from './components/account/UserAccountDashboard';
-import { OrderTrackingView } from './components/tracking/OrderTrackingView';
-import { EmailNotificationCenter } from './components/account/EmailNotificationCenter';
-
-// Company & Helpdesk
-import { AboutUsPage } from './components/pages/AboutUsPage';
-import { ContactUsPage } from './components/pages/ContactUsPage';
-
-// Master Admin Suite
-import { AdminDashboard } from './components/admin/AdminDashboard';
-import { Shield, Lock } from 'lucide-react';
-
-const MainContent: React.FC = () => {
-  const {
-    currentView,
-    setCurrentView,
-    isAdminMode,
-    setIsAdminMode,
-    isAdminAuthenticated,
-    setIsAdminLoginModalOpen
-  } = useStore();
-
-  // Hidden admin portal route listener (/hax-portal)
-  useEffect(() => {
-    const handleUrlRoute = () => {
-      const path = window.location.pathname.toLowerCase();
-      const hash = window.location.hash.toLowerCase();
-      if (path === '/hax-portal' || path.startsWith('/hax-portal') || hash === '#hax-portal' || window.location.search.includes('portal=hax')) {
-        if (isAdminAuthenticated) {
-          setIsAdminMode(true);
-          setCurrentView('admin');
-        } else {
-          setIsAdminLoginModalOpen(true);
-        }
-      }
-    };
-
-    handleUrlRoute();
-    window.addEventListener('popstate', handleUrlRoute);
-    window.addEventListener('hashchange', handleUrlRoute);
-    return () => {
-      window.removeEventListener('popstate', handleUrlRoute);
-      window.removeEventListener('hashchange', handleUrlRoute);
-    };
-  }, [isAdminAuthenticated, setIsAdminMode, setCurrentView, setIsAdminLoginModalOpen]);
-
-  const renderView = () => {
-    switch (currentView) {
-      case 'home':
-        return (
-          <div className="space-y-0">
-            <HeroSection />
-            <CategoryGrid />
-            <FeaturedSection />
-          </div>
-        );
-      case 'catalog':
-        return <CatalogPage />;
-      case 'product-detail':
-        return <ProductDetailPage />;
-      case 'custom-builder':
-        return <CustomOrderBuilder />;
-      case 'custom-portal':
-        return <CustomOrderPortal />;
-      case 'couple-builder':
-        return <CoupleWebsiteBuilder />;
-      case 'bot-panels':
-        return <BotPanelsPage />;
-      case 'about-us':
-        return <AboutUsPage />;
-      case 'contact-us':
-        return <ContactUsPage />;
-      case 'checkout':
-        return <CheckoutPage />;
-      case 'account':
-        return <UserAccountDashboard />;
-      case 'tracking':
-        return (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-            <OrderTrackingView />
-          </div>
-        );
-      case 'emails':
-        return <EmailNotificationCenter standalone />;
-      case 'admin':
-        if (!isAdminAuthenticated) {
-          return (
-            <div className="bg-zinc-950 min-h-[75vh] flex items-center justify-center p-4">
-              <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center space-y-6 shadow-2xl">
-                <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
-                  <Shield className="w-8 h-8" />
-                </div>
-                <div className="space-y-2">
-                  <h2 className="text-xl font-bold font-serif text-white">HAX Protected Admin Gateway</h2>
-                  <p className="text-xs text-zinc-400">
-                    Restricted atelier credentials required. Please authorize via your master administrator pin.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsAdminLoginModalOpen(true)}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 cursor-pointer transition-all"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>Authenticate Master Session</span>
-                </button>
-              </div>
-            </div>
-          );
-        }
-        return <AdminDashboard />;
-      default:
-        return (
-          <div className="space-y-0">
-            <HeroSection />
-            <CategoryGrid />
-            <FeaturedSection />
-          </div>
-        );
-    }
-  };
-
+export const App: React.FC = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
-      <AnnouncementBar />
-      <Navbar />
+    <StoreProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Main Layout wrapper for all customer & public storefront pages */}
+          <Route element={<RootLayout />}>
+            
+            {/* Public Routes */}
+            <Route path="/" element={<HomePage />} />
+            
+            {/* Catalog & Filtered Departments */}
+            <Route path="/shop" element={<ShopPage />} />
+            <Route path="/shop/men" element={<ShopPage categoryOverride="men" />} />
+            <Route path="/shop/women" element={<ShopPage categoryOverride="women" />} />
+            <Route path="/shop/unisex" element={<ShopPage categoryOverride="unisex" />} />
+            <Route path="/shop/couples" element={<ShopPage categoryOverride="couples" />} />
+            <Route path="/shop/custom" element={<ShopPage categoryOverride="custom" />} />
+            <Route path="/shop/digital" element={<ShopPage categoryOverride="digital" />} />
 
-      <div className="flex-1">
-        {renderView()}
-      </div>
+            {/* Special Collections */}
+            <Route path="/deals" element={<ShopPage filterOverride="deals" />} />
+            <Route path="/best-sellers" element={<ShopPage filterOverride="best-sellers" />} />
+            <Route path="/new-arrivals" element={<ShopPage filterOverride="new-arrivals" />} />
 
-      <Footer />
+            {/* Categories & Slugs */}
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/category/:slug" element={<CategoryDetailPage />} />
 
-      {/* Global Modals & Overlays */}
-      <PopupBanner />
-      <AdminLoginModal />
-      <AuthModal />
-      <CartDrawer />
-      <AiChatAssistant />
-      <CommandPalette />
-      <PolicyModal />
-      <Toast />
-    </div>
+            {/* Product Detail */}
+            <Route path="/product/:slug" element={<ProductPage />} />
+
+            {/* Search & Compare */}
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/compare" element={<ComparePage />} />
+
+            {/* Custom Atelier & Commission Builder */}
+            <Route path="/custom-products" element={<CustomProductsPage />} />
+            <Route path="/custom-products/:slug" element={<CustomProductsPage />} />
+
+            {/* Couple Websites Builder & Live Sanctuaries */}
+            <Route path="/couple-websites" element={<CoupleWebsitesPage />} />
+            <Route path="/couple-websites/:slug" element={<CoupleWebsitesPage />} />
+
+            {/* Bot Panels & Automation Cloud */}
+            <Route path="/bot-panels" element={<BotPanelsPageWrapper />} />
+            <Route path="/bot-panels/:slug" element={<BotPanelsPageWrapper />} />
+
+            {/* Company & Support Pages */}
+            <Route path="/about" element={<AboutUsPage />} />
+            <Route path="/contact" element={<ContactUsPage />} />
+            <Route path="/faq" element={<FaqPage />} />
+            <Route path="/reviews" element={<ReviewsPage />} />
+
+            {/* Policies */}
+            <Route path="/privacy-policy" element={<PolicyPage policy="privacy" />} />
+            <Route path="/terms" element={<PolicyPage policy="terms" />} />
+            <Route path="/refund-policy" element={<PolicyPage policy="refund" />} />
+            <Route path="/shipping-policy" element={<PolicyPage policy="shipping" />} />
+
+            {/* Authentication */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+            {/* Commerce Flow */}
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPageWrapper />} />
+            <Route path="/order-success" element={<OrderSuccessPage />} />
+
+            {/* Customer Account Routes (Protected) */}
+            <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/profile" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/orders" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/orders/:id" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/wishlist" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/addresses" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/reviews" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/custom-orders" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/custom-orders/:id" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/couple-websites" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/couple-websites/:id" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/support" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/notifications" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+
+            {/* Admin Portal (Protected) */}
+            <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+            <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
+            <Route path="/hax-portal" element={<AdminRoute><AdminPage /></AdminRoute>} />
+
+            {/* Catch-all Wildcard Route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </StoreProvider>
   );
 };
 
-export default function App() {
-  return (
-    <StoreProvider>
-      <MainContent />
-    </StoreProvider>
-  );
-}
+export default App;

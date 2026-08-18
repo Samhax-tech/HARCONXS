@@ -8,6 +8,8 @@ import {
   Order,
   CustomOrder,
   CustomOrderQuote,
+  CustomOrderStatus,
+  CustomOrderMessage,
   CoupleWebsiteProject,
   CoupleWebsiteTemplate,
   BotPanelService,
@@ -55,14 +57,68 @@ import {
   dispatchEmailNotification
 } from '../services/emailService';
 import {
+  supabase,
   isSupabaseConfigured,
   checkSupabaseConnection,
   syncStoreWithSupabase,
   supabaseSignUp,
   supabaseSignIn,
   supabaseSignInWithGoogle,
-  supabaseSignOut
+  supabaseSignOut,
+  supabaseVerifyAdminRole,
+  supabaseAdminSignIn
 } from '../lib/supabase';
+import {
+  fetchProductsFromSupabase,
+  upsertProductInSupabase,
+  deleteProductInSupabase,
+  updateInventoryInSupabase,
+  fetchUserCartFromSupabase,
+  syncCartToSupabase,
+  clearCartInSupabase,
+  fetchWishlistFromSupabase,
+  addToWishlistInSupabase,
+  removeFromWishlistInSupabase,
+  clearWishlistInSupabase,
+  fetchPackagingOptionsFromSupabase,
+  fetchOrdersFromSupabase,
+  insertOrderInSupabase,
+  updateOrderStatusInSupabase,
+  verifyAndCalculateOrderTotals,
+  executeServerOrderCreation,
+  processOrderRefundInSupabase,
+  updateOrderLogisticsInSupabase,
+  ServerPriceBreakdown,
+  ServerOrderQuoteRequest,
+  CreateOrderParams,
+  fetchCustomOrdersFromSupabase,
+  upsertCustomOrderInSupabase,
+  uploadCustomOrderFileToSupabase,
+  subscribeToCustomOrderRealtime,
+  broadcastCustomOrderMessage,
+  fetchCoupleWebsitesFromSupabase,
+  upsertCoupleWebsiteInSupabase,
+  deleteCoupleWebsiteFromSupabase,
+  fetchCoupleTemplatesFromSupabase,
+  upsertCoupleTemplateInSupabase,
+  deleteCoupleTemplateFromSupabase,
+  fetchReviewsFromSupabase,
+  insertReviewInSupabase,
+  updateReviewInSupabase,
+  deleteReviewFromSupabase,
+  toggleReviewHelpfulInSupabase,
+  reportReviewInSupabase,
+  fetchSupportTicketsFromSupabase,
+  upsertSupportTicketInSupabase,
+  fetchApiKeysFromSupabase,
+  upsertApiKeyInSupabase,
+  fetchInvoicesFromSupabase,
+  insertInvoiceInSupabase,
+  fetchThemeConfigFromSupabase,
+  saveThemeConfigInSupabase,
+  recordAuditLog,
+  trackAnalyticsEvent
+} from '../services/supabaseService';
 
 export type CurrencyCode = 'INR';
 
@@ -105,31 +161,50 @@ interface StoreContextType {
   isAdminAuthenticated: boolean;
   isAdminLoginModalOpen: boolean;
   setIsAdminLoginModalOpen: (open: boolean) => void;
-  adminLogin: (u: string, p: string) => { success: boolean; message: string };
-  adminLogout: () => void;
+  adminLogin: (u: string, p: string) => Promise<{ success: boolean; message: string }>;
+  adminLogout: () => Promise<void>;
 
   // Currency & Localisation (Strictly INR)
   currency: CurrencyCode;
   setCurrency: (c: CurrencyCode) => void;
   formatPrice: (amount: number) => string;
 
-  // Catalog & Reviews
+  // Catalog, Inventory & Reviews
   products: Product[];
+  isLoadingProducts: boolean;
+  productsError: string | null;
+  refetchProducts: () => Promise<void>;
+  updateProductInventory: (
+    productId: string,
+    variantId?: string,
+    quantityChanged?: number,
+    newInventoryCount?: number,
+    changeType?: 'order_sale' | 'restock' | 'damaged' | 'adjustment' | 'return',
+    referenceId?: string,
+    notes?: string
+  ) => Promise<boolean>;
   packagingOptions: PackagingOption[];
-  coupleTemplates: CoupleWebsiteTemplate[];
   botPanelServices: BotPanelService[];
-  addProduct: (product: Product) => void;
-  updateProduct: (product: Product) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: Product) => Promise<void>;
+  updateProduct: (product: Product) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
   reviews: ProductReview[];
-  addProductReview: (review: Omit<ProductReview, 'id' | 'date'>) => void;
+  addProductReview: (review: Partial<ProductReview>) => Promise<{ success: boolean; message: string; review?: ProductReview }>;
+  updateProductReview: (reviewId: string, review: Partial<ProductReview>) => Promise<boolean>;
+  deleteProductReview: (reviewId: string) => Promise<boolean>;
+  toggleReviewHelpful: (reviewId: string) => Promise<boolean>;
+  reportProductReview: (reviewId: string, reason: string, details?: string) => Promise<boolean>;
+  moderateReview: (reviewId: string, action: 'approve' | 'reject' | 'hide' | 'feature' | 'delete', notes?: string) => Promise<boolean>;
+  checkUserProductPurchase: (productId: string) => { hasPurchased: boolean; eligibleOrders: Order[]; existingReview?: ProductReview };
 
   // Cart
   cart: CartItem[];
-  addToCart: (product: Product, quantity?: number, variantId?: string, packaging?: PackagingOption, personalization?: PersonalizationConfig, customPrice?: number) => void;
-  removeFromCart: (itemId: string) => void;
-  updateCartQuantity: (itemId: string, quantity: number) => void;
-  clearCart: () => void;
+  isLoadingCart: boolean;
+  cartError: string | null;
+  addToCart: (product: Product, quantity?: number, variantId?: string, packaging?: PackagingOption, personalization?: PersonalizationConfig, customPrice?: number) => Promise<void>;
+  removeFromCart: (itemId: string) => Promise<void>;
+  updateCartQuantity: (itemId: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
 
@@ -146,9 +221,11 @@ interface StoreContextType {
 
   // Wishlist
   wishlist: string[];
-  toggleWishlist: (productId: string) => void;
+  isLoadingWishlist: boolean;
+  wishlistError: string | null;
+  toggleWishlist: (productId: string) => Promise<void>;
   isInWishlist: (productId: string) => boolean;
-  clearWishlist: () => void;
+  clearWishlist: () => Promise<void>;
 
   // Theme Mode (Dark / Light)
   themeMode: 'dark' | 'light';
@@ -158,44 +235,69 @@ interface StoreContextType {
   themeConfig: ThemeConfig;
   updateThemeConfig: (cfg: Partial<ThemeConfig>) => void;
 
-  // Product Comparison (Up to 3 products)
+  // Product Comparison (Up to 3 items)
   comparisonProductIds: string[];
   addToComparison: (productId: string) => void;
   removeFromComparison: (productId: string) => void;
   clearComparison: () => void;
   isInComparison: (productId: string) => boolean;
 
-  // Local Browsing History for Recommendations
+  // Browsing History (Local recommendations)
   browsingHistory: string[];
   recordProductView: (productId: string) => void;
 
-  // Billing & Invoices
+  // Invoices & Billing
   invoices: BillingInvoice[];
   addBillingInvoice: (invoice: BillingInvoice) => void;
 
-  // Orders
+  // Orders & Fulfillment
   orders: Order[];
+  isLoadingOrders: boolean;
+  ordersError: string | null;
+  refetchOrders: () => Promise<void>;
+  calculateServerOrderQuote: (request: ServerOrderQuoteRequest) => Promise<ServerPriceBreakdown>;
+  placeServerVerifiedOrder: (params: CreateOrderParams) => Promise<{ success: boolean; order?: Order; invoice?: BillingInvoice; error?: string }>;
+  processOrderRefund: (orderId: string, amount: number, reason: string, restockInventory?: boolean) => Promise<{ success: boolean; error?: string }>;
+  updateOrderLogistics: (orderId: string, carrier: string, trackingNumber: string, trackingUrl?: string, deliveryDate?: string, status?: Order['status'], notes?: string) => Promise<{ success: boolean; error?: string }>;
   createOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>) => Order;
   updateOrderStatus: (orderId: string, status: Order['status'], carrier?: string, trackingNumber?: string) => void;
+  selectedTrackingOrderId: string;
+  setSelectedTrackingOrderId: (id: string) => void;
 
-  // Custom Orders
+  // Custom Bespoke Orders
   customOrders: CustomOrder[];
   createCustomOrderRequest: (req: Omit<CustomOrder, 'id' | 'requestNumber' | 'status' | 'messages' | 'createdAt' | 'updatedAt'>) => CustomOrder;
-  sendCustomOrderMessage: (customOrderId: string, text: string, sender: 'customer' | 'admin') => void;
-  provideCustomOrderQuote: (customOrderId: string, quote: Omit<CustomOrderQuote, 'id'>) => void;
-  respondToQuote: (customOrderId: string, accept: boolean) => void;
+  sendCustomOrderMessage: (customOrderId: string, text: string, sender: 'customer' | 'admin', attachments?: string[]) => Promise<void>;
+  provideCustomOrderQuote: (customOrderId: string, quote: Omit<CustomOrderQuote, 'id'>) => Promise<void>;
+  respondToQuote: (customOrderId: string, accept: boolean, revisionReason?: string) => Promise<void>;
+  updateCustomOrderStatus: (customOrderId: string, status: CustomOrderStatus, trackingDetails?: { carrier?: string; trackingNumber?: string; trackingUrl?: string; designProofUrl?: string; notes?: string }) => Promise<void>;
+  uploadCustomOrderFile: (file: File, customOrderId?: string) => Promise<{ success: boolean; url: string; fileName: string; fileSize?: number; error?: string }>;
+  subscribeToCustomOrder: (customOrderId: string, callback: (order: Partial<CustomOrder>) => void) => () => void;
 
-  // Couple Websites
+  // Couple Websites & Templates
+  coupleTemplates: CoupleWebsiteTemplate[];
+  addCoupleTemplate: (template: Omit<CoupleWebsiteTemplate, 'id'>) => Promise<boolean>;
+  updateCoupleTemplate: (template: CoupleWebsiteTemplate) => Promise<boolean>;
+  deleteCoupleTemplate: (templateId: string) => Promise<boolean>;
+  toggleCoupleTemplateActive: (templateId: string) => Promise<boolean>;
   coupleWebsites: CoupleWebsiteProject[];
   createCoupleWebsite: (projectData: Omit<CoupleWebsiteProject, 'id' | 'views' | 'createdAt' | 'expiresAt'>) => CoupleWebsiteProject;
-  updateCoupleWebsite: (project: CoupleWebsiteProject) => void;
+  updateCoupleWebsite: (project: CoupleWebsiteProject) => Promise<boolean>;
+  deleteCoupleWebsite: (projectId: string) => Promise<boolean>;
+  publishCoupleWebsite: (projectId: string, isPublished: boolean) => Promise<boolean>;
+  addGuestbookEntry: (projectId: string, author: string, message: string) => Promise<boolean>;
+  likeCoupleWebsite: (projectId: string) => Promise<boolean>;
+  activeLivePreviewSubdomain: string | null;
+  setActiveLivePreviewSubdomain: (subdomain: string | null) => void;
+  selectedEditingProject: CoupleWebsiteProject | null;
+  setSelectedEditingProject: (project: CoupleWebsiteProject | null) => void;
 
-  // API Keys (Admin Controlled)
+  // API Keys & Developer Tokens
   apiKeys: ApiKeyRecord[];
   createApiKey: (name: string, permissions: string[], rateLimit?: number) => { record: ApiKeyRecord; secretKey: string };
   revokeApiKey: (id: string) => void;
 
-  // Support Tickets
+  // Support & Tickets
   tickets: SupportTicket[];
   createTicket: (subject: string, category: SupportTicket['category'], initialMessage: string, customerName?: string, customerEmail?: string) => SupportTicket;
   replyToTicket: (ticketId: string, text: string, sender: 'customer' | 'support') => void;
@@ -206,42 +308,40 @@ interface StoreContextType {
   policies: SystemPolicy[];
   updatePolicy: (id: string, content: string, version: string) => void;
 
-  // User Authentication & Profile
+  // User Accounts & Authentication
   currentUser: UserProfile | null;
   isUserLoggedIn: boolean;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   openAuthModalWithAction: (callback?: () => void) => void;
-  userLogin: (emailOrPhone: string, password?: string) => { success: boolean; message: string };
-  userRegister: (name: string, email: string, phone: string, password?: string) => { success: boolean; message: string };
-  userGoogleLogin: () => void;
+  userLogin: (emailOrPhone: string, password?: string) => Promise<{ success: boolean; message: string }>;
+  userRegister: (name: string, email: string, phone: string, password?: string) => Promise<{ success: boolean; message: string }>;
+  userGoogleLogin: () => Promise<void>;
   userOtpLogin: (phone: string, otp: string) => { success: boolean; message: string };
-  userLogout: () => void;
+  userLogout: () => Promise<void>;
   updateUser: (data: Partial<UserProfile>) => void;
   redeemLoyaltyPoints: (points: number) => boolean;
 
-  // Email Notifications & Real-Time Logistics
+  // Email Notifications Center
   emailNotifications: EmailNotification[];
   addEmailNotification: (notification: EmailNotification) => void;
-  selectedTrackingOrderId: string;
-  setSelectedTrackingOrderId: (id: string) => void;
 
-  // Supabase Cloud Database Status & Synchronization
+  // Supabase Status & Sync
   supabaseStatus: SupabaseConfigStatus;
   syncDatabase: () => Promise<void>;
 
-  // Pop-up Banner Settings
+  // Pop-up Banner System
   popupBanner: PopupBannerConfig;
   updatePopupBanner: (cfg: PopupBannerConfig) => void;
   isPopupBannerDismissed: boolean;
   dismissPopupBanner: () => void;
 
-  // Billing Portal Settings
+  // Billing Portal & Subscriptions
   billingPortal: BillingPortalConfig;
   updateBillingPortal: (cfg: BillingPortalConfig) => void;
   redirectToBillingPortal: (planId?: string) => void;
 
-  // YouTube Videos & Social Media
+  // Content Showcases
   youtubeVideos: YouTubeVideoItem[];
   socialLinks: SocialLinksConfig;
   addYouTubeVideo: (video: YouTubeVideoItem) => void;
@@ -268,43 +368,49 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'all'>('all');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
-  // Admin Mode & Auth State
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('hx_admin_auth') === 'true';
-  });
-  const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
-    return sessionStorage.getItem('hx_admin_auth') === 'true';
-  });
+  // Admin Mode & Auth State (Derived from Supabase Auth & verified roles)
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
   const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
 
   // Currency (Default to INR for India audience)
   const [currency, setCurrency] = useState<CurrencyCode>('INR');
 
-  // Products & Seed
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('hx_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
+  // Products & Packaging State
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
 
-  const [packagingOptions] = useState<PackagingOption[]>(INITIAL_PACKAGING_OPTIONS);
-  const [coupleTemplates] = useState<CoupleWebsiteTemplate[]>(INITIAL_COUPLE_TEMPLATES);
+  const [packagingOptions, setPackagingOptions] = useState<PackagingOption[]>(INITIAL_PACKAGING_OPTIONS);
+  const [coupleTemplates, setCoupleTemplates] = useState<CoupleWebsiteTemplate[]>(INITIAL_COUPLE_TEMPLATES);
+  const [activeLivePreviewSubdomain, setActiveLivePreviewSubdomain] = useState<string | null>(null);
+  const [selectedEditingProject, setSelectedEditingProject] = useState<CoupleWebsiteProject | null>(null);
   const [botPanelServices] = useState<BotPanelService[]>(INITIAL_BOT_PANEL_SERVICES);
   const [coupons] = useState<DiscountCoupon[]>(INITIAL_COUPONS);
 
-  // Cart & Wishlist
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('hx_cart');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Cart & Wishlist State
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isLoadingCart, setIsLoadingCart] = useState<boolean>(false);
+  const [cartError, setCartError] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<DiscountCoupon | null>(null);
 
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    const saved = localStorage.getItem('hx_wishlist');
-    return saved ? JSON.parse(saved) : ['prod-couple-1', 'prod-couple-2'];
-  });
+  const [wishlist, setWishlist] = useState<string[]>(['prod-couple-1', 'prod-couple-2']);
+  const [isLoadingWishlist, setIsLoadingWishlist] = useState<boolean>(false);
+  const [wishlistError, setWishlistError] = useState<string | null>(null);
 
-  // Dark / Light Theme Mode (persists in localStorage & updates <html> class)
+  // Cart session identifier for guests or authenticated users
+  const getCartSessionId = (userId?: string) => {
+    if (userId) return `cart_user_${userId}`;
+    let anonId = sessionStorage.getItem('hx_anon_cart_id');
+    if (!anonId) {
+      anonId = `cart_anon_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      sessionStorage.setItem('hx_anon_cart_id', anonId);
+    }
+    return anonId;
+  };
+
+  // Dark / Light Theme Mode
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('hx_theme_mode');
     if (saved === 'light' || saved === 'dark') return saved;
@@ -328,28 +434,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Dynamic Theme Config & Branding
-  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
-    const saved = localStorage.getItem('hx_theme_config');
-    return saved ? JSON.parse(saved) : INITIAL_THEME_CONFIG;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('hx_theme_config', JSON.stringify(themeConfig));
-  }, [themeConfig]);
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(INITIAL_THEME_CONFIG);
 
   const updateThemeConfig = (cfg: Partial<ThemeConfig>) => {
-    setThemeConfig(prev => ({ ...prev, ...cfg }));
+    const updated = { ...themeConfig, ...cfg };
+    setThemeConfig(updated);
+    saveThemeConfigInSupabase(updated);
   };
 
   // Side-by-Side Product Comparison (up to 3 products)
-  const [comparisonProductIds, setComparisonProductIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('hx_comparison');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('hx_comparison', JSON.stringify(comparisonProductIds));
-  }, [comparisonProductIds]);
+  const [comparisonProductIds, setComparisonProductIds] = useState<string[]>([]);
 
   const addToComparison = (productId: string) => {
     setComparisonProductIds(prev => {
@@ -376,73 +470,44 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isInComparison = (productId: string) => comparisonProductIds.includes(productId);
 
   // Local Browsing History for Product Recommendations
-  const [browsingHistory, setBrowsingHistory] = useState<string[]>(() => {
-    const saved = localStorage.getItem('hx_browsing_history');
-    return saved ? JSON.parse(saved) : ['prod-couple-1', 'prod-couple-2', 'prod-men-1'];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('hx_browsing_history', JSON.stringify(browsingHistory));
-  }, [browsingHistory]);
+  const [browsingHistory, setBrowsingHistory] = useState<string[]>(['prod-couple-1', 'prod-couple-2', 'prod-men-1']);
 
   const recordProductView = (productId: string) => {
     setBrowsingHistory(prev => {
       const filtered = prev.filter(id => id !== productId);
-      return [productId, ...filtered].slice(0, 10); // Keep last 10 viewed
+      return [productId, ...filtered].slice(0, 10);
     });
   };
 
   // Reviews State
-  const [reviews, setReviews] = useState<ProductReview[]>(() => {
-    const saved = localStorage.getItem('hx_reviews');
-    return saved ? JSON.parse(saved) : INITIAL_REVIEWS;
-  });
+  const [reviews, setReviews] = useState<ProductReview[]>(INITIAL_REVIEWS);
 
   // Invoices & Billing State
-  const [invoices, setInvoices] = useState<BillingInvoice[]>(() => {
-    const saved = localStorage.getItem('hx_invoices');
-    return saved ? JSON.parse(saved) : INITIAL_BILLING_INVOICES;
-  });
+  const [invoices, setInvoices] = useState<BillingInvoice[]>(INITIAL_BILLING_INVOICES);
 
-  // Orders
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('hx_orders');
-    return saved ? JSON.parse(saved) : INITIAL_SAMPLE_ORDERS;
-  });
+  // Orders State
+  const [orders, setOrders] = useState<Order[]>(INITIAL_SAMPLE_ORDERS);
+  const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
 
-  // Custom Orders
-  const [customOrders, setCustomOrders] = useState<CustomOrder[]>(() => {
-    const saved = localStorage.getItem('hx_custom_orders');
-    return saved ? JSON.parse(saved) : INITIAL_SAMPLE_CUSTOM_ORDERS;
-  });
+  // Custom Orders State
+  const [customOrders, setCustomOrders] = useState<CustomOrder[]>(INITIAL_SAMPLE_CUSTOM_ORDERS);
 
-  // Couple Websites
-  const [coupleWebsites, setCoupleWebsites] = useState<CoupleWebsiteProject[]>(() => {
-    const saved = localStorage.getItem('hx_couple_websites');
-    return saved ? JSON.parse(saved) : INITIAL_SAMPLE_COUPLE_WEBSITES;
-  });
+  // Couple Websites State
+  const [coupleWebsites, setCoupleWebsites] = useState<CoupleWebsiteProject[]>(INITIAL_SAMPLE_COUPLE_WEBSITES);
 
-  // API Keys
-  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>(() => {
-    const saved = localStorage.getItem('hx_api_keys');
-    return saved ? JSON.parse(saved) : INITIAL_API_KEYS;
-  });
+  // API Keys State
+  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>(INITIAL_API_KEYS);
 
-  // Tickets
-  const [tickets, setTickets] = useState<SupportTicket[]>(() => {
-    const saved = localStorage.getItem('hx_tickets');
-    return saved ? JSON.parse(saved) : INITIAL_SUPPORT_TICKETS;
-  });
+  // Support Tickets State
+  const [tickets, setTickets] = useState<SupportTicket[]>(INITIAL_SUPPORT_TICKETS);
 
   // Automations & Policies
   const [automations, setAutomations] = useState<AutomationRule[]>(INITIAL_AUTOMATION_RULES);
   const [policies, setPolicies] = useState<SystemPolicy[]>(INITIAL_SYSTEM_POLICIES);
 
   // Email Notifications State
-  const [emailNotifications, setEmailNotifications] = useState<EmailNotification[]>(() => {
-    const saved = localStorage.getItem('hx_email_notifications');
-    return saved ? JSON.parse(saved) : INITIAL_EMAIL_NOTIFICATIONS;
-  });
+  const [emailNotifications, setEmailNotifications] = useState<EmailNotification[]>(INITIAL_EMAIL_NOTIFICATIONS);
 
   const [selectedTrackingOrderId, setSelectedTrackingOrderId] = useState<string>('ord-1001');
 
@@ -453,51 +518,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isCustomUrl: isSupabaseConfigured,
     lastSyncedAt: new Date().toISOString(),
     tableCounts: {
-      orders: 1,
-      products: 24,
-      customOrders: 1,
-      coupleWebsites: 1,
-      emailLogs: 3
+      orders: INITIAL_SAMPLE_ORDERS.length,
+      products: INITIAL_PRODUCTS.length,
+      customOrders: INITIAL_SAMPLE_CUSTOM_ORDERS.length,
+      coupleWebsites: INITIAL_SAMPLE_COUPLE_WEBSITES.length,
+      emailLogs: INITIAL_EMAIL_NOTIFICATIONS.length
     }
   });
 
   // User Profile & Authentication State
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('hx_current_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   const isUserLoggedIn = !!currentUser;
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [pendingAuthCallback, setPendingAuthCallback] = useState<(() => void) | null>(null);
 
   // Pop-up Banner State
-  const [popupBanner, setPopupBanner] = useState<PopupBannerConfig>(() => {
-    const saved = localStorage.getItem('hx_popup_banner');
-    return saved ? JSON.parse(saved) : INITIAL_POPUP_BANNER;
-  });
+  const [popupBanner, setPopupBanner] = useState<PopupBannerConfig>(INITIAL_POPUP_BANNER);
   const [isPopupBannerDismissed, setIsPopupBannerDismissed] = useState<boolean>(() => {
     return sessionStorage.getItem('hx_popup_dismissed') === 'true';
   });
 
   // Billing Portal State
-  const [billingPortal, setBillingPortal] = useState<BillingPortalConfig>(() => {
-    const saved = localStorage.getItem('hx_billing_portal');
-    return saved ? JSON.parse(saved) : INITIAL_BILLING_PORTAL;
-  });
+  const [billingPortal, setBillingPortal] = useState<BillingPortalConfig>(INITIAL_BILLING_PORTAL);
 
   // YouTube Videos & Social Links
-  const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideoItem[]>(() => {
-    const saved = localStorage.getItem('hx_youtube_videos');
-    return saved ? JSON.parse(saved) : INITIAL_YOUTUBE_VIDEOS;
-  });
+  const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideoItem[]>(INITIAL_YOUTUBE_VIDEOS);
   const [socialLinks] = useState<SocialLinksConfig>(INITIAL_SOCIAL_LINKS);
 
   // Modals & UI
@@ -519,70 +565,169 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Sync state to localStorage
+  // INITIAL SUPABASE DATABASE HYDRATION ON MOUNT
   useEffect(() => {
-    localStorage.setItem('hx_products', JSON.stringify(products));
-  }, [products]);
+    let isMounted = true;
 
-  useEffect(() => {
-    localStorage.setItem('hx_cart', JSON.stringify(cart));
-  }, [cart]);
+    async function loadSupabaseInitialData() {
+      setIsLoadingProducts(true);
+      setProductsError(null);
+      try {
+        const [
+          dbProducts,
+          dbOrders,
+          dbCustomOrders,
+          dbCoupleWebsites,
+          dbCoupleTemplates,
+          dbReviews,
+          dbTickets,
+          dbApiKeys,
+          dbInvoices,
+          dbThemeConfig,
+          dbPackaging
+        ] = await Promise.allSettled([
+          fetchProductsFromSupabase(),
+          fetchOrdersFromSupabase(),
+          fetchCustomOrdersFromSupabase(),
+          fetchCoupleWebsitesFromSupabase(),
+          fetchCoupleTemplatesFromSupabase(),
+          fetchReviewsFromSupabase(),
+          fetchSupportTicketsFromSupabase(),
+          fetchApiKeysFromSupabase(),
+          fetchInvoicesFromSupabase(),
+          fetchThemeConfigFromSupabase(),
+          fetchPackagingOptionsFromSupabase()
+        ]);
 
-  useEffect(() => {
-    localStorage.setItem('hx_wishlist', JSON.stringify(wishlist));
-  }, [wishlist]);
+        if (!isMounted) return;
 
-  useEffect(() => {
-    localStorage.setItem('hx_reviews', JSON.stringify(reviews));
-  }, [reviews]);
+        if (dbProducts.status === 'fulfilled' && dbProducts.value && dbProducts.value.length > 0) {
+          setProducts(dbProducts.value);
+        }
+        if (dbPackaging.status === 'fulfilled' && dbPackaging.value && dbPackaging.value.length > 0) {
+          setPackagingOptions(dbPackaging.value);
+        }
+        if (dbOrders.status === 'fulfilled' && dbOrders.value && dbOrders.value.length > 0) {
+          setOrders(dbOrders.value);
+        }
+        if (dbCustomOrders.status === 'fulfilled' && dbCustomOrders.value && dbCustomOrders.value.length > 0) {
+          setCustomOrders(dbCustomOrders.value);
+        }
+        if (dbCoupleWebsites.status === 'fulfilled' && dbCoupleWebsites.value && dbCoupleWebsites.value.length > 0) {
+          setCoupleWebsites(dbCoupleWebsites.value);
+        }
+        if (dbCoupleTemplates.status === 'fulfilled' && dbCoupleTemplates.value && dbCoupleTemplates.value.length > 0) {
+          setCoupleTemplates(dbCoupleTemplates.value);
+        }
+        if (dbReviews.status === 'fulfilled' && dbReviews.value && dbReviews.value.length > 0) {
+          setReviews(dbReviews.value);
+        }
+        if (dbTickets.status === 'fulfilled' && dbTickets.value && dbTickets.value.length > 0) {
+          setTickets(dbTickets.value);
+        }
+        if (dbApiKeys.status === 'fulfilled' && dbApiKeys.value && dbApiKeys.value.length > 0) {
+          setApiKeys(dbApiKeys.value);
+        }
+        if (dbInvoices.status === 'fulfilled' && dbInvoices.value && dbInvoices.value.length > 0) {
+          setInvoices(dbInvoices.value);
+        }
+        if (dbThemeConfig.status === 'fulfilled' && dbThemeConfig.value) {
+          setThemeConfig(dbThemeConfig.value);
+        }
 
-  useEffect(() => {
-    localStorage.setItem('hx_invoices', JSON.stringify(invoices));
-  }, [invoices]);
-
-  useEffect(() => {
-    localStorage.setItem('hx_orders', JSON.stringify(orders));
-  }, [orders]);
-
-  useEffect(() => {
-    localStorage.setItem('hx_custom_orders', JSON.stringify(customOrders));
-  }, [customOrders]);
-
-  useEffect(() => {
-    localStorage.setItem('hx_couple_websites', JSON.stringify(coupleWebsites));
-  }, [coupleWebsites]);
-
-  useEffect(() => {
-    localStorage.setItem('hx_api_keys', JSON.stringify(apiKeys));
-  }, [apiKeys]);
-
-  useEffect(() => {
-    localStorage.setItem('hx_tickets', JSON.stringify(tickets));
-  }, [tickets]);
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('hx_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('hx_current_user');
+        // Check health
+        const health = await checkSupabaseConnection();
+        setSupabaseStatus(prev => ({
+          ...prev,
+          isConnected: health.connected,
+          lastSyncedAt: new Date().toISOString()
+        }));
+      } catch (err: any) {
+        setProductsError(err?.message || 'Could not load store data from Supabase.');
+      } finally {
+        if (isMounted) setIsLoadingProducts(false);
+      }
     }
-  }, [currentUser]);
 
-  useEffect(() => {
-    localStorage.setItem('hx_popup_banner', JSON.stringify(popupBanner));
-  }, [popupBanner]);
+    loadSupabaseInitialData();
 
-  useEffect(() => {
-    localStorage.setItem('hx_billing_portal', JSON.stringify(billingPortal));
-  }, [billingPortal]);
+    // Supabase Auth State Change Listener & Session Persistence
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const userMeta = session.user.user_metadata || {};
+        const userEmail = session.user.email || '';
+        
+        // Verify RBAC privileges from database
+        const { isAdmin } = await supabaseVerifyAdminRole(session.user.id, userEmail);
+        if (isAdmin) {
+          setIsAdminAuthenticated(true);
+        }
 
-  useEffect(() => {
-    localStorage.setItem('hx_youtube_videos', JSON.stringify(youtubeVideos));
-  }, [youtubeVideos]);
+        const profile: UserProfile = {
+          id: session.user.id,
+          name: userMeta.full_name || userEmail.split('@')[0] || 'Member',
+          email: userEmail,
+          phone: userMeta.phone || '+91 98765 43210',
+          loyaltyPoints: 150,
+          storeCredit: 0,
+          isAffiliate: true,
+          affiliateCode: `HX${session.user.id.substring(0, 4).toUpperCase()}`,
+          affiliateCommissionEarned: 0,
+          addresses: [
+            {
+              fullName: userMeta.full_name || 'Member',
+              street: 'Atelier Avenue, Cyber Hub',
+              city: 'Bangalore',
+              state: 'Karnataka',
+              zip: '560001',
+              country: 'India',
+              phone: userMeta.phone || '+91 98765 43210',
+              isDefault: true
+            }
+          ]
+        };
+        setCurrentUser(profile);
 
-  useEffect(() => {
-    localStorage.setItem('hx_email_notifications', JSON.stringify(emailNotifications));
-  }, [emailNotifications]);
+        // Fetch user's wishlist and cart from Supabase
+        try {
+          setIsLoadingWishlist(true);
+          const [userWishlist, userCart] = await Promise.allSettled([
+            fetchWishlistFromSupabase(session.user.id),
+            fetchUserCartFromSupabase(`cart_user_${session.user.id}`)
+          ]);
+
+          if (userWishlist.status === 'fulfilled' && userWishlist.value && userWishlist.value.length > 0) {
+            setWishlist(userWishlist.value);
+          }
+          if (userCart.status === 'fulfilled' && userCart.value && userCart.value.length > 0) {
+            setCart(userCart.value);
+          }
+        } catch {
+          // Keep current state
+        } finally {
+          setIsLoadingWishlist(false);
+        }
+      } else {
+        setIsAdminAuthenticated(false);
+        setIsAdminMode(false);
+      }
+    });
+
+    // Check initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const { isAdmin } = await supabaseVerifyAdminRole(session.user.id, session.user.email);
+        if (isAdmin) {
+          setIsAdminAuthenticated(true);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
 
   const addEmailNotification = (notification: EmailNotification) => {
     setEmailNotifications(prev => [notification, ...prev]);
@@ -590,12 +735,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const syncDatabase = async () => {
-    showToast('Connecting and synchronizing with Supabase database...');
+    showToast('Synchronizing all Atelier catalog & order records with Supabase...');
     const result = await syncStoreWithSupabase({
       orders,
       products,
       customOrders,
-      emailLogs: emailNotifications
+      emailLogs: emailNotifications,
+      reviews,
+      invoices
     });
 
     setSupabaseStatus(prev => ({
@@ -625,29 +772,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return `₹${Math.round(converted).toLocaleString('en-IN')}`;
   };
 
-  // ADMIN AUTHENTICATION
-  const adminLogin = (u: string, p: string) => {
-    if (u.trim().toUpperCase() === 'HARCONXS' && p === 'Admin@Hamza12') {
-      setIsAdminAuthenticated(true);
-      sessionStorage.setItem('hx_admin_auth', 'true');
-      setIsAdminMode(true);
-      setIsAdminLoginModalOpen(false);
-      setCurrentView('admin');
-      showToast('Admin Atelier Console unlocked. Welcome back, HARCONXS.');
-      return { success: true, message: 'Authentication successful.' };
+  // ADMIN AUTHENTICATION (SUPABASE AUTH + RBAC)
+  const adminLogin = async (email: string, p: string) => {
+    try {
+      const res = await supabaseAdminSignIn(email, p);
+      if (res.success) {
+        setIsAdminAuthenticated(true);
+        setIsAdminMode(true);
+        setIsAdminLoginModalOpen(false);
+        setCurrentView('admin');
+        recordAuditLog(email, 'admin_login', 'admin_session');
+        showToast('Admin Atelier Console unlocked with verified Supabase credentials.');
+        return { success: true, message: 'Authentication successful.' };
+      }
+      return { success: false, message: res.message };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Admin authentication failed.' };
     }
-    return { success: false, message: 'Access Denied: Invalid Admin username or password.' };
   };
 
-  const adminLogout = () => {
+  const adminLogout = async () => {
+    await supabaseSignOut();
     setIsAdminAuthenticated(false);
-    sessionStorage.removeItem('hx_admin_auth');
     setIsAdminMode(false);
+    setCurrentUser(null);
     setCurrentView('home');
     showToast('Admin logged out securely.');
   };
 
-  // USER AUTHENTICATION
+  // USER AUTHENTICATION (SUPABASE AUTH)
   const openAuthModalWithAction = (callback?: () => void) => {
     if (callback) {
       setPendingAuthCallback(() => callback);
@@ -665,10 +818,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const userLogin = (emailOrPhone: string, _password?: string) => {
+  const userLogin = async (emailOrPhone: string, password?: string) => {
     const cleanId = emailOrPhone.trim();
     if (!cleanId) {
       return { success: false, message: 'Please provide your email or phone number.' };
+    }
+
+    if (cleanId.includes('@')) {
+      const { user, error } = await supabaseSignIn(cleanId, password);
+      if (error) {
+        return { success: false, message: error.message || 'Login failed. Please check your credentials.' };
+      }
+      if (user) {
+        const { isAdmin } = await supabaseVerifyAdminRole(user.id, user.email);
+        if (isAdmin) {
+          setIsAdminAuthenticated(true);
+        }
+      }
     }
 
     const newUser: UserProfile = {
@@ -700,24 +866,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast(`Welcome back, ${newUser.name}!`);
     executePendingAuth();
 
-    // Trigger Welcome Email Notification
-    const welcomeEmail = generateAccountCreatedEmail(newUser.name, newUser.email, newUser.loyaltyPoints);
-    addEmailNotification(welcomeEmail);
-
     return { success: true, message: 'Signed in successfully.' };
   };
 
-  const userRegister = (name: string, email: string, phone: string, _password?: string) => {
+  const userRegister = async (name: string, email: string, phone: string, password?: string) => {
     if (!name.trim() || !email.trim()) {
       return { success: false, message: 'Name and email are required to create an account.' };
     }
 
+    const { user, error } = await supabaseSignUp(email.trim(), password, { full_name: name.trim(), phone: phone.trim() });
+    if (error) {
+      return { success: false, message: error.message || 'Registration failed.' };
+    }
+
     const newUser: UserProfile = {
-      id: `usr-${Date.now()}`,
+      id: user?.id || `usr-${Date.now()}`,
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim() || '+91 98765 43210',
-      loyaltyPoints: 150, // Welcome gift points
+      loyaltyPoints: 150,
       storeCredit: 50,
       isAffiliate: true,
       affiliateCode: `${name.substring(0, 4).toUpperCase()}${Math.floor(100 + Math.random() * 900)}`,
@@ -738,7 +905,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setCurrentUser(newUser);
     setIsAuthModalOpen(false);
-    showToast(`Account created! +150 Loyalty Points credited to your wallet.`);
+    showToast(`Account created! A verification link has been sent to ${email.trim()}.`);
     executePendingAuth();
 
     // Trigger Account Created Email
@@ -748,39 +915,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return { success: true, message: 'Account created successfully.' };
   };
 
-  const userGoogleLogin = () => {
-    const newUser: UserProfile = {
-      id: 'usr-google-hamza',
-      name: 'Hamza Shahid',
-      email: 'hamzashahid1152901@gmail.com',
-      phone: '+91 98765 43210',
-      loyaltyPoints: 250,
-      storeCredit: 100.00,
-      isAffiliate: true,
-      affiliateCode: 'HAMZA2026',
-      affiliateCommissionEarned: 245.00,
-      addresses: [
-        {
-          fullName: 'Hamza Shahid',
-          street: 'Flat 402, Highline Atelier Towers',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          zip: '400050',
-          country: 'India',
-          phone: '+91 98765 43210',
-          isDefault: true,
-        }
-      ]
-    };
-
-    setCurrentUser(newUser);
-    setIsAuthModalOpen(false);
-    showToast('Signed in securely with Google.');
-    executePendingAuth();
-
-    // Trigger Welcome Email
-    const welcomeEmail = generateAccountCreatedEmail(newUser.name, newUser.email, newUser.loyaltyPoints);
-    addEmailNotification(welcomeEmail);
+  const userGoogleLogin = async () => {
+    await supabaseSignInWithGoogle();
   };
 
   const userOtpLogin = (phone: string, otp: string) => {
@@ -819,9 +955,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return { success: true, message: 'OTP verified successfully.' };
   };
 
-  const userLogout = () => {
+  const userLogout = async () => {
+    await supabaseSignOut();
     setCurrentUser(null);
-    localStorage.removeItem('hx_current_user');
+    setIsAdminAuthenticated(false);
+    setIsAdminMode(false);
     showToast('Signed out of your account.');
   };
 
@@ -854,14 +992,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updatePopupBanner = (cfg: PopupBannerConfig) => {
     setPopupBanner(cfg);
-    localStorage.setItem('hx_popup_banner', JSON.stringify(cfg));
     showToast('Pop-up banner settings saved.');
   };
 
   // BILLING PORTAL
   const updateBillingPortal = (cfg: BillingPortalConfig) => {
     setBillingPortal(cfg);
-    localStorage.setItem('hx_billing_portal', JSON.stringify(cfg));
     showToast('Billing portal settings updated.');
   };
 
@@ -882,8 +1018,75 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Video removed from showcase.');
   };
 
-  // Cart operations
-  const addToCart = (
+  // Catalog Refetching & Inventory
+  const refetchProducts = async () => {
+    setIsLoadingProducts(true);
+    setProductsError(null);
+    try {
+      const dbProducts = await fetchProductsFromSupabase();
+      if (dbProducts && dbProducts.length > 0) {
+        setProducts(dbProducts);
+      }
+    } catch (err: any) {
+      setProductsError(err?.message || 'Failed to refresh product catalog.');
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  const updateProductInventory = async (
+    productId: string,
+    variantId?: string,
+    quantityChanged?: number,
+    newInventoryCount?: number,
+    changeType: 'order_sale' | 'restock' | 'damaged' | 'adjustment' | 'return' = 'adjustment',
+    referenceId?: string,
+    notes?: string
+  ): Promise<boolean> => {
+    try {
+      const isSuccess = await updateInventoryInSupabase(
+        productId,
+        variantId,
+        quantityChanged,
+        newInventoryCount,
+        changeType,
+        referenceId,
+        notes
+      );
+      if (isSuccess) {
+        setProducts(prev => prev.map(p => {
+          if (p.id === productId) {
+            if (variantId && p.variants) {
+              const updatedVariants = p.variants.map(v => {
+                if (v.id === variantId) {
+                  const updatedQty = newInventoryCount !== undefined ? newInventoryCount : Math.max(0, v.inventory + (quantityChanged || 0));
+                  return { ...v, inventory: updatedQty };
+                }
+                return v;
+              });
+              const totalStock = updatedVariants.reduce((sum, v) => sum + v.inventory, 0);
+              return { ...p, variants: updatedVariants, inventory: totalStock };
+            } else {
+              const updatedQty = newInventoryCount !== undefined ? newInventoryCount : Math.max(0, p.inventory + (quantityChanged || 0));
+              return { ...p, inventory: updatedQty };
+            }
+          }
+          return p;
+        }));
+        showToast('Inventory updated in database.');
+        return true;
+      } else {
+        showToast('Failed to update inventory in database.');
+        return false;
+      }
+    } catch (err: any) {
+      showToast(`Inventory error: ${err?.message || 'Failed to update'}`);
+      return false;
+    }
+  };
+
+  // Cart operations with Supabase Sync
+  const addToCart = async (
     product: Product,
     quantity = 1,
     variantId?: string,
@@ -894,41 +1097,84 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const selectedVariant = variantId ? product.variants?.find(v => v.id === variantId) : undefined;
     const itemId = `${product.id}-${variantId || 'default'}-${packaging?.id || 'none'}-${personalization?.names || 'plain'}`;
 
+    let updatedCart: CartItem[] = [];
     setCart(prev => {
       const existing = prev.find(item => item.id === itemId);
       if (existing) {
-        return prev.map(item => item.id === itemId ? { ...item, quantity: item.quantity + quantity } : item);
+        updatedCart = prev.map(item => item.id === itemId ? { ...item, quantity: item.quantity + quantity } : item);
+      } else {
+        updatedCart = [...prev, {
+          id: itemId,
+          product,
+          variant: selectedVariant,
+          quantity,
+          packaging,
+          personalization,
+          customPrice
+        }];
       }
-      return [...prev, {
-        id: itemId,
-        product,
-        variant: selectedVariant,
-        quantity,
-        packaging,
-        personalization,
-        customPrice
-      }];
+      return updatedCart;
     });
 
+    trackAnalyticsEvent('add_to_cart', { productId: product.id, name: product.name, quantity });
     showToast(`Added "${product.name}" to bag.`);
     setIsCartOpen(true);
+
+    const cartId = getCartSessionId(currentUser?.id);
+    setIsLoadingCart(true);
+    setCartError(null);
+    try {
+      await syncCartToSupabase(cartId, updatedCart, appliedCoupon?.code);
+    } catch (err: any) {
+      setCartError(err?.message || 'Database sync pending');
+    } finally {
+      setIsLoadingCart(false);
+    }
   };
 
-  const removeFromCart = (itemId: string) => {
-    setCart(prev => prev.filter(i => i.id !== itemId));
+  const removeFromCart = async (itemId: string) => {
+    let updatedCart: CartItem[] = [];
+    setCart(prev => {
+      updatedCart = prev.filter(i => i.id !== itemId);
+      return updatedCart;
+    });
+
+    const cartId = getCartSessionId(currentUser?.id);
+    try {
+      await syncCartToSupabase(cartId, updatedCart, appliedCoupon?.code);
+    } catch (err: any) {
+      setCartError(err?.message || 'Error syncing bag update.');
+    }
   };
 
-  const updateCartQuantity = (itemId: string, quantity: number) => {
+  const updateCartQuantity = async (itemId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(itemId);
+      await removeFromCart(itemId);
       return;
     }
-    setCart(prev => prev.map(i => i.id === itemId ? { ...i, quantity } : i));
+    let updatedCart: CartItem[] = [];
+    setCart(prev => {
+      updatedCart = prev.map(i => i.id === itemId ? { ...i, quantity } : i);
+      return updatedCart;
+    });
+
+    const cartId = getCartSessionId(currentUser?.id);
+    try {
+      await syncCartToSupabase(cartId, updatedCart, appliedCoupon?.code);
+    } catch (err: any) {
+      setCartError(err?.message || 'Error syncing bag update.');
+    }
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
     setCart([]);
     setAppliedCoupon(null);
+    const cartId = getCartSessionId(currentUser?.id);
+    try {
+      await clearCartInSupabase(cartId);
+    } catch {
+      // Cleared locally
+    }
   };
 
   // Coupons
@@ -964,96 +1210,630 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }
 
-  // Free shipping over $50 / ₹4,000 or with FREESHIP coupon
   const isFreeShipping = (cartSubtotal >= 50) || (appliedCoupon?.type === 'free_shipping');
   const cartShipping = (cart.length > 0 && !isFreeShipping) ? 4.99 : 0;
-  const cartTax = (cartSubtotal - cartDiscount) * 0.05; // 5% GST / standard tax
+  const cartTax = (cartSubtotal - cartDiscount) * 0.05;
   const cartTotal = Math.max(0, cartSubtotal + cartPackagingTotal - cartDiscount + cartShipping + cartTax);
 
-  // Wishlist operations
-  const toggleWishlist = (productId: string) => {
-    setWishlist(prev => {
-      const exists = prev.includes(productId);
-      if (exists) {
-        showToast('Removed from wishlist.');
-        return prev.filter(id => id !== productId);
-      } else {
-        showToast('Saved to wishlist.');
-        return [...prev, productId];
+  // Wishlist operations with Supabase Sync
+  const toggleWishlist = async (productId: string) => {
+    const exists = wishlist.includes(productId);
+    const updated = exists ? wishlist.filter(id => id !== productId) : [...wishlist, productId];
+    setWishlist(updated);
+    showToast(exists ? 'Removed from wishlist.' : 'Saved to wishlist.');
+
+    if (currentUser?.id) {
+      setIsLoadingWishlist(true);
+      setWishlistError(null);
+      try {
+        if (exists) {
+          await removeFromWishlistInSupabase(currentUser.id, productId);
+        } else {
+          await addToWishlistInSupabase(currentUser.id, productId);
+        }
+      } catch (err: any) {
+        setWishlistError(err?.message || 'Failed to sync wishlist to Supabase.');
+      } finally {
+        setIsLoadingWishlist(false);
       }
-    });
+    }
   };
 
   const isInWishlist = (productId: string) => wishlist.includes(productId);
 
-  const clearWishlist = () => {
+  const clearWishlist = async () => {
     setWishlist([]);
     showToast('Wishlist cleared.');
+    if (currentUser?.id) {
+      try {
+        await clearWishlistInSupabase(currentUser.id);
+      } catch {
+        // Handled
+      }
+    }
   };
 
-  // Product Reviews
-  const addProductReview = (reviewData: Omit<ProductReview, 'id' | 'date'>) => {
+  // Helper: Check if user has purchased a product and get review status
+  const checkUserProductPurchase = (productId: string): { hasPurchased: boolean; eligibleOrders: Order[]; existingReview?: ProductReview } => {
+    // 1. Look for matching orders for this user by userId or email
+    const eligibleOrders = orders.filter(o => {
+      const isUserOrder = (currentUser?.id && (o.customerId === currentUser.id || o.customerEmail?.toLowerCase() === currentUser.email?.toLowerCase())) ||
+        (currentUser?.email && o.customerEmail?.toLowerCase() === currentUser.email.toLowerCase());
+      
+      const containsProduct = o.items.some(item => item.product.id === productId);
+      const isPaidOrFulfilled = ['Paid', 'Processing', 'Production', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered'].includes(o.status);
+
+      return isUserOrder && containsProduct && isPaidOrFulfilled;
+    });
+
+    const hasPurchased = eligibleOrders.length > 0;
+
+    // Check if the user already submitted a review for this product
+    const existingReview = reviews.find(r => 
+      r.productId === productId && 
+      ((currentUser?.id && r.userId === currentUser.id) || (currentUser?.email && r.userEmail?.toLowerCase() === currentUser.email.toLowerCase()))
+    );
+
+    return {
+      hasPurchased,
+      eligibleOrders,
+      existingReview
+    };
+  };
+
+  // Product Reviews: Add Verified Review
+  const addProductReview = async (
+    reviewData: Partial<ProductReview>
+  ): Promise<{ success: boolean; message: string; review?: ProductReview }> => {
+    if (!reviewData.productId) {
+      return { success: false, message: 'Product ID is missing.' };
+    }
+
+    const productId = reviewData.productId;
+    const { hasPurchased, eligibleOrders, existingReview } = checkUserProductPurchase(productId);
+
+    // If user has already reviewed this product, prevent duplicate unless editing
+    if (existingReview) {
+      return {
+        success: false,
+        message: 'You have already submitted a review for this product. You can edit your existing review.',
+        review: existingReview
+      };
+    }
+
+    // Purchase Verification Check
+    const isVerifiedPurchase = hasPurchased || reviewData.verifiedPurchase === true || reviewData.verified === true;
+
+    const matchedOrderId = reviewData.orderId || (eligibleOrders.length > 0 ? eligibleOrders[0].id : undefined);
+    const userId = currentUser?.id || `user-anon-${Math.random().toString(36).substring(2, 8)}`;
+    const userName = reviewData.userName?.trim() || currentUser?.name || 'Verified Buyer';
+    const userEmail = currentUser?.email || reviewData.userEmail;
+
     const newReview: ProductReview = {
-      ...reviewData,
-      id: `rev-${Date.now()}`,
-      date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      likes: reviewData.likes || 0,
-      verified: reviewData.verified !== undefined ? reviewData.verified : true
+      id: `rev-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      productId,
+      orderId: matchedOrderId,
+      orderItemId: reviewData.orderItemId,
+      userId,
+      userName,
+      userEmail,
+      userAvatar: currentUser?.name ? `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=18181b&color=f59e0b` : undefined,
+      rating: Math.min(5, Math.max(1, reviewData.rating || 5)),
+      title: reviewData.title?.trim() || 'Verified Experience',
+      comment: reviewData.comment?.trim() || reviewData.review?.trim() || '',
+      review: reviewData.comment?.trim() || reviewData.review?.trim() || '',
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      verified: isVerifiedPurchase,
+      verifiedPurchase: isVerifiedPurchase,
+      likes: 0,
+      helpfulVotes: 0,
+      helpfulUserIds: [],
+      images: reviewData.images || reviewData.customerImages || [],
+      customerImages: reviewData.images || reviewData.customerImages || [],
+      status: 'approved',
+      isFeatured: false,
+      reported: false,
+      reportCount: 0
     };
 
     const updatedReviews = [newReview, ...reviews];
     setReviews(updatedReviews);
 
     // Recalculate average rating & review count for the product
-    const productReviews = updatedReviews.filter(r => r.productId === reviewData.productId);
-    const avgRating = Number((productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length).toFixed(1));
+    const approvedProductReviews = updatedReviews.filter(r => r.productId === productId && r.status === 'approved');
+    const avgRating = Number((approvedProductReviews.reduce((sum, r) => sum + r.rating, 0) / (approvedProductReviews.length || 1)).toFixed(1));
     
     setProducts(prevProducts =>
       prevProducts.map(p => {
-        if (p.id === reviewData.productId) {
-          return {
+        if (p.id === productId) {
+          const updatedProd = {
             ...p,
             rating: avgRating,
-            reviewCount: (p.reviewCount || 0) + 1
+            reviewCount: approvedProductReviews.length
           };
+          upsertProductInSupabase(updatedProd);
+          return updatedProd;
         }
         return p;
       })
     );
 
-    syncStoreWithSupabase({
-      orders,
-      products,
-      customOrders,
-      emailLogs: emailNotifications,
-      reviews: updatedReviews
+    // Persist to Supabase with RLS
+    await insertReviewInSupabase(newReview);
+    showToast('✨ Thank you! Your verified product review is published.');
+    return { success: true, message: 'Review successfully submitted.', review: newReview };
+  };
+
+  // Product Reviews: Edit / Update Existing Review
+  const updateProductReview = async (
+    reviewId: string,
+    updates: Partial<ProductReview>
+  ): Promise<boolean> => {
+    const existing = reviews.find(r => r.id === reviewId);
+    if (!existing) {
+      showToast('Review not found.');
+      return false;
+    }
+
+    // Security check: Only author or admin can edit
+    const isAuthor = currentUser?.id && existing.userId === currentUser.id;
+    if (!isAuthor && !isAdminAuthenticated) {
+      showToast('Access denied: You can only edit your own reviews.');
+      return false;
+    }
+
+    const updatedReview: ProductReview = {
+      ...existing,
+      rating: updates.rating !== undefined ? Math.min(5, Math.max(1, updates.rating)) : existing.rating,
+      title: updates.title !== undefined ? updates.title.trim() : existing.title,
+      comment: updates.comment !== undefined ? updates.comment.trim() : existing.comment,
+      review: updates.comment !== undefined ? updates.comment.trim() : existing.comment,
+      images: updates.images !== undefined ? updates.images : (updates.customerImages || existing.images),
+      customerImages: updates.images !== undefined ? updates.images : (updates.customerImages || existing.images),
+      updatedAt: new Date().toISOString()
+    };
+
+    const updatedReviews = reviews.map(r => r.id === reviewId ? updatedReview : r);
+    setReviews(updatedReviews);
+
+    // Recalculate product rating
+    const approvedProductReviews = updatedReviews.filter(r => r.productId === existing.productId && r.status === 'approved');
+    const avgRating = Number((approvedProductReviews.reduce((sum, r) => sum + r.rating, 0) / (approvedProductReviews.length || 1)).toFixed(1));
+
+    setProducts(prevProducts =>
+      prevProducts.map(p => {
+        if (p.id === existing.productId) {
+          const updatedProd = {
+            ...p,
+            rating: avgRating,
+            reviewCount: approvedProductReviews.length
+          };
+          upsertProductInSupabase(updatedProd);
+          return updatedProd;
+        }
+        return p;
+      })
+    );
+
+    await updateReviewInSupabase(reviewId, updatedReview);
+    showToast('Your review has been updated.');
+    return true;
+  };
+
+  // Product Reviews: Delete Review
+  const deleteProductReview = async (reviewId: string): Promise<boolean> => {
+    const existing = reviews.find(r => r.id === reviewId);
+    if (!existing) return false;
+
+    // Security check: Author or admin
+    const isAuthor = currentUser?.id && existing.userId === currentUser.id;
+    if (!isAuthor && !isAdminAuthenticated) {
+      showToast('Access denied: You can only delete your own reviews.');
+      return false;
+    }
+
+    const updatedReviews = reviews.filter(r => r.id !== reviewId);
+    setReviews(updatedReviews);
+
+    // Recalculate product rating
+    const approvedProductReviews = updatedReviews.filter(r => r.productId === existing.productId && r.status === 'approved');
+    const avgRating = approvedProductReviews.length > 0 
+      ? Number((approvedProductReviews.reduce((sum, r) => sum + r.rating, 0) / approvedProductReviews.length).toFixed(1))
+      : 5.0;
+
+    setProducts(prevProducts =>
+      prevProducts.map(p => {
+        if (p.id === existing.productId) {
+          const updatedProd = {
+            ...p,
+            rating: avgRating,
+            reviewCount: approvedProductReviews.length
+          };
+          upsertProductInSupabase(updatedProd);
+          return updatedProd;
+        }
+        return p;
+      })
+    );
+
+    await deleteReviewFromSupabase(reviewId);
+    showToast('Review removed.');
+    return true;
+  };
+
+  // Product Reviews: Toggle Helpful Vote
+  const toggleReviewHelpful = async (reviewId: string): Promise<boolean> => {
+    const userId = currentUser?.id || 'anon-session-voter';
+    const target = reviews.find(r => r.id === reviewId);
+    if (!target) return false;
+
+    const currentVoters = target.helpfulUserIds || [];
+    const hasVoted = currentVoters.includes(userId);
+    const newVoters = hasVoted ? currentVoters.filter(id => id !== userId) : [...currentVoters, userId];
+    const newCount = newVoters.length;
+
+    const updatedReview: ProductReview = {
+      ...target,
+      helpfulVotes: newCount,
+      likes: newCount,
+      helpfulUserIds: newVoters
+    };
+
+    setReviews(prev => prev.map(r => r.id === reviewId ? updatedReview : r));
+    await toggleReviewHelpfulInSupabase(reviewId, userId, hasVoted, newCount);
+
+    showToast(hasVoted ? 'Helpful vote removed.' : 'Marked as helpful. Thank you for your feedback!');
+    return true;
+  };
+
+  // Product Reviews: Report Review
+  const reportProductReview = async (reviewId: string, reason: string, details?: string): Promise<boolean> => {
+    const target = reviews.find(r => r.id === reviewId);
+    if (!target) return false;
+
+    const reportCount = (target.reportCount || 0) + 1;
+    const updatedReview: ProductReview = {
+      ...target,
+      reported: true,
+      reportReason: reason,
+      reportCount
+    };
+
+    setReviews(prev => prev.map(r => r.id === reviewId ? updatedReview : r));
+
+    await reportReviewInSupabase({
+      reviewId,
+      reason: 'inappropriate',
+      reasonText: reason,
+      details,
+      reportedBy: currentUser?.id,
+      createdAt: new Date().toISOString()
     });
 
-    showToast('✨ Thank you! Your verified product review is published.');
+    showToast('Thank you. This review has been flagged for atelier moderation.');
+    return true;
+  };
+
+  // Product Reviews: Admin Moderation Action
+  const moderateReview = async (
+    reviewId: string,
+    action: 'approve' | 'reject' | 'hide' | 'feature' | 'delete',
+    notes?: string
+  ): Promise<boolean> => {
+    if (!isAdminAuthenticated) {
+      showToast('Admin privilege required for review moderation.');
+      return false;
+    }
+
+    if (action === 'delete') {
+      return await deleteProductReview(reviewId);
+    }
+
+    const target = reviews.find(r => r.id === reviewId);
+    if (!target) return false;
+
+    let updatedReview: ProductReview = { ...target };
+
+    if (action === 'approve') {
+      updatedReview.status = 'approved';
+      updatedReview.reported = false;
+    } else if (action === 'reject') {
+      updatedReview.status = 'rejected';
+    } else if (action === 'hide') {
+      updatedReview.status = 'hidden';
+    } else if (action === 'feature') {
+      updatedReview.isFeatured = !target.isFeatured;
+    }
+
+    if (notes) {
+      updatedReview.adminNotes = notes;
+    }
+
+    const updatedReviews = reviews.map(r => r.id === reviewId ? updatedReview : r);
+    setReviews(updatedReviews);
+
+    // Recalculate product rating if status changed
+    const approvedProductReviews = updatedReviews.filter(r => r.productId === target.productId && r.status === 'approved');
+    const avgRating = approvedProductReviews.length > 0
+      ? Number((approvedProductReviews.reduce((sum, r) => sum + r.rating, 0) / approvedProductReviews.length).toFixed(1))
+      : 5.0;
+
+    setProducts(prevProducts =>
+      prevProducts.map(p => {
+        if (p.id === target.productId) {
+          const updatedProd = {
+            ...p,
+            rating: avgRating,
+            reviewCount: approvedProductReviews.length
+          };
+          upsertProductInSupabase(updatedProd);
+          return updatedProd;
+        }
+        return p;
+      })
+    );
+
+    await updateReviewInSupabase(reviewId, updatedReview);
+    showToast(`Review action "${action}" applied.`);
+    return true;
   };
 
   // Billing & Invoices
   const addBillingInvoice = (invoice: BillingInvoice) => {
     setInvoices(prev => [invoice, ...prev]);
+    insertInvoiceInSupabase(invoice);
   };
 
   // Product Catalog CRUD (Admin)
-  const addProduct = (prod: Product) => {
+  const addProduct = async (prod: Product) => {
     setProducts(prev => [prod, ...prev]);
-    showToast(`Product "${prod.name}" published to catalog.`);
+    const isSuccess = await upsertProductInSupabase(prod);
+    if (isSuccess) {
+      recordAuditLog('admin', 'create_product', 'product', prod.id, null, prod);
+      showToast(`Product "${prod.name}" published to catalog.`);
+    } else {
+      showToast(`Product saved locally.`);
+    }
   };
 
-  const updateProduct = (prod: Product) => {
+  const updateProduct = async (prod: Product) => {
     setProducts(prev => prev.map(p => p.id === prod.id ? prod : p));
-    showToast(`Product "${prod.name}" updated.`);
+    const isSuccess = await upsertProductInSupabase(prod);
+    if (isSuccess) {
+      recordAuditLog('admin', 'update_product', 'product', prod.id, null, prod);
+      showToast(`Product "${prod.name}" updated.`);
+    } else {
+      showToast(`Product updated locally.`);
+    }
   };
 
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
-    showToast('Product removed from catalog.');
+    const isSuccess = await deleteProductInSupabase(id);
+    if (isSuccess) {
+      recordAuditLog('admin', 'delete_product', 'product', id);
+      showToast('Product removed from catalog.');
+    } else {
+      showToast('Product removed from catalog.');
+    }
   };
 
-  // Orders
+  // Orders, Verification & Fulfillment
+  const refetchOrders = async () => {
+    setIsLoadingOrders(true);
+    setOrdersError(null);
+    try {
+      const dbOrders = await fetchOrdersFromSupabase();
+      if (dbOrders && dbOrders.length > 0) {
+        setOrders(dbOrders);
+      }
+    } catch (err: any) {
+      setOrdersError(err?.message || 'Failed to refresh orders.');
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const calculateServerOrderQuote = async (request: ServerOrderQuoteRequest): Promise<ServerPriceBreakdown> => {
+    return await verifyAndCalculateOrderTotals(request);
+  };
+
+  const placeServerVerifiedOrder = async (
+    params: CreateOrderParams
+  ): Promise<{ success: boolean; order?: Order; invoice?: BillingInvoice; error?: string }> => {
+    setIsLoadingOrders(true);
+    setOrdersError(null);
+    try {
+      const result = await executeServerOrderCreation(params);
+      if (!result.success || !result.order) {
+        const errMsg = result.error || 'Server rejected order verification.';
+        setOrdersError(errMsg);
+        showToast(`Checkout validation failed: ${errMsg}`);
+        return { success: false, error: errMsg };
+      }
+
+      // Prepend order & invoice to local state
+      setOrders(prev => [result.order!, ...prev]);
+      if (result.invoice) {
+        setInvoices(prev => [result.invoice!, ...prev]);
+      }
+
+      // Synchronize locally decremented inventory
+      setProducts(prev =>
+        prev.map(p => {
+          const item = params.items.find(i => i.product.id === p.id);
+          if (item) {
+            const updatedStock = Math.max(0, p.inventory - item.quantity);
+            return { ...p, inventory: updatedStock };
+          }
+          return p;
+        })
+      );
+
+      // Clear Cart
+      setCart([]);
+      setAppliedCoupon(null);
+
+      // Trigger Order Confirmed Email Notification
+      const orderEmail = generateOrderConfirmedEmail(result.order);
+      addEmailNotification(orderEmail);
+
+      trackAnalyticsEvent('purchase', {
+        orderNumber: result.order.orderNumber,
+        total: result.order.total,
+        itemsCount: result.order.items.length
+      });
+
+      showToast(`✨ Order ${result.order.orderNumber} placed & inventory reserved in database!`);
+      return { success: true, order: result.order, invoice: result.invoice };
+    } catch (err: any) {
+      const errMsg = err?.message || 'Failed to place server-verified order.';
+      setOrdersError(errMsg);
+      showToast(`Order error: ${errMsg}`);
+      return { success: false, error: errMsg };
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const processOrderRefund = async (
+    orderId: string,
+    amount: number,
+    reason: string,
+    restockInventory = true
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const targetOrder = orders.find(o => o.id === orderId);
+      const res = await processOrderRefundInSupabase(
+        orderId,
+        amount,
+        reason,
+        restockInventory,
+        targetOrder?.items
+      );
+
+      if (res.success) {
+        setOrders(prev =>
+          prev.map(ord => {
+            if (ord.id === orderId) {
+              const newTimeline = [
+                ...ord.timeline,
+                {
+                  status: 'Refunded' as Order['status'],
+                  timestamp: new Date().toISOString(),
+                  description: `Refund of ₹${(amount * 86.5).toLocaleString('en-IN')} processed. Reason: ${reason}`,
+                  location: 'Finance & Accounts Settlement'
+                }
+              ];
+              return {
+                ...ord,
+                status: 'Refunded',
+                paymentStatus: 'refunded',
+                timeline: newTimeline
+              };
+            }
+            return ord;
+          })
+        );
+
+        if (restockInventory && targetOrder?.items) {
+          setProducts(prev =>
+            prev.map(p => {
+              const item = targetOrder.items.find(i => i.product.id === p.id);
+              if (item) {
+                return { ...p, inventory: p.inventory + item.quantity };
+              }
+              return p;
+            })
+          );
+        }
+
+        recordAuditLog('admin', 'process_refund', 'order', orderId, null, { amount, reason, restockInventory });
+        showToast(`Refund processed for order ${targetOrder?.orderNumber || orderId}.`);
+        return { success: true };
+      } else {
+        showToast(`Refund error: ${res.error || 'Failed to process refund'}`);
+        return { success: false, error: res.error };
+      }
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Refund error' };
+    }
+  };
+
+  const updateOrderLogistics = async (
+    orderId: string,
+    carrier: string,
+    trackingNumber: string,
+    trackingUrl?: string,
+    deliveryDate?: string,
+    status: Order['status'] = 'Shipped',
+    notes?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await updateOrderLogisticsInSupabase(
+        orderId,
+        carrier,
+        trackingNumber,
+        trackingUrl,
+        deliveryDate,
+        status,
+        notes
+      );
+
+      if (res.success) {
+        let updatedOrderObj: Order | null = null;
+        setOrders(prev =>
+          prev.map(ord => {
+            if (ord.id === orderId) {
+              const newTimeline = [
+                ...ord.timeline,
+                {
+                  status,
+                  timestamp: new Date().toISOString(),
+                  description: notes || `Dispatched via ${carrier}. AWB Waybill #${trackingNumber}`,
+                  location: `${carrier} Sorting Hub`
+                }
+              ];
+              const updated = {
+                ...ord,
+                status,
+                carrier,
+                trackingNumber,
+                trackingUrl: trackingUrl || ord.trackingUrl,
+                deliveryDate: deliveryDate || ord.deliveryDate,
+                timeline: newTimeline
+              };
+              updatedOrderObj = updated;
+              return updated;
+            }
+            return ord;
+          })
+        );
+
+        if (updatedOrderObj) {
+          const shippingEmail = generateShippingUpdateEmail(
+            updatedOrderObj,
+            status,
+            carrier,
+            trackingNumber
+          );
+          addEmailNotification(shippingEmail);
+        }
+
+        recordAuditLog('admin', 'update_logistics', 'order', orderId, null, { carrier, trackingNumber, status });
+        showToast(`Logistics updated: ${carrier} #${trackingNumber}`);
+        return { success: true };
+      } else {
+        showToast(`Logistics update failed: ${res.error}`);
+        return { success: false, error: res.error };
+      }
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to update logistics' };
+    }
+  };
+
   const createOrder = (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>): Order => {
     const orderNumber = `HX-${Math.floor(10000 + Math.random() * 90000)}`;
     const newOrder: Order = {
@@ -1078,6 +1858,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setOrders(prev => [newOrder, ...prev]);
+    insertOrderInSupabase(newOrder);
+    trackAnalyticsEvent('purchase', { orderNumber, total: newOrder.total, itemsCount: newOrder.items.length });
     clearCart();
 
     // Auto generate Tax Invoice record
@@ -1105,6 +1887,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       receiptUrl: `https://harconxs.com/receipt/${newOrder.orderNumber}`
     };
     setInvoices(prev => [newInvoice, ...prev]);
+    insertInvoiceInSupabase(newInvoice);
 
     // Trigger Order Confirmed Email Notification
     const orderEmail = generateOrderConfirmedEmail(newOrder);
@@ -1137,8 +1920,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return ord;
     }));
 
-    // Trigger Shipping / Milestone Email Notification
     if (updatedOrderObj) {
+      updateOrderStatusInSupabase(orderId, status, carrier, trackingNumber, (updatedOrderObj as Order).timeline);
+      recordAuditLog('admin', 'update_order_status', 'order', orderId, null, { status, carrier, trackingNumber });
+      
       const shippingEmail = generateShippingUpdateEmail(
         updatedOrderObj,
         status,
@@ -1165,7 +1950,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           sender: 'customer',
           senderName: req.customerName,
           text: req.description,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          attachments: req.uploadedFiles.length > 0 ? req.uploadedFiles : undefined
         }
       ],
       createdAt: new Date().toISOString(),
@@ -1173,86 +1959,303 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setCustomOrders(prev => [newCustom, ...prev]);
-    showToast(`Custom order request ${requestNumber} submitted!`);
+    upsertCustomOrderInSupabase(newCustom);
+    trackAnalyticsEvent('create_custom_order', { requestNumber, recipient: req.recipient });
+    showToast(`Custom order request ${requestNumber} submitted to Atelier!`);
     return newCustom;
   };
 
-  const sendCustomOrderMessage = (customOrderId: string, text: string, sender: 'customer' | 'admin') => {
-    setCustomOrders(prev => prev.map(co => {
-      if (co.id === customOrderId) {
-        const newMsg = {
-          id: `msg-${Date.now()}`,
-          sender,
-          senderName: sender === 'admin' ? 'HARCONXS Master Artisan' : co.customerName,
-          text,
-          timestamp: new Date().toISOString()
-        };
-        return {
-          ...co,
-          messages: [...co.messages, newMsg],
-          updatedAt: new Date().toISOString()
-        };
-      }
-      return co;
-    }));
+  const sendCustomOrderMessage = async (
+    customOrderId: string,
+    text: string,
+    sender: 'customer' | 'admin',
+    attachments?: string[]
+  ): Promise<void> => {
+    const targetOrder = customOrders.find(co => co.id === customOrderId);
+    const newMsg = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      sender,
+      senderName: sender === 'admin' ? 'HARCONXS Master Artisan' : (targetOrder?.customerName || 'Customer'),
+      text,
+      attachments: attachments && attachments.length > 0 ? attachments : undefined,
+      timestamp: new Date().toISOString()
+    };
+
+    let updatedAllMessages: typeof newMsg[] = [];
+
+    setCustomOrders(prev =>
+      prev.map(co => {
+        if (co.id === customOrderId) {
+          const updatedMessages = [...co.messages, newMsg];
+          updatedAllMessages = updatedMessages;
+          const updated = {
+            ...co,
+            messages: updatedMessages,
+            updatedAt: new Date().toISOString()
+          };
+          upsertCustomOrderInSupabase(updated);
+          return updated;
+        }
+        return co;
+      })
+    );
+
+    // Broadcast to Supabase Realtime channel for instant sub-second delivery
+    await broadcastCustomOrderMessage(customOrderId, newMsg, updatedAllMessages);
   };
 
-  const provideCustomOrderQuote = (customOrderId: string, quoteData: Omit<CustomOrderQuote, 'id'>) => {
+  const provideCustomOrderQuote = async (customOrderId: string, quoteData: Omit<CustomOrderQuote, 'id'>): Promise<void> => {
     const quote: CustomOrderQuote = {
       ...quoteData,
       id: `q-${Date.now()}`
     };
 
-    setCustomOrders(prev => prev.map(co => {
-      if (co.id === customOrderId) {
-        return {
-          ...co,
-          status: 'Quoted',
-          quote,
-          updatedAt: new Date().toISOString()
-        };
-      }
-      return co;
-    }));
-    showToast('Quotation dispatched to customer.');
+    setCustomOrders(prev =>
+      prev.map(co => {
+        if (co.id === customOrderId) {
+          const updated = {
+            ...co,
+            status: 'Quoted' as const,
+            quote,
+            designProofUrl: quoteData.designProofUrl || co.designProofUrl,
+            updatedAt: new Date().toISOString()
+          };
+          upsertCustomOrderInSupabase(updated);
+          return updated;
+        }
+        return co;
+      })
+    );
+    showToast('Official quotation and fabrication specifications dispatched to customer.');
   };
 
-  const respondToQuote = (customOrderId: string, accept: boolean) => {
-    setCustomOrders(prev => prev.map(co => {
-      if (co.id === customOrderId && co.quote) {
-        return {
-          ...co,
-          status: accept ? 'Paid' : 'Submitted',
-          quote: {
-            ...co.quote,
-            status: accept ? 'accepted' : 'rejected'
-          },
-          updatedAt: new Date().toISOString()
-        };
+  const respondToQuote = async (customOrderId: string, accept: boolean, revisionReason?: string): Promise<void> => {
+    setCustomOrders(prev =>
+      prev.map(co => {
+        if (co.id === customOrderId && co.quote) {
+          const updated = {
+            ...co,
+            status: (accept ? 'Paid' : 'Submitted') as any,
+            quote: {
+              ...co.quote,
+              status: (accept ? 'accepted' : 'revised') as any,
+              revisedReason: !accept ? revisionReason : undefined
+            },
+            updatedAt: new Date().toISOString()
+          };
+          upsertCustomOrderInSupabase(updated);
+          return updated;
+        }
+        return co;
+      })
+    );
+
+    if (accept) {
+      showToast('🎉 Quote accepted & verified! Project queued for atelier design & fabrication.');
+    } else {
+      if (revisionReason) {
+        await sendCustomOrderMessage(
+          customOrderId,
+          `Revision Requested: "${revisionReason}"`,
+          'customer'
+        );
       }
-      return co;
-    }));
-    showToast(accept ? 'Quote accepted! Project entered fabrication.' : 'Quote rejected.');
+      showToast('Revision notes sent to master artisan.');
+    }
   };
 
-  // Couple Websites
+  const updateCustomOrderStatus = async (
+    customOrderId: string,
+    status: CustomOrderStatus,
+    trackingDetails?: {
+      carrier?: string;
+      trackingNumber?: string;
+      trackingUrl?: string;
+      designProofUrl?: string;
+      notes?: string;
+    }
+  ): Promise<void> => {
+    setCustomOrders(prev =>
+      prev.map(co => {
+        if (co.id === customOrderId) {
+          const updated = {
+            ...co,
+            status,
+            carrier: trackingDetails?.carrier || co.carrier,
+            trackingNumber: trackingDetails?.trackingNumber || co.trackingNumber,
+            trackingUrl: trackingDetails?.trackingUrl || co.trackingUrl,
+            designProofUrl: trackingDetails?.designProofUrl || co.designProofUrl,
+            updatedAt: new Date().toISOString()
+          };
+          upsertCustomOrderInSupabase(updated);
+          return updated;
+        }
+        return co;
+      })
+    );
+
+    showToast(`Custom project status transitioned to "${status}".`);
+  };
+
+  const uploadCustomOrderFile = async (
+    file: File,
+    customOrderId?: string
+  ): Promise<{ success: boolean; url: string; fileName: string; fileSize?: number; error?: string }> => {
+    return await uploadCustomOrderFileToSupabase(file, customOrderId);
+  };
+
+  const subscribeToCustomOrder = (
+    customOrderId: string,
+    callback: (order: Partial<CustomOrder>) => void
+  ): (() => void) => {
+    return subscribeToCustomOrderRealtime(customOrderId, (updatedData) => {
+      // Sync local context state when realtime change arrives
+      setCustomOrders(prev =>
+        prev.map(co => (co.id === customOrderId ? { ...co, ...updatedData } : co))
+      );
+      callback(updatedData);
+    });
+  };
+
+  // Couple Websites & Templates
+  const addCoupleTemplate = async (templateData: Omit<CoupleWebsiteTemplate, 'id'>): Promise<boolean> => {
+    const newTemplate: CoupleWebsiteTemplate = {
+      ...templateData,
+      id: `tmpl-${Date.now()}`
+    };
+    setCoupleTemplates(prev => [newTemplate, ...prev]);
+    const success = await upsertCoupleTemplateInSupabase(newTemplate);
+    recordAuditLog('Admin', 'Created Template', 'couple_templates', newTemplate.name);
+    showToast(`Template "${newTemplate.name}" created successfully.`);
+    return success;
+  };
+
+  const updateCoupleTemplate = async (template: CoupleWebsiteTemplate): Promise<boolean> => {
+    setCoupleTemplates(prev => prev.map(t => t.id === template.id ? template : t));
+    const success = await upsertCoupleTemplateInSupabase(template);
+    recordAuditLog('Admin', 'Updated Template', 'couple_templates', template.name);
+    showToast(`Template "${template.name}" updated successfully.`);
+    return success;
+  };
+
+  const deleteCoupleTemplate = async (templateId: string): Promise<boolean> => {
+    setCoupleTemplates(prev => prev.filter(t => t.id !== templateId));
+    const success = await deleteCoupleTemplateFromSupabase(templateId);
+    recordAuditLog('Admin', 'Deleted Template', 'couple_templates', templateId);
+    showToast('Template removed from catalog.');
+    return success;
+  };
+
+  const toggleCoupleTemplateActive = async (templateId: string): Promise<boolean> => {
+    let updatedTmpl: CoupleWebsiteTemplate | null = null;
+    setCoupleTemplates(prev => prev.map(t => {
+      if (t.id === templateId) {
+        updatedTmpl = { ...t, isActive: t.isActive === false ? true : false };
+        return updatedTmpl;
+      }
+      return t;
+    }));
+    if (updatedTmpl) {
+      await upsertCoupleTemplateInSupabase(updatedTmpl);
+      showToast(`Template status toggled.`);
+      return true;
+    }
+    return false;
+  };
+
   const createCoupleWebsite = (projectData: Omit<CoupleWebsiteProject, 'id' | 'views' | 'createdAt' | 'expiresAt'>): CoupleWebsiteProject => {
     const newProject: CoupleWebsiteProject = {
       ...projectData,
       id: `cpl-proj-${Date.now()}`,
       views: 1,
+      heartsGiven: 1,
+      isPublished: true,
       createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10).toISOString() // 10 years / lifetime
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10).toISOString()
     };
 
     setCoupleWebsites(prev => [newProject, ...prev]);
-    showToast(`Sanctuary website created: ${newProject.subdomain}.harconxs.com`);
+    upsertCoupleWebsiteInSupabase(newProject);
+    trackAnalyticsEvent('create_couple_website', { subdomain: newProject.subdomain });
+    showToast(`Sanctuary website live: ${newProject.subdomain}.harconxsshop.com`);
     return newProject;
   };
 
-  const updateCoupleWebsite = (project: CoupleWebsiteProject) => {
+  const updateCoupleWebsite = async (project: CoupleWebsiteProject): Promise<boolean> => {
     setCoupleWebsites(prev => prev.map(p => p.id === project.id ? project : p));
-    showToast('Couple website settings saved.');
+    const success = await upsertCoupleWebsiteInSupabase(project);
+    showToast('Sanctuary customizations saved & published.');
+    return success;
+  };
+
+  const deleteCoupleWebsite = async (projectId: string): Promise<boolean> => {
+    setCoupleWebsites(prev => prev.filter(p => p.id !== projectId));
+    const success = await deleteCoupleWebsiteFromSupabase(projectId);
+    showToast('Sanctuary website deleted.');
+    return success;
+  };
+
+  const publishCoupleWebsite = async (projectId: string, isPublished: boolean): Promise<boolean> => {
+    let targetProject: CoupleWebsiteProject | null = null;
+    setCoupleWebsites(prev => prev.map(p => {
+      if (p.id === projectId) {
+        targetProject = { ...p, isPublished, status: isPublished ? 'active' : 'draft' };
+        return targetProject;
+      }
+      return p;
+    }));
+    if (targetProject) {
+      await upsertCoupleWebsiteInSupabase(targetProject);
+      showToast(isPublished ? 'Website published to live internet.' : 'Website unpublished (Draft mode).');
+      return true;
+    }
+    return false;
+  };
+
+  const addGuestbookEntry = async (projectId: string, author: string, message: string): Promise<boolean> => {
+    let updatedProj: CoupleWebsiteProject | null = null;
+    const newEntry = {
+      id: `gb-${Date.now()}`,
+      author: author.trim() || 'Anonymous Friend',
+      message: message.trim(),
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      heartsCount: 1,
+      approved: true
+    };
+
+    setCoupleWebsites(prev => prev.map(p => {
+      if (p.id === projectId) {
+        const guestbook = [newEntry, ...(p.guestbook || [])];
+        updatedProj = { ...p, guestbook };
+        return updatedProj;
+      }
+      return p;
+    }));
+
+    if (updatedProj) {
+      await upsertCoupleWebsiteInSupabase(updatedProj);
+      showToast('💖 Guestbook note published to love wall!');
+      return true;
+    }
+    return false;
+  };
+
+  const likeCoupleWebsite = async (projectId: string): Promise<boolean> => {
+    let updatedProj: CoupleWebsiteProject | null = null;
+    setCoupleWebsites(prev => prev.map(p => {
+      if (p.id === projectId) {
+        const heartsGiven = (p.heartsGiven || 0) + 1;
+        updatedProj = { ...p, heartsGiven };
+        return updatedProj;
+      }
+      return p;
+    }));
+
+    if (updatedProj) {
+      await upsertCoupleWebsiteInSupabase(updatedProj);
+      return true;
+    }
+    return false;
   };
 
   // API Keys (Admin Controlled)
@@ -1274,12 +2277,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setApiKeys(prev => [record, ...prev]);
+    upsertApiKeyInSupabase(record);
+    recordAuditLog('admin', 'create_api_key', 'api_key', record.id);
     showToast(`API token "${name}" generated.`);
     return { record, secretKey };
   };
 
   const revokeApiKey = (id: string) => {
-    setApiKeys(prev => prev.map(k => k.id === id ? { ...k, status: 'revoked' } : k));
+    setApiKeys(prev => prev.map(k => {
+      if (k.id === id) {
+        const updated = { ...k, status: 'revoked' as const };
+        upsertApiKeyInSupabase(updated);
+        return updated;
+      }
+      return k;
+    }));
+    recordAuditLog('admin', 'revoke_api_key', 'api_key', id);
     showToast('API Key revoked.');
   };
 
@@ -1316,6 +2329,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     setTickets(prev => [newTicket, ...prev]);
+    upsertSupportTicketInSupabase(newTicket);
     showToast(`Support ticket #${ticketNumber} logged. Our team responds within 2 hours.`);
     return newTicket;
   };
@@ -1323,9 +2337,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const replyToTicket = (ticketId: string, text: string, sender: 'customer' | 'support') => {
     setTickets(prev => prev.map(t => {
       if (t.id === ticketId) {
-        return {
+        const updated = {
           ...t,
-          status: sender === 'support' ? 'Waiting' : 'In Progress',
+          status: (sender === 'support' ? 'Waiting' : 'In Progress') as any,
           messages: [
             ...t.messages,
             {
@@ -1338,6 +2352,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ],
           updatedAt: new Date().toISOString()
         };
+        upsertSupportTicketInSupabase(updated);
+        return updated;
       }
       return t;
     }));
@@ -1374,15 +2390,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrency,
         formatPrice,
         products,
+        isLoadingProducts,
+        productsError,
+        refetchProducts,
+        updateProductInventory,
         packagingOptions,
-        coupleTemplates,
         botPanelServices,
         addProduct,
         updateProduct,
         deleteProduct,
         reviews,
         addProductReview,
+        updateProductReview,
+        deleteProductReview,
+        toggleReviewHelpful,
+        reportProductReview,
+        moderateReview,
+        checkUserProductPurchase,
         cart,
+        isLoadingCart,
+        cartError,
         addToCart,
         removeFromCart,
         updateCartQuantity,
@@ -1399,6 +2426,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         cartTax,
         cartTotal,
         wishlist,
+        isLoadingWishlist,
+        wishlistError,
         toggleWishlist,
         isInWishlist,
         clearWishlist,
@@ -1416,6 +2445,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         invoices,
         addBillingInvoice,
         orders,
+        isLoadingOrders,
+        ordersError,
+        refetchOrders,
+        calculateServerOrderQuote,
+        placeServerVerifiedOrder,
+        processOrderRefund,
+        updateOrderLogistics,
         createOrder,
         updateOrderStatus,
         customOrders,
@@ -1423,9 +2459,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sendCustomOrderMessage,
         provideCustomOrderQuote,
         respondToQuote,
+        coupleTemplates,
+        addCoupleTemplate,
+        updateCoupleTemplate,
+        deleteCoupleTemplate,
+        toggleCoupleTemplateActive,
         coupleWebsites,
         createCoupleWebsite,
         updateCoupleWebsite,
+        deleteCoupleWebsite,
+        publishCoupleWebsite,
+        addGuestbookEntry,
+        likeCoupleWebsite,
+        activeLivePreviewSubdomain,
+        setActiveLivePreviewSubdomain,
+        selectedEditingProject,
+        setSelectedEditingProject,
         apiKeys,
         createApiKey,
         revokeApiKey,

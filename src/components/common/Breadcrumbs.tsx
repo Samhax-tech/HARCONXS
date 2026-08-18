@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronRight, Home } from 'lucide-react';
-import { useStore } from '../context/StoreContext';
-import { CategoryType } from '../types';
+import { useStore } from '../../context/StoreContext';
+import { CategoryType } from '../../types';
 
 export interface BreadcrumbItem {
   label: string;

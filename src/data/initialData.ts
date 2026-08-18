@@ -298,44 +298,104 @@ export const INITIAL_COUPLE_TEMPLATES: CoupleWebsiteTemplate[] = [
   {
     id: 'tmpl-romantic-sunset',
     name: 'Golden Hour Eternal',
+    version: 'v2.4',
     themeCategory: 'Romantic',
-    description: 'Warm champagne & sunset palette with floating heart particles, audio player, and parallax photo scroll.',
+    description: 'Warm champagne & sunset palette with floating heart particles, background acoustic soundtrack, live relationship timer, and parallax photo memories.',
     price: 39.00,
     previewImage: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&auto=format&fit=crop&q=80',
     demoSubdomain: 'alex-and-sophia',
-    features: ['Live Love Counter', 'Soundtrack Player', 'Parallax Story Timeline', 'Interactive Love Quiz', 'Guestbook & Love Letters'],
-    popular: true
+    features: ['Live Love Counter (Years, Months, Days, Secs)', 'Soundtrack Player', 'Parallax Story Timeline', 'Interactive Love Quiz', 'Live Guestbook & Love Letters'],
+    popular: true,
+    isActive: true,
+    tags: ['Best Seller', 'Romantic', 'Floating Hearts'],
+    colorPalette: ['#e11d48', '#fb7185', '#ffe4e6', '#0f172a'],
+    defaultFont: 'Playfair Display',
+    releaseDate: '2026-08-01'
   },
   {
     id: 'tmpl-luxury-monochrome',
     name: 'Atelier Noir & Rose Gold',
+    version: 'v3.1',
     themeCategory: 'Luxury',
-    description: 'Editorial high-fashion layout with minimalist serif typography, video hero, and interactive memory archive.',
+    description: 'Editorial high-fashion layout with minimalist serif typography, video hero, dark aesthetic, and interactive memory archive with guestbook.',
     price: 49.00,
     previewImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&auto=format&fit=crop&q=80',
     demoSubdomain: 'julian-and-elena',
     features: ['Film Roll Photo Stream', 'Milestone Map Pinning', 'Secret Password Note', 'Ultra Fast CDN Hosting', 'Custom QR Code Card'],
-    popular: true
+    popular: true,
+    isActive: true,
+    tags: ['Luxury', 'Editorial', 'Dark Mode'],
+    colorPalette: ['#f59e0b', '#d97706', '#18181b', '#09090b'],
+    defaultFont: 'Cinzel',
+    releaseDate: '2026-08-05'
   },
   {
     id: 'tmpl-cute-pastel',
     name: 'Strawberry Milk & Stars',
+    version: 'v1.9',
     themeCategory: 'Cute',
-    description: 'Playful anime-inspired aesthetic with custom polaroid stickers, mood trackers, and anniversary notifications.',
+    description: 'Playful aesthetic with custom polaroid stickers, romantic mood trackers, anniversary notifications, and pastel colorway.',
     price: 34.00,
     previewImage: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&auto=format&fit=crop&q=80',
     demoSubdomain: 'leo-and-maya',
-    features: ['Polaroid Drag-and-Drop', 'Virtual Love Letterbox', 'Spotify Playlist Sync', 'Cute Floating Badges', 'Mobile App Shortcut']
+    features: ['Polaroid Drag-and-Drop', 'Virtual Love Letterbox', 'Spotify Playlist Sync', 'Cute Floating Badges', 'Mobile App Shortcut'],
+    popular: false,
+    isActive: true,
+    tags: ['Cute', 'Polaroids', 'Pastel'],
+    colorPalette: ['#ec4899', '#f472b6', '#fdf2f8', '#1e1b4b'],
+    defaultFont: 'Dancing Script',
+    releaseDate: '2026-07-20'
   },
   {
     id: 'tmpl-minimal-clean',
     name: 'Nordic Clean & Pure',
+    version: 'v2.0',
     themeCategory: 'Minimal',
-    description: 'Ultra-clean white and slate aesthetic emphasizing typography, curated photo galleries, and chronological vows.',
+    description: 'Ultra-clean white and slate aesthetic emphasizing typography, curated photo galleries, and chronological relationship milestones.',
     price: 29.00,
     previewImage: 'https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&auto=format&fit=crop&q=80',
     demoSubdomain: 'marcus-and-chloe',
-    features: ['Typography Focus', 'Full-screen Photo Lightbox', 'Relationship Stats Counter', 'Lightweight <50ms Load']
+    features: ['Typography Focus', 'Full-screen Photo Lightbox', 'Relationship Stats Counter', 'Lightweight <50ms Load', 'Custom Subdomain'],
+    popular: false,
+    isActive: true,
+    tags: ['Minimal', 'Fast', 'Nordic'],
+    colorPalette: ['#0284c7', '#38bdf8', '#f8fafc', '#0f172a'],
+    defaultFont: 'Inter',
+    releaseDate: '2026-07-15'
+  },
+  {
+    id: 'tmpl-wedding-elegance',
+    name: 'Vows of Eternity',
+    version: 'v2.2',
+    themeCategory: 'Wedding',
+    description: 'Royal botanical wedding & anniversary edition with RSVP guestbook, event itinerary schedule, Google Maps venue pinning, and vow books.',
+    price: 59.00,
+    previewImage: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&auto=format&fit=crop&q=80',
+    demoSubdomain: 'david-and-claire',
+    features: ['RSVP Guestbook with Hearts', 'Wedding Itinerary Timeline', 'Registry Links', 'Custom Music Player', 'Countdown to Ceremony'],
+    popular: true,
+    isActive: true,
+    tags: ['Wedding', 'Ceremony', 'RSVP'],
+    colorPalette: ['#10b981', '#34d399', '#ecfdf5', '#064e3b'],
+    defaultFont: 'Cormorant Garamond',
+    releaseDate: '2026-08-10'
+  },
+  {
+    id: 'tmpl-long-distance',
+    name: 'Across Timezones & Oceans',
+    version: 'v1.5',
+    themeCategory: 'Long Distance',
+    description: 'Designed specifically for long-distance partners with dual live timezone clocks, flight countdowns, voice memo embed, and memory constellation.',
+    price: 39.00,
+    previewImage: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
+    demoSubdomain: 'liam-and-hannah',
+    features: ['Dual Timezone Live Clocks', 'Next Reunion Countdown', 'Flight Ticket Souvenir', 'Digital Postcards Archive', 'Secret Messages Box'],
+    popular: true,
+    isActive: true,
+    tags: ['Long Distance', 'Timezones', 'Constellation'],
+    colorPalette: ['#8b5cf6', '#a78bfa', '#ede9fe', '#2e1065'],
+    defaultFont: 'Montserrat',
+    releaseDate: '2026-08-12'
   }
 ];
 
@@ -860,69 +920,190 @@ export const INITIAL_REVIEWS: ProductReview[] = [
   {
     id: 'rev-cpl-1',
     productId: 'prod-couple-1',
+    orderId: 'ord-init-1',
+    orderItemId: 'oi-cpl-1',
+    userId: 'usr-1',
     userName: 'Rohan & Ananya Sharma',
+    userEmail: 'rohan.sharma@example.com',
     rating: 5,
     title: 'Flawless laser engraving & coordinates accuracy!',
-    comment: 'Ordered our anniversary coordinates in gold. The engraving precision is stunning and the velvet presentation box felt ultra-luxurious. She cried happy tears during our date night.',
-    date: 'August 10, 2026',
+    comment: 'Ordered our anniversary coordinates in 18K gold vermeil. The engraving precision is breathtaking and the velvet presentation box felt ultra-luxurious. She cried happy tears during our anniversary date night.',
+    review: 'Ordered our anniversary coordinates in 18K gold vermeil. The engraving precision is breathtaking and the velvet presentation box felt ultra-luxurious. She cried happy tears during our anniversary date night.',
+    date: 'Aug 10, 2026',
+    createdAt: '2026-08-10T14:30:00Z',
     verified: true,
-    likes: 24,
-    images: ['https://images.unsplash.com/photo-1611591475168-52219c676770?w=500&auto=format&fit=crop&q=80']
+    verifiedPurchase: true,
+    likes: 28,
+    helpfulVotes: 28,
+    helpfulUserIds: ['usr-2', 'usr-3', 'usr-4'],
+    images: [
+      'https://images.unsplash.com/photo-1611591475168-52219c676770?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80'
+    ],
+    customerImages: [
+      'https://images.unsplash.com/photo-1611591475168-52219c676770?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80'
+    ],
+    status: 'approved',
+    isFeatured: true
   },
   {
     id: 'rev-cpl-2',
     productId: 'prod-couple-1',
+    orderId: 'ord-sample-2',
+    userId: 'usr-2',
     userName: 'Priya Mukherjee',
+    userEmail: 'priya.m@example.com',
     rating: 5,
-    title: 'Best long-distance anniversary gift',
-    comment: 'Heavy stainless steel feel with scratch-resistant coating. Delivered in Bengaluru within 48 hours. The custom font matched the preview 100%.',
-    date: 'July 29, 2026',
+    title: 'Best long-distance anniversary gift ever made',
+    comment: 'Substantial solid feel with scratch-resistant coating. Delivered in Bengaluru within 48 hours in pristine protective wrapping. The custom cursive font matched the interactive live preview 100%.',
+    review: 'Substantial solid feel with scratch-resistant coating. Delivered in Bengaluru within 48 hours in pristine protective wrapping. The custom cursive font matched the interactive live preview 100%.',
+    date: 'Jul 29, 2026',
+    createdAt: '2026-07-29T11:15:00Z',
     verified: true,
-    likes: 18
+    verifiedPurchase: true,
+    likes: 19,
+    helpfulVotes: 19,
+    helpfulUserIds: ['usr-1', 'usr-5'],
+    images: [
+      'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&auto=format&fit=crop&q=80'
+    ],
+    customerImages: [
+      'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&auto=format&fit=crop&q=80'
+    ],
+    status: 'approved',
+    isFeatured: true
   },
   {
     id: 'rev-cpl-3',
     productId: 'prod-couple-1',
+    orderId: 'ord-sample-3',
+    userId: 'usr-3',
     userName: 'Vikram Mehta',
+    userEmail: 'vikram.mehta@example.com',
     rating: 4,
-    title: 'Very premium quality, fast delivery',
-    comment: 'Great weight and finish. Would love if they provided extra links for larger wrists, but otherwise completely top-notch craftsmanship.',
-    date: 'July 14, 2026',
+    title: 'Very premium quality, speedy dispatch',
+    comment: 'Great weight and mirror-polished finish. Would love if they provided extra adjustment links by default, but customer support sent extra pins in 24 hours. Overall top-notch craftsmanship.',
+    review: 'Great weight and mirror-polished finish. Would love if they provided extra adjustment links by default, but customer support sent extra pins in 24 hours. Overall top-notch craftsmanship.',
+    date: 'Jul 14, 2026',
+    createdAt: '2026-07-14T09:45:00Z',
     verified: true,
-    likes: 9
+    verifiedPurchase: true,
+    likes: 9,
+    helpfulVotes: 9,
+    helpfulUserIds: ['usr-2'],
+    images: [],
+    customerImages: [],
+    status: 'approved',
+    isFeatured: false
   },
   {
     id: 'rev-cpl-4',
     productId: 'prod-couple-2',
+    orderId: 'ord-sample-4',
+    userId: 'usr-4',
     userName: 'Kavita Reddy',
+    userEmail: 'kavita.reddy@example.com',
     rating: 5,
-    title: 'The projected photo is crystal clear!',
-    comment: 'Holding the stone up to a phone torch displays our proposal memory on the wall like magic! My fiancé was amazed.',
-    date: 'August 02, 2026',
+    title: 'The projected photo is crystal clear and vivid!',
+    comment: 'Holding the nano-engraved micro stone up to a phone flashlight projects our Goa proposal photo onto the wall like pure cinema magic! My fiancé was speechless.',
+    review: 'Holding the nano-engraved micro stone up to a phone flashlight projects our Goa proposal photo onto the wall like pure cinema magic! My fiancé was speechless.',
+    date: 'Aug 02, 2026',
+    createdAt: '2026-08-02T16:20:00Z',
     verified: true,
-    likes: 31
+    verifiedPurchase: true,
+    likes: 34,
+    helpfulVotes: 34,
+    helpfulUserIds: ['usr-1', 'usr-3', 'usr-6'],
+    images: [
+      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&auto=format&fit=crop&q=80'
+    ],
+    customerImages: [
+      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&auto=format&fit=crop&q=80'
+    ],
+    status: 'approved',
+    isFeatured: true
   },
   {
     id: 'rev-men-1',
     productId: 'prod-men-1',
+    orderId: 'ord-sample-5',
+    userId: 'usr-5',
     userName: 'Aditya Sen',
+    userEmail: 'aditya.sen@example.com',
     rating: 5,
-    title: 'A masterpiece timepiece in gunmetal',
-    comment: 'Exceeds watches 3x its price. The sapphire coating and butterfly clasp feel substantial. Highly recommended.',
-    date: 'August 08, 2026',
+    title: 'A masterpiece timepiece in gunmetal ceramic',
+    comment: 'Exceeds timepieces 3x its price bracket. The sapphire anti-reflective crystal, heavy solid links, and tactile butterfly clasp feel truly bespoke. Highly recommended.',
+    review: 'Exceeds timepieces 3x its price bracket. The sapphire anti-reflective crystal, heavy solid links, and tactile butterfly clasp feel truly bespoke. Highly recommended.',
+    date: 'Aug 08, 2026',
+    createdAt: '2026-08-08T18:10:00Z',
     verified: true,
-    likes: 15
+    verifiedPurchase: true,
+    likes: 17,
+    helpfulVotes: 17,
+    helpfulUserIds: ['usr-1'],
+    images: [
+      'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80'
+    ],
+    customerImages: [
+      'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80'
+    ],
+    status: 'approved',
+    isFeatured: true
   },
   {
     id: 'rev-wmn-1',
     productId: 'prod-women-1',
+    orderId: 'ord-sample-6',
+    userId: 'usr-6',
     userName: 'Tara Singhania',
+    userEmail: 'tara.s@example.com',
     rating: 5,
-    title: 'Iridescent opal glow is mesmerizing',
-    comment: 'Shimmers between pink, turquoise, and gold in daylight. 18K gold vermeil has not tarnished after continuous wear.',
-    date: 'August 05, 2026',
+    title: 'Iridescent Australian opal shimmer is breathtaking',
+    comment: 'Shimmers radiantly between rose pink, electric turquoise, and gold under daylight. 18K thick gold vermeil has not tarnished after weeks of daily wear.',
+    review: 'Shimmers radiantly between rose pink, electric turquoise, and gold under daylight. 18K thick gold vermeil has not tarnished after weeks of daily wear.',
+    date: 'Aug 05, 2026',
+    createdAt: '2026-08-05T13:40:00Z',
     verified: true,
-    likes: 22
+    verifiedPurchase: true,
+    likes: 26,
+    helpfulVotes: 26,
+    helpfulUserIds: ['usr-2', 'usr-4'],
+    images: [
+      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80'
+    ],
+    customerImages: [
+      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80'
+    ],
+    status: 'approved',
+    isFeatured: true
+  },
+  {
+    id: 'rev-dig-1',
+    productId: 'prod-dig-1',
+    orderId: 'ord-sample-7',
+    userId: 'usr-7',
+    userName: 'Sameer & Zoya Khan',
+    userEmail: 'sameer.zoya@example.com',
+    rating: 5,
+    title: 'The couple website sanctuary blew our friends away!',
+    comment: 'Set up in under 5 minutes with our songs, anniversary counter, and photo reel. We shared the link with all our wedding guests and received 80+ guestbook love notes.',
+    review: 'Set up in under 5 minutes with our songs, anniversary counter, and photo reel. We shared the link with all our wedding guests and received 80+ guestbook love notes.',
+    date: 'Aug 12, 2026',
+    createdAt: '2026-08-12T19:00:00Z',
+    verified: true,
+    verifiedPurchase: true,
+    likes: 41,
+    helpfulVotes: 41,
+    helpfulUserIds: ['usr-1', 'usr-3', 'usr-5'],
+    images: [
+      'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&auto=format&fit=crop&q=80'
+    ],
+    customerImages: [
+      'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&auto=format&fit=crop&q=80'
+    ],
+    status: 'approved',
+    isFeatured: true
   }
 ];
 

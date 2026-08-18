@@ -1,29 +1,119 @@
 -- ==============================================================================
--- HARCONXS SHOP & ATELIER — SUPABASE POSTGRESQL DATABASE SCHEMA
--- Version: 2.4 (Production Architecture)
--- Compatible with Supabase Database, Auth, and Row-Level Security (RLS)
+-- HARCONXS SHOP & BESPOKE ATELIER — PRODUCTION SUPABASE POSTGRESQL SCHEMA
+-- Version: 3.0.0 (Comprehensive Enterprise Architecture)
+-- Engineered for PostgreSQL 15+ / Supabase Auth / Row-Level Security (RLS)
 -- ==============================================================================
 
--- Enable UUID extension
+-- 0. EXTENSIONS & HELPER FUNCTIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 1. PROFILES & USERS TABLE
+-- Automatic timestamp updater function
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ==============================================================================
+-- 1. ACCESS CONTROL: ROLES & PERMISSIONS
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.roles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.permissions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    module TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.role_permissions (
+    role_id TEXT NOT NULL REFERENCES public.roles(id) ON DELETE CASCADE,
+    permission_id TEXT NOT NULL REFERENCES public.permissions(id) ON DELETE CASCADE,
+    PRIMARY KEY (role_id, permission_id)
+);
+
+-- ==============================================================================
+-- 2. USER PROFILES & ACCOUNTS
+-- ==============================================================================
+
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,
     full_name TEXT NOT NULL,
     phone TEXT,
-    loyalty_points INTEGER DEFAULT 150,
-    store_credit NUMERIC(10, 2) DEFAULT 0.00,
+    avatar_url TEXT,
+    role TEXT DEFAULT 'customer' REFERENCES public.roles(id) ON DELETE SET DEFAULT,
+    loyalty_points INTEGER DEFAULT 150 CHECK (loyalty_points >= 0),
+    store_credit NUMERIC(12, 2) DEFAULT 0.00 CHECK (store_credit >= 0),
     is_affiliate BOOLEAN DEFAULT false,
     affiliate_code TEXT UNIQUE,
-    affiliate_commission_earned NUMERIC(10, 2) DEFAULT 0.00,
+    affiliate_commission_earned NUMERIC(12, 2) DEFAULT 0.00,
     addresses JSONB DEFAULT '[]'::jsonb,
+    preferences JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. PRODUCTS TABLE
+CREATE TRIGGER set_profiles_updated_at
+BEFORE UPDATE ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- Auto-create profile trigger on auth.users sign up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, full_name, phone, role, loyalty_points)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+        COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+        'customer',
+        150
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        full_name = EXCLUDED.full_name;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ==============================================================================
+-- 3. CATEGORIES & CATALOG STRUCTURE
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.categories (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    description TEXT,
+    image_url TEXT,
+    icon TEXT,
+    parent_id TEXT REFERENCES public.categories(id) ON DELETE SET NULL,
+    display_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 4. PRODUCTS, VARIANTS, IMAGES & PACKAGING
+-- ==============================================================================
+
 CREATE TABLE IF NOT EXISTS public.products (
     id TEXT PRIMARY KEY,
     sku TEXT UNIQUE NOT NULL,
@@ -31,29 +121,126 @@ CREATE TABLE IF NOT EXISTS public.products (
     slug TEXT UNIQUE NOT NULL,
     short_description TEXT,
     full_description TEXT,
-    price NUMERIC(10, 2) NOT NULL,
-    compare_at_price NUMERIC(10, 2),
-    cost NUMERIC(10, 2) DEFAULT 0.00,
-    inventory INTEGER DEFAULT 100,
+    price NUMERIC(12, 2) NOT NULL CHECK (price >= 0),
+    compare_at_price NUMERIC(12, 2),
+    cost NUMERIC(12, 2) DEFAULT 0.00,
+    inventory INTEGER DEFAULT 100 CHECK (inventory >= 0),
     category TEXT NOT NULL,
     subcategory TEXT,
     tags TEXT[] DEFAULT '{}',
     badges TEXT[] DEFAULT '{}',
     brand TEXT DEFAULT 'HARCONXS',
-    product_type TEXT DEFAULT 'physical',
-    images TEXT[] NOT NULL,
-    variants JSONB DEFAULT '[]'::jsonb,
-    rating NUMERIC(3, 2) DEFAULT 5.0,
+    product_type TEXT DEFAULT 'physical', -- 'physical', 'personalized', 'digital', 'custom_service'
+    images TEXT[] NOT NULL DEFAULT '{}',
+    rating NUMERIC(3, 2) DEFAULT 5.00 CHECK (rating >= 0 AND rating <= 5),
     review_count INTEGER DEFAULT 0,
     is_personalizable BOOLEAN DEFAULT false,
     personalization_fields JSONB,
     weight TEXT,
     dimensions TEXT,
+    download_url TEXT,
     featured BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TRIGGER set_products_updated_at
+BEFORE UPDATE ON public.products
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.product_variants (
+    id TEXT PRIMARY KEY,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    sku TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    size TEXT,
+    color TEXT,
+    material TEXT,
+    price NUMERIC(12, 2) NOT NULL,
+    compare_at_price NUMERIC(12, 2),
+    cost NUMERIC(12, 2) DEFAULT 0.00,
+    inventory INTEGER DEFAULT 50 CHECK (inventory >= 0),
+    image TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. ORDERS TABLE
+CREATE TABLE IF NOT EXISTS public.packaging_options (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    price NUMERIC(12, 2) DEFAULT 0.00,
+    image TEXT,
+    is_popular BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 5. SUPPLIERS, WAREHOUSES & INVENTORY MOVEMENTS
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.suppliers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    contact_person TEXT,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    lead_time_days INTEGER DEFAULT 7,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.inventory_movements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    variant_id TEXT REFERENCES public.product_variants(id) ON DELETE SET NULL,
+    change_type TEXT NOT NULL, -- 'restock', 'order_sale', 'damaged', 'adjustment', 'return'
+    quantity_changed INTEGER NOT NULL,
+    new_inventory_count INTEGER NOT NULL,
+    reference_id TEXT, -- e.g. order_id
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 6. CARTS & ACTIVE SESSIONS
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.carts (
+    id TEXT PRIMARY KEY, -- e.g. user UUID or anonymous cart token
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    status TEXT DEFAULT 'active', -- 'active', 'converted', 'abandoned'
+    coupon_code TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.cart_items (
+    id TEXT PRIMARY KEY,
+    cart_id TEXT NOT NULL REFERENCES public.carts(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    variant_id TEXT REFERENCES public.product_variants(id) ON DELETE SET NULL,
+    packaging_id TEXT REFERENCES public.packaging_options(id) ON DELETE SET NULL,
+    quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    custom_price NUMERIC(12, 2),
+    personalization_data JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.wishlist_items (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (user_id, product_id)
+);
+
+-- ==============================================================================
+-- 7. ORDERS, ITEMS, ADDRESSES & LOGISTICS
+-- ==============================================================================
+
 CREATE TABLE IF NOT EXISTS public.orders (
     id TEXT PRIMARY KEY,
     order_number TEXT UNIQUE NOT NULL,
@@ -61,12 +248,12 @@ CREATE TABLE IF NOT EXISTS public.orders (
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
     customer_phone TEXT,
-    subtotal NUMERIC(10, 2) NOT NULL,
-    discount NUMERIC(10, 2) DEFAULT 0.00,
-    packaging_fee NUMERIC(10, 2) DEFAULT 0.00,
-    shipping_fee NUMERIC(10, 2) DEFAULT 0.00,
-    tax NUMERIC(10, 2) DEFAULT 0.00,
-    total NUMERIC(10, 2) NOT NULL,
+    subtotal NUMERIC(12, 2) NOT NULL CHECK (subtotal >= 0),
+    discount NUMERIC(12, 2) DEFAULT 0.00,
+    packaging_fee NUMERIC(12, 2) DEFAULT 0.00,
+    shipping_fee NUMERIC(12, 2) DEFAULT 0.00,
+    tax NUMERIC(12, 2) DEFAULT 0.00,
+    total NUMERIC(12, 2) NOT NULL CHECK (total >= 0),
     currency TEXT DEFAULT 'INR',
     status TEXT NOT NULL DEFAULT 'Paid',
     payment_method TEXT NOT NULL DEFAULT 'card',
@@ -76,38 +263,81 @@ CREATE TABLE IF NOT EXISTS public.orders (
     carrier TEXT DEFAULT 'BlueDart Express',
     tracking_url TEXT,
     gift_note TEXT,
+    delivery_date TEXT,
     timeline JSONB DEFAULT '[]'::jsonb,
     risk_level TEXT DEFAULT 'LOW',
-    data JSONB,
+    raw_data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. ORDER ITEMS TABLE
+CREATE TRIGGER set_orders_updated_at
+BEFORE UPDATE ON public.orders
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
 CREATE TABLE IF NOT EXISTS public.order_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    order_id TEXT REFERENCES public.orders(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id TEXT NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
     product_id TEXT NOT NULL,
     product_name TEXT NOT NULL,
-    quantity INTEGER NOT NULL DEFAULT 1,
-    unit_price NUMERIC(10, 2) NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    unit_price NUMERIC(12, 2) NOT NULL,
     variant_info JSONB,
     packaging_info JSONB,
     personalization_info JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 5. ORDER TRACKING CHECKPOINTS
 CREATE TABLE IF NOT EXISTS public.order_tracking_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    order_id TEXT REFERENCES public.orders(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id TEXT NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
     status TEXT NOT NULL,
     description TEXT NOT NULL,
     location TEXT,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 6. CUSTOM BESPOKE ORDERS
+-- ==============================================================================
+-- 8. PAYMENTS, BILLING INVOICES & REFUNDS
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.billing_invoices (
+    id TEXT PRIMARY KEY,
+    invoice_number TEXT UNIQUE NOT NULL,
+    transaction_id TEXT NOT NULL,
+    order_id TEXT REFERENCES public.orders(id) ON DELETE SET NULL,
+    order_number TEXT NOT NULL,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    currency TEXT DEFAULT 'INR',
+    payment_method TEXT NOT NULL,
+    payment_gateway TEXT DEFAULT 'Razorpay PG',
+    status TEXT DEFAULT 'Paid',
+    gst_number TEXT,
+    cgst NUMERIC(12, 2) DEFAULT 0.00,
+    sgst NUMERIC(12, 2) DEFAULT 0.00,
+    items_summary TEXT,
+    receipt_url TEXT,
+    date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.refunds (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id TEXT NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    amount NUMERIC(12, 2) NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'approved', 'processed', 'rejected'
+    processed_by TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 9. CUSTOM BESPOKE ORDERS, QUOTES & ATELIER CHAT
+-- ==============================================================================
+
 CREATE TABLE IF NOT EXISTS public.custom_orders (
     id TEXT PRIMARY KEY,
     request_number TEXT UNIQUE NOT NULL,
@@ -121,7 +351,10 @@ CREATE TABLE IF NOT EXISTS public.custom_orders (
     product_type TEXT,
     description TEXT NOT NULL,
     preferred_colors TEXT[] DEFAULT '{}',
+    preferred_style TEXT,
     uploaded_files TEXT[] DEFAULT '{}',
+    selected_packaging_id TEXT,
+    target_delivery_date TEXT,
     status TEXT NOT NULL DEFAULT 'Submitted',
     quote JSONB,
     messages JSONB DEFAULT '[]'::jsonb,
@@ -129,12 +362,76 @@ CREATE TABLE IF NOT EXISTS public.custom_orders (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 7. COUPLE SANCTUARY WEBSITES
+CREATE TRIGGER set_custom_orders_updated_at
+BEFORE UPDATE ON public.custom_orders
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ==============================================================================
+-- 10. REVIEWS & COMMUNITY RATINGS
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.reviews (
+    id TEXT PRIMARY KEY,
+    product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    user_name TEXT NOT NULL,
+    rating NUMERIC(2, 1) NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    title TEXT NOT NULL,
+    comment TEXT NOT NULL,
+    verified BOOLEAN DEFAULT true,
+    likes INTEGER DEFAULT 0,
+    images TEXT[] DEFAULT '{}',
+    is_approved BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 11. SUPPORT TICKETS & MESSAGING
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.support_tickets (
+    id TEXT PRIMARY KEY,
+    ticket_number TEXT UNIQUE NOT NULL,
+    customer_id TEXT NOT NULL,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    category TEXT NOT NULL,
+    priority TEXT DEFAULT 'medium',
+    status TEXT DEFAULT 'Open',
+    assigned_to TEXT,
+    messages JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TRIGGER set_support_tickets_updated_at
+BEFORE UPDATE ON public.support_tickets
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ==============================================================================
+-- 12. COUPLE WEBSITES & TEMPLATES
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.couple_website_templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    theme_category TEXT NOT NULL,
+    description TEXT,
+    price NUMERIC(12, 2) NOT NULL,
+    preview_image TEXT NOT NULL,
+    demo_subdomain TEXT,
+    features TEXT[] DEFAULT '{}',
+    popular BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS public.couple_websites (
     id TEXT PRIMARY KEY,
     customer_id TEXT NOT NULL,
     subdomain TEXT UNIQUE NOT NULL,
-    template_id TEXT NOT NULL,
+    template_id TEXT NOT NULL REFERENCES public.couple_website_templates(id) ON DELETE RESTRICT,
     partner1_name TEXT NOT NULL,
     partner2_name TEXT NOT NULL,
     anniversary_date TEXT,
@@ -143,16 +440,124 @@ CREATE TABLE IF NOT EXISTS public.couple_websites (
     hero_tagline TEXT,
     primary_color TEXT DEFAULT '#f43f5e',
     font_style TEXT DEFAULT 'Playfair',
+    music_track TEXT,
     photos TEXT[] DEFAULT '{}',
     memories JSONB DEFAULT '[]'::jsonb,
     guestbook JSONB DEFAULT '[]'::jsonb,
     status TEXT DEFAULT 'active',
+    custom_domain TEXT,
     views INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME ZONE
+    expires_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 8. EMAIL NOTIFICATIONS & DISPATCH LOGS
+CREATE TRIGGER set_couple_websites_updated_at
+BEFORE UPDATE ON public.couple_websites
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ==============================================================================
+-- 13. BOT PANELS, SUBSCRIPTIONS & API MANAGEMENT
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.bot_panel_services (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    short_desc TEXT,
+    full_desc TEXT,
+    icon TEXT,
+    badge TEXT,
+    plans JSONB NOT NULL DEFAULT '[]'::jsonb,
+    screenshots TEXT[] DEFAULT '{}',
+    demo_url TEXT,
+    docs_url TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.bot_subscriptions (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    service_id TEXT REFERENCES public.bot_panel_services(id) ON DELETE SET NULL,
+    plan_id TEXT NOT NULL,
+    status TEXT DEFAULT 'active', -- 'active', 'past_due', 'canceled'
+    billing_period TEXT DEFAULT 'monthly',
+    current_period_start TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    current_period_end TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.api_keys (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    prefix TEXT NOT NULL,
+    key_hash TEXT,
+    rate_limit INTEGER DEFAULT 120,
+    request_count INTEGER DEFAULT 0,
+    permissions TEXT[] DEFAULT '{"read:products", "read:orders"}',
+    status TEXT DEFAULT 'active',
+    last_used TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.api_usage_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    api_key_id TEXT REFERENCES public.api_keys(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL,
+    method TEXT NOT NULL,
+    status_code INTEGER NOT NULL,
+    ip_address TEXT,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 14. MARKETING: COUPONS, AFFILIATES, DISCOUNTS & LOYALTY
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.coupons (
+    id TEXT PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,
+    type TEXT NOT NULL, -- 'percentage', 'fixed', 'free_shipping'
+    value NUMERIC(12, 2) NOT NULL,
+    min_order_value NUMERIC(12, 2) DEFAULT 0.00,
+    max_usage INTEGER,
+    current_usage INTEGER DEFAULT 0,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.affiliates (
+    id TEXT PRIMARY KEY,
+    user_id UUID UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
+    referral_code TEXT UNIQUE NOT NULL,
+    referral_link TEXT NOT NULL,
+    commission_rate NUMERIC(5, 2) DEFAULT 10.00,
+    clicks INTEGER DEFAULT 0,
+    orders_count INTEGER DEFAULT 0,
+    total_revenue NUMERIC(12, 2) DEFAULT 0.00,
+    total_commission NUMERIC(12, 2) DEFAULT 0.00,
+    pending_payout NUMERIC(12, 2) DEFAULT 0.00,
+    paid_payout NUMERIC(12, 2) DEFAULT 0.00,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.loyalty_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    points_delta INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    reference_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 15. NOTIFICATIONS & EMAIL AUDIT DISPATCH LOGS
+-- ==============================================================================
+
 CREATE TABLE IF NOT EXISTS public.email_logs (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL,
@@ -165,52 +570,197 @@ CREATE TABLE IF NOT EXISTS public.email_logs (
     order_number TEXT,
     tracking_number TEXT,
     carrier TEXT,
-    metadata JSONB,
+    metadata JSONB DEFAULT '{}'::jsonb,
     sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 9. SUPPORT TICKETS
-CREATE TABLE IF NOT EXISTS public.support_tickets (
+-- ==============================================================================
+-- 16. LEGAL POLICIES & VERSIONING
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.policies (
     id TEXT PRIMARY KEY,
-    ticket_number TEXT UNIQUE NOT NULL,
-    customer_id TEXT NOT NULL,
-    customer_name TEXT NOT NULL,
-    customer_email TEXT NOT NULL,
-    subject TEXT NOT NULL,
-    category TEXT NOT NULL,
-    priority TEXT DEFAULT 'medium',
-    status TEXT DEFAULT 'Open',
-    messages JSONB DEFAULT '[]'::jsonb,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    title TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    version TEXT NOT NULL DEFAULT '1.0',
+    content TEXT NOT NULL,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.policy_versions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    policy_id TEXT NOT NULL REFERENCES public.policies(id) ON DELETE CASCADE,
+    version TEXT NOT NULL,
+    content TEXT NOT NULL,
+    changed_by TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 17. ANALYTICS, AUDIT LOGS & ADMIN ACTIVITY
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.analytics_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_name TEXT NOT NULL,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    anonymous_id TEXT,
+    properties JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    resource_type TEXT NOT NULL,
+    resource_id TEXT,
+    old_value JSONB,
+    new_value JSONB,
+    ip_address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 18. STORE THEME CONFIG & SITE SETTINGS
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.site_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.custom_orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.couple_websites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+-- ==============================================================================
+-- 19. INDEXES FOR LIGHTNING FAST QUERY PERFORMANCE
+-- ==============================================================================
 
--- Products are publicly readable
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public products are viewable by everyone." 
-    ON public.products FOR SELECT USING (true);
+CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);
+CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products(slug);
+CREATE INDEX IF NOT EXISTS idx_products_sku ON public.products(sku);
+CREATE INDEX IF NOT EXISTS idx_products_featured ON public.products(featured);
 
--- Customers can view their own orders
-CREATE POLICY "Users can view their own orders." 
-    ON public.orders FOR SELECT 
-    USING (auth.uid()::text = customer_id OR customer_email = auth.jwt() ->> 'email');
-
--- Customers can view their own email notifications
-CREATE POLICY "Users can view their own email logs." 
-    ON public.email_logs FOR SELECT 
-    USING (recipient_email = auth.jwt() ->> 'email');
-
--- Indexes for lightning fast lookups
+CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON public.product_variants(product_id);
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders(order_number);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON public.orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_email ON public.orders(customer_email);
 CREATE INDEX IF NOT EXISTS idx_orders_tracking_number ON public.orders(tracking_number);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_custom_orders_request_number ON public.custom_orders(request_number);
+CREATE INDEX IF NOT EXISTS idx_custom_orders_customer_id ON public.custom_orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_custom_orders_status ON public.custom_orders(status);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON public.reviews(product_id);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_customer_id ON public.support_tickets(customer_id);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON public.support_tickets(status);
+
+CREATE INDEX IF NOT EXISTS idx_couple_websites_subdomain ON public.couple_websites(subdomain);
+CREATE INDEX IF NOT EXISTS idx_couple_websites_customer_id ON public.couple_websites(customer_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON public.api_keys(user_id);
 CREATE INDEX IF NOT EXISTS idx_email_logs_recipient ON public.email_logs(recipient_email);
 CREATE INDEX IF NOT EXISTS idx_email_logs_order_number ON public.email_logs(order_number);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_name ON public.analytics_events(event_name);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON public.audit_logs(resource_type, resource_id);
+
+-- ==============================================================================
+-- 20. ROW LEVEL SECURITY (RLS) POLICIES
+-- ==============================================================================
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.packaging_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.carts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_tracking_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.billing_invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.custom_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.couple_website_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.couple_websites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bot_panel_services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bot_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.affiliates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.policies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+
+-- PUBLIC READ PERMISSIONS (Catalog, Templates, Policies, Active Packaging)
+CREATE POLICY "Public Read: Products" ON public.products FOR SELECT USING (is_active = true);
+CREATE POLICY "Public Read: Variants" ON public.product_variants FOR SELECT USING (true);
+CREATE POLICY "Public Read: Categories" ON public.categories FOR SELECT USING (is_active = true);
+CREATE POLICY "Public Read: Packaging" ON public.packaging_options FOR SELECT USING (is_active = true);
+CREATE POLICY "Public Read: Couple Templates" ON public.couple_website_templates FOR SELECT USING (is_active = true);
+CREATE POLICY "Public Read: Bot Panels" ON public.bot_panel_services FOR SELECT USING (is_active = true);
+CREATE POLICY "Public Read: Approved Reviews" ON public.reviews FOR SELECT USING (is_approved = true);
+CREATE POLICY "Public Read: Policies" ON public.policies FOR SELECT USING (true);
+CREATE POLICY "Public Read: Active Coupons" ON public.coupons FOR SELECT USING (active = true);
+CREATE POLICY "Public Read: Active Couple Websites" ON public.couple_websites FOR SELECT USING (status = 'active');
+CREATE POLICY "Public Read: Site Settings" ON public.site_settings FOR SELECT USING (true);
+
+-- USER RESTRICTED PERMISSIONS (Profiles, Carts, Orders, Custom Orders, Tickets, API Keys)
+CREATE POLICY "Users: Manage Own Profile" ON public.profiles FOR ALL 
+    USING (auth.uid() = id) 
+    WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users: View Own Orders" ON public.orders FOR SELECT 
+    USING (auth.uid()::text = customer_id OR customer_email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Users: Insert Own Orders" ON public.orders FOR INSERT 
+    WITH CHECK (true);
+
+CREATE POLICY "Users: View Own Order Items" ON public.order_items FOR SELECT 
+    USING (EXISTS (SELECT 1 FROM public.orders WHERE orders.id = order_items.order_id AND (orders.customer_id = auth.uid()::text OR orders.customer_email = auth.jwt() ->> 'email')));
+
+CREATE POLICY "Users: View Own Invoices" ON public.billing_invoices FOR SELECT 
+    USING (customer_email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Users: Manage Own Custom Orders" ON public.custom_orders FOR ALL 
+    USING (customer_id = auth.uid()::text OR customer_email = auth.jwt() ->> 'email')
+    WITH CHECK (customer_id = auth.uid()::text OR customer_email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Users: Manage Own Tickets" ON public.support_tickets FOR ALL 
+    USING (customer_id = auth.uid()::text OR customer_email = auth.jwt() ->> 'email')
+    WITH CHECK (customer_id = auth.uid()::text OR customer_email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Users: Manage Own Couple Websites" ON public.couple_websites FOR ALL 
+    USING (customer_id = auth.uid()::text)
+    WITH CHECK (customer_id = auth.uid()::text);
+
+CREATE POLICY "Users: Manage Own API Keys" ON public.api_keys FOR ALL 
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users: View Own Email Logs" ON public.email_logs FOR SELECT 
+    USING (recipient_email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Users: Insert Reviews" ON public.reviews FOR INSERT 
+    WITH CHECK (true);
+
+CREATE POLICY "Public: Insert Analytics" ON public.analytics_events FOR INSERT 
+    WITH CHECK (true);
+
+-- SEED ESSENTIAL SYSTEM ROLES
+INSERT INTO public.roles (id, name, description) VALUES 
+('super_admin', 'Super Administrator', 'Full unconstrained platform control'),
+('manager', 'Store Manager', 'Orders, inventory, customer management'),
+('support_agent', 'Support Agent', 'Live chat, tickets and customer inquiry desk'),
+('customer', 'Customer', 'Verified store customer and member')
+ON CONFLICT (id) DO NOTHING;
+
+-- SEED SYSTEM POLICIES
+INSERT INTO public.policies (id, title, slug, version, content) VALUES
+('pol-privacy', 'Privacy Policy', 'privacy', '2.4', 'HARCONXS Atelier complies with international privacy frameworks. We safeguard personal engraving details and payment security.'),
+('pol-terms', 'Terms of Service', 'terms', '2.4', 'All bespoke laser customizations and digital sanctuary deployments are subject to our verified quality atelier guidelines.'),
+('pol-refund', 'Refund & Returns Policy', 'refund', '2.4', 'Personalized laser-engraved items are created uniquely for you. Replacements are guaranteed if transit damage occurs.'),
+('pol-shipping', 'Shipping & Delivery Policy', 'shipping', '2.4', 'Orders ship via priority logistics partners (BlueDart Express, Delhivery) across India within 2-4 business days.')
+ON CONFLICT (id) DO NOTHING;

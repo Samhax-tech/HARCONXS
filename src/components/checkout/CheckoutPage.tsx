@@ -16,8 +16,12 @@ import {
   Smartphone,
   Banknote,
   AlertCircle,
-  Building2
+  Building2,
+  RefreshCw,
+  Check,
+  Info
 } from 'lucide-react';
+import { ServerPriceBreakdown } from '../../services/supabaseService';
 
 export const CheckoutPage: React.FC = () => {
   const {
@@ -28,9 +32,12 @@ export const CheckoutPage: React.FC = () => {
     cartShipping,
     cartTax,
     cartTotal,
+    appliedCoupon,
     currency,
     formatPrice,
     createOrder,
+    placeServerVerifiedOrder,
+    calculateServerOrderQuote,
     setCurrentView,
     currentUser,
     isUserLoggedIn,
@@ -60,7 +67,13 @@ export const CheckoutPage: React.FC = () => {
   const [cardExp, setCardExp] = useState('12/28');
   const [cardCvc, setCardCvc] = useState('888');
 
+  // Server Price Verification State
+  const [serverQuote, setServerQuote] = useState<ServerPriceBreakdown | null>(null);
+  const [isVerifyingQuote, setIsVerifyingQuote] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
 
   // Keep state in sync if user logs in mid-flow
@@ -78,6 +91,41 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [currentUser]);
 
+  // Server quote re-calculation on cart or coupon changes
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchServerQuote() {
+      if (cart.length === 0) return;
+      setIsVerifyingQuote(true);
+      setQuoteError(null);
+      try {
+        const quote = await calculateServerOrderQuote({
+          items: cart,
+          appliedCoupon: appliedCoupon || undefined,
+          country: 'India',
+          paymentMethod: paymentType
+        });
+        if (!isCancelled) {
+          setServerQuote(quote);
+        }
+      } catch (err: any) {
+        if (!isCancelled) {
+          setQuoteError(err?.message || 'Server price validation failed');
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsVerifyingQuote(false);
+        }
+      }
+    }
+
+    fetchServerQuote();
+    return () => {
+      isCancelled = true;
+    };
+  }, [cart, appliedCoupon, paymentType]);
+
   if (cart.length === 0 && !confirmedOrder) {
     return (
       <div className="bg-zinc-950 min-h-screen py-20 text-zinc-200 text-center space-y-4 px-4">
@@ -93,8 +141,9 @@ export const CheckoutPage: React.FC = () => {
     );
   }
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCheckoutError(null);
 
     if (!isUserLoggedIn) {
       showToast('Please create or log into your account before completing your purchase.');
@@ -111,23 +160,23 @@ export const CheckoutPage: React.FC = () => {
 
     setIsPlacingOrder(true);
 
-    setTimeout(() => {
-      const newOrder = createOrder({
+    try {
+      const paymentMethodMap = {
+        upi: 'paypal' as const,
+        card: 'card' as const,
+        netbanking: 'card' as const,
+        cod: 'cod' as const
+      };
+
+      const result = await placeServerVerifiedOrder({
         customerId: currentUser ? currentUser.id : 'user-anon',
         customerName: fullName,
         customerEmail: email,
         customerPhone: phone,
         items: cart,
-        subtotal: cartSubtotal,
-        discount: cartDiscount,
-        packagingFee: cartPackagingTotal,
-        shippingFee: cartShipping,
-        tax: cartTax,
-        total: cartTotal,
-        currency,
-        status: 'Paid',
-        paymentMethod: paymentType === 'cod' ? 'cod' : (paymentType === 'upi' ? 'paypal' : 'card'),
-        paymentStatus: paymentType === 'cod' ? 'pending' : 'paid',
+        appliedCoupon: appliedCoupon || undefined,
+        paymentMethod: paymentMethodMap[paymentType],
+        paymentGateway: paymentType === 'upi' ? 'Cashfree UPI' : (paymentType === 'card' ? 'Stripe Gateway' : 'COD Agent'),
         shippingAddress: {
           fullName,
           street,
@@ -136,18 +185,21 @@ export const CheckoutPage: React.FC = () => {
           zip,
           country
         },
-        trackingNumber: `BD-${Math.floor(10000000 + Math.random() * 90000000)}`,
         carrier: shippingCarrier,
-        trackingUrl: 'https://bluedart.com/tracking',
         giftNote: giftNote || undefined,
-        deliveryDate: deliveryDate || undefined,
-        riskLevel: 'LOW'
+        deliveryDate: deliveryDate || undefined
       });
 
+      if (result.success && result.order) {
+        setConfirmedOrder(result.order);
+      } else {
+        setCheckoutError(result.error || 'Checkout failed. Please review stock or details.');
+      }
+    } catch (err: any) {
+      setCheckoutError(err?.message || 'An unexpected error occurred during order placement.');
+    } finally {
       setIsPlacingOrder(false);
-      setConfirmedOrder(newOrder);
-      showToast(`Order ${newOrder.orderNumber} placed successfully!`);
-    }, 1200);
+    }
   };
 
   // ORDER CONFIRMATION SCREEN
@@ -238,6 +290,13 @@ export const CheckoutPage: React.FC = () => {
     );
   }
 
+  const effectiveTotal = serverQuote ? serverQuote.total : cartTotal;
+  const effectiveSubtotal = serverQuote ? serverQuote.subtotal : cartSubtotal;
+  const effectiveDiscount = serverQuote ? serverQuote.discount : cartDiscount;
+  const effectivePackaging = serverQuote ? serverQuote.packagingFee : cartPackagingTotal;
+  const effectiveShipping = serverQuote ? serverQuote.shippingFee : cartShipping;
+  const effectiveTax = serverQuote ? serverQuote.tax : cartTax;
+
   return (
     <div className="bg-zinc-950 min-h-screen py-10 px-4 sm:px-6 lg:px-8 text-zinc-200">
       <div className="max-w-6xl mx-auto">
@@ -251,11 +310,28 @@ export const CheckoutPage: React.FC = () => {
             <ArrowLeft className="w-4 h-4" />
             <span>Return to bag</span>
           </button>
-          <div className="flex items-center gap-2 text-xs text-emerald-400">
-            <Lock className="w-4 h-4" />
-            <span>256-Bit Bank Level SSL Encryption</span>
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5 text-amber-400 bg-amber-950/40 border border-amber-800/40 px-3 py-1 rounded-lg">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Server Price Guard Active</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-emerald-400">
+              <Lock className="w-4 h-4" />
+              <span>256-Bit SSL Encrypted</span>
+            </div>
           </div>
         </div>
+
+        {/* Server Validation or Checkout Error Alert */}
+        {checkoutError && (
+          <div className="mb-6 p-4 bg-rose-950/50 border border-rose-600/60 rounded-2xl flex items-center gap-3 text-xs text-rose-200">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+            <div className="flex-1">
+              <strong className="block font-bold">Checkout Verification Notice</strong>
+              <span>{checkoutError}</span>
+            </div>
+          </div>
+        )}
 
         {/* MANDATORY USER AUTHENTICATION BANNER */}
         {!isUserLoggedIn ? (
@@ -299,302 +375,273 @@ export const CheckoutPage: React.FC = () => {
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <h3 className="text-sm font-bold font-serif uppercase tracking-wider text-zinc-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-amber-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center">1</span>
-                  <span>Delivery Address (India & Global)</span>
+                  <Truck className="w-4 h-4 text-amber-400" />
+                  <span>1. Delivery & Contact Details</span>
                 </h3>
+                <span className="text-[11px] text-zinc-400">All India Delivery</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">Full Name *</label>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Recipient Full Name *</label>
                   <input
                     type="text"
+                    required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    required
-                    placeholder="Recipient's Name"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+                    placeholder="e.g. Aanya Sharma"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">Mobile Number *</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                    placeholder="+91 98765 43210"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">Email for Confirmation *</label>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Email Address (For Tax Receipt & Tracking) *</label>
                   <input
                     type="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="aanya@example.com"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Contact Phone (For Courier Delivery OTP) *</label>
+                  <input
+                    type="text"
                     required
-                    placeholder="you@example.com"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Pincode *</label>
+                  <input
+                    type="text"
+                    required
+                    value={zip}
+                    onChange={(e) => setZip(e.target.value)}
+                    placeholder="560038"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors font-mono"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">Street / Flat / Apartment / Landmark *</label>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Street Address, Apartment / Villa *</label>
                   <input
                     type="text"
+                    required
                     value={street}
                     onChange={(e) => setStreet(e.target.value)}
-                    required
-                    placeholder="12th Cross, Indiranagar Near Metro"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+                    placeholder="e.g. 402, Prestige Hermitage, 12th Main Road, Indiranagar"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">City *</label>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">City *</label>
                   <input
                     type="text"
+                    required
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    required
                     placeholder="Bangalore"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">State *</label>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">State *</label>
                   <input
                     type="text"
+                    required
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    required
                     placeholder="Karnataka"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 2. SHIPPING CARRIER & SURPRISE DELIVERY OPTIONS */}
+            <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h3 className="text-sm font-bold font-serif uppercase tracking-wider text-zinc-100 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-rose-400" />
+                  <span>2. Logistics Carrier & Gifting Options</span>
+                </h3>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Select Insured Courier Partner</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { id: 'BlueDart Priority', time: '2-3 Business Days', tag: 'Fastest & Recommended' },
+                    { id: 'Delhivery Air', time: '3-4 Business Days', tag: 'Air Cargo' },
+                    { id: 'DTDC Express', time: '4-5 Business Days', tag: 'Standard' }
+                  ].map((c) => (
+                    <button
+                      type="button"
+                      key={c.id}
+                      onClick={() => setShippingCarrier(c.id as any)}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        shippingCarrier === c.id
+                          ? 'border-amber-500 bg-amber-500/10 text-zinc-100 shadow-md'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs text-zinc-200">{c.id}</span>
+                        {shippingCarrier === c.id && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                      </div>
+                      <p className="text-[10px] text-zinc-400 mt-1">{c.time}</p>
+                      <span className="text-[9px] text-amber-400/80 font-mono mt-1 block">{c.tag}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold flex items-center gap-1.5">
+                    <Gift className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Complimentary Handwritten Gift Note</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={giftNote}
+                    onChange={(e) => setGiftNote(e.target.value)}
+                    placeholder="e.g. Happy Anniversary to my love. Here's to forever!"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">PIN Code / ZIP *</label>
+                  <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Requested Delivery Date</span>
+                  </label>
                   <input
-                    type="text"
-                    value={zip}
-                    onChange={(e) => setZip(e.target.value)}
-                    required
-                    placeholder="560038"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors font-mono cursor-pointer"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">Country</label>
-                  <select
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-100 focus:outline-none focus:border-amber-500 cursor-pointer"
-                  >
-                    <option value="India">India 🇮🇳</option>
-                    <option value="United States">United States 🇺🇸</option>
-                    <option value="United Kingdom">United Kingdom 🇬🇧</option>
-                    <option value="United Arab Emirates">United Arab Emirates 🇦🇪</option>
-                    <option value="Canada">Canada 🇨🇦</option>
-                  </select>
+                  <p className="text-[10px] text-zinc-500 mt-1">We will coordinate dispatch timing with the courier accordingly.</p>
                 </div>
               </div>
             </div>
 
-            {/* 2. INDIAN COURIER & LOGISTICS */}
+            {/* 3. PAYMENT METHOD (AUTHORITATIVE GATEWAY ROUTING) */}
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <h3 className="text-sm font-bold font-serif uppercase tracking-wider text-zinc-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-amber-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center">2</span>
-                  <span>Logistics Carrier</span>
+                  <CreditCard className="w-4 h-4 text-emerald-400" />
+                  <span>3. Secure Payment Gateway</span>
                 </h3>
+                <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>PCI-DSS Tier-1</span>
+                </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setShippingCarrier('BlueDart Priority')}
-                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                    shippingCarrier === 'BlueDart Priority'
-                      ? 'bg-zinc-950 border-amber-500 ring-1 ring-amber-500/50'
-                      : 'bg-zinc-950/60 border-zinc-800 hover:border-zinc-700'
-                  }`}
-                >
-                  <p className="font-bold text-white">BlueDart Priority</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">2-3 Business Days</p>
-                  <p className="text-[10px] text-emerald-400 font-mono mt-0.5">Free with order</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShippingCarrier('Delhivery Air')}
-                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                    shippingCarrier === 'Delhivery Air'
-                      ? 'bg-zinc-950 border-amber-500 ring-1 ring-amber-500/50'
-                      : 'bg-zinc-950/60 border-zinc-800 hover:border-zinc-700'
-                  }`}
-                >
-                  <p className="font-bold text-white">Delhivery Air</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">Express Air Freight</p>
-                  <p className="text-[10px] text-emerald-400 font-mono mt-0.5">Free with order</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShippingCarrier('DTDC Express')}
-                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                    shippingCarrier === 'DTDC Express'
-                      ? 'bg-zinc-950 border-amber-500 ring-1 ring-amber-500/50'
-                      : 'bg-zinc-950/60 border-zinc-800 hover:border-zinc-700'
-                  }`}
-                >
-                  <p className="font-bold text-white">DTDC Express</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">Pan-India Reach</p>
-                  <p className="text-[10px] text-emerald-400 font-mono mt-0.5">Free with order</p>
-                </button>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {[
+                  { id: 'upi', name: 'UPI / QR', icon: QrCode, desc: 'GPay, PhonePe, Paytm' },
+                  { id: 'card', name: 'Debit / Credit', icon: CreditCard, desc: 'Visa, Master, RuPay' },
+                  { id: 'netbanking', name: 'NetBanking', icon: Building2, desc: 'All Indian Banks' },
+                  { id: 'cod', name: 'Cash on Delivery', icon: Banknote, desc: 'Pay at Doorstep' }
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = paymentType === item.id;
+                  return (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => setPaymentType(item.id as any)}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-amber-500 bg-amber-500/10 text-zinc-100 shadow-md'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Icon className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-zinc-400'}`} />
+                        {isSelected && <Check className="w-3 h-3 text-amber-400" />}
+                      </div>
+                      <span className="font-semibold text-xs block text-zinc-200">{item.name}</span>
+                      <span className="text-[9px] text-zinc-500 block">{item.desc}</span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <div>
-                <label className="block text-[11px] text-zinc-400 mb-1 font-semibold">Special Gift Message / Dispatch Note (Optional)</label>
-                <input
-                  type="text"
-                  value={giftNote}
-                  onChange={(e) => setGiftNote(e.target.value)}
-                  placeholder="e.g. Please wrap in Valentine's Luxury box and don't include price tag"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-            </div>
-
-            {/* 3. INDIA PAYMENT GATEWAYS */}
-            <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                <h3 className="text-sm font-bold font-serif uppercase tracking-wider text-zinc-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-amber-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center">3</span>
-                  <span>Payment Gateway</span>
-                </h3>
-              </div>
-
-              {/* Payment Tabs */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentType('upi')}
-                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
-                    paymentType === 'upi'
-                      ? 'bg-zinc-950 border-amber-500 text-amber-400 ring-1 ring-amber-500/50'
-                      : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  <Smartphone className="w-4 h-4" />
-                  <span className="text-xs font-bold">UPI / GPay</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentType('card')}
-                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
-                    paymentType === 'card'
-                      ? 'bg-zinc-950 border-amber-500 text-amber-400 ring-1 ring-amber-500/50'
-                      : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  <CreditCard className="w-4 h-4" />
-                  <span className="text-xs font-bold">Card / RuPay</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentType('netbanking')}
-                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
-                    paymentType === 'netbanking'
-                      ? 'bg-zinc-950 border-amber-500 text-amber-400 ring-1 ring-amber-500/50'
-                      : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  <Building2 className="w-4 h-4" />
-                  <span className="text-xs font-bold">Net Banking</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentType('cod')}
-                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
-                    paymentType === 'cod'
-                      ? 'bg-zinc-950 border-amber-500 text-amber-400 ring-1 ring-amber-500/50'
-                      : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                  }`}
-                >
-                  <Banknote className="w-4 h-4" />
-                  <span className="text-xs font-bold">Cash on Delivery</span>
-                </button>
-              </div>
-
-              {/* Dynamic Payment Input Section */}
+              {/* Dynamic Payment Fields */}
               {paymentType === 'upi' && (
                 <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-zinc-200">Instant UPI VPA or QR Scan</span>
-                    <span className="text-[10px] text-emerald-400 font-mono">Zero Gateway Fee</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                      <Smartphone className="w-4 h-4 text-emerald-400" />
+                      <span>Instant UPI Payment</span>
+                    </span>
+                    <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded-md font-mono">
+                      0% Gateway Fee
+                    </span>
                   </div>
                   <div>
-                    <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">
-                      Enter UPI ID / VPA
-                    </label>
+                    <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Virtual Payment Address (VPA / UPI ID)</label>
                     <input
                       type="text"
                       value={upiId}
                       onChange={(e) => setUpiId(e.target.value)}
-                      placeholder="username@oksbi / username@paytm"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+                      placeholder="username@oksbi / username@okaxis"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
                     />
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-                    <QrCode className="w-4 h-4 text-amber-400" />
-                    <span>Supports Google Pay, PhonePe, Paytm, CRED, Amazon Pay UPI & BHIM</span>
-                  </div>
+                  <p className="text-[10px] text-zinc-400 flex items-center gap-1">
+                    <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>A secure authorization mandate will be sent directly to your UPI app.</span>
+                  </p>
                 </div>
               )}
 
               {paymentType === 'card' && (
                 <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-3">
                   <div>
-                    <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">
-                      Card Number
-                    </label>
+                    <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Card Number</label>
                     <input
                       type="text"
                       value={cardNumber}
                       onChange={(e) => setCardNumber(e.target.value)}
-                      placeholder="4242 •••• •••• 4242"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                      placeholder="4242 4242 4242 4242"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Expiry Date</label>
+                      <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Expires (MM/YY)</label>
                       <input
                         type="text"
                         value={cardExp}
                         onChange={(e) => setCardExp(e.target.value)}
-                        placeholder="MM/YY"
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                        placeholder="12/28"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">CVV</label>
+                      <label className="block text-[10px] text-zinc-400 mb-1 uppercase font-semibold">Security CVC / CVV</label>
                       <input
                         type="password"
+                        maxLength={4}
                         value={cardCvc}
                         onChange={(e) => setCardCvc(e.target.value)}
                         placeholder="•••"
-                        maxLength={4}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500 font-mono"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
                       />
                     </div>
                   </div>
@@ -638,9 +685,17 @@ export const CheckoutPage: React.FC = () => {
           {/* RIGHT 5 COLS: BAG SUMMARY & PLACE ORDER BUTTON */}
           <div className="lg:col-span-5 space-y-6">
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-5 sticky top-24">
-              <h3 className="text-sm font-bold font-serif uppercase tracking-wider text-zinc-100 border-b border-zinc-800 pb-3">
-                Order Summary ({cart.length} item{cart.length > 1 ? 's' : ''})
-              </h3>
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h3 className="text-sm font-bold font-serif uppercase tracking-wider text-zinc-100">
+                  Order Summary ({cart.length} item{cart.length > 1 ? 's' : ''})
+                </h3>
+                {isVerifyingQuote && (
+                  <span className="flex items-center gap-1 text-[10px] text-amber-400 font-mono">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <span>Verifying...</span>
+                  </span>
+                )}
+              </div>
 
               {/* Items preview */}
               <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
@@ -664,39 +719,39 @@ export const CheckoutPage: React.FC = () => {
               <div className="border-t border-zinc-800 pt-3 space-y-2 text-xs">
                 <div className="flex justify-between text-zinc-400">
                   <span>Bag Subtotal</span>
-                  <span className="font-mono text-zinc-200">{formatPrice(cartSubtotal)}</span>
+                  <span className="font-mono text-zinc-200">{formatPrice(effectiveSubtotal)}</span>
                 </div>
 
-                {cartPackagingTotal > 0 && (
+                {effectivePackaging > 0 && (
                   <div className="flex justify-between text-zinc-400">
                     <span>Custom Packaging</span>
-                    <span className="font-mono text-zinc-200">+{formatPrice(cartPackagingTotal)}</span>
+                    <span className="font-mono text-zinc-200">+{formatPrice(effectivePackaging)}</span>
                   </div>
                 )}
 
-                {cartDiscount > 0 && (
+                {effectiveDiscount > 0 && (
                   <div className="flex justify-between text-emerald-400">
-                    <span>Promo Discount</span>
-                    <span className="font-mono">-{formatPrice(cartDiscount)}</span>
+                    <span>Promo Discount {appliedCoupon ? `(${appliedCoupon.code})` : ''}</span>
+                    <span className="font-mono">-{formatPrice(effectiveDiscount)}</span>
                   </div>
                 )}
 
                 <div className="flex justify-between text-zinc-400">
                   <span>Logistics & Express Shipping</span>
                   <span className="font-mono text-emerald-400">
-                    {cartShipping === 0 ? 'FREE' : formatPrice(cartShipping)}
+                    {effectiveShipping === 0 ? 'FREE' : formatPrice(effectiveShipping)}
                   </span>
                 </div>
 
                 <div className="flex justify-between text-zinc-400">
                   <span>Taxes & GST (5%)</span>
-                  <span className="font-mono text-zinc-200">{formatPrice(cartTax)}</span>
+                  <span className="font-mono text-zinc-200">{formatPrice(effectiveTax)}</span>
                 </div>
 
                 <div className="border-t border-zinc-800 pt-3 flex justify-between items-baseline">
                   <span className="font-bold text-sm text-zinc-100">Total Amount</span>
                   <span className="font-mono text-2xl font-bold text-amber-400">
-                    {formatPrice(cartTotal)}
+                    {formatPrice(effectiveTotal)}
                   </span>
                 </div>
               </div>
@@ -708,13 +763,16 @@ export const CheckoutPage: React.FC = () => {
                 className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm rounded-xl shadow-xl shadow-amber-500/10 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
               >
                 {isPlacingOrder ? (
-                  <span>Processing secure checkout...</span>
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Verifying inventory & creating order...</span>
+                  </span>
                 ) : (
                   <>
                     <Lock className="w-4 h-4" />
                     <span>
                       {isUserLoggedIn
-                        ? `Authorize & Pay ${formatPrice(cartTotal)}`
+                        ? `Authorize & Pay ${formatPrice(effectiveTotal)}`
                         : 'Sign In to Authorize & Pay'}
                     </span>
                   </>

@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { Product, Order, CustomOrder, DiscountCoupon, SystemPolicy, CategoryType, PopupBannerConfig, BillingPortalConfig, YouTubeVideoItem } from '../../types';
+import {
+  Product,
+  Order,
+  CustomOrder,
+  DiscountCoupon,
+  SystemPolicy,
+  CategoryType,
+  PopupBannerConfig,
+  BillingPortalConfig,
+  YouTubeVideoItem,
+  CoupleWebsiteTemplate,
+  CoupleThemeCategory,
+  CoupleWebsiteProject
+} from '../../types';
 import {
   LayoutDashboard,
   Package,
@@ -39,7 +52,11 @@ import {
   Radio,
   Mail,
   Database,
-  RefreshCw
+  RefreshCw,
+  Heart,
+  Palette,
+  Layers,
+  Sparkle
 } from 'lucide-react';
 import { EmailNotificationCenter } from '../account/EmailNotificationCenter';
 
@@ -51,9 +68,22 @@ export const AdminDashboard: React.FC = () => {
     deleteProduct,
     orders,
     updateOrderStatus,
+    processOrderRefund,
+    updateOrderLogistics,
     customOrders,
     sendCustomOrderMessage,
     provideCustomOrderQuote,
+    updateCustomOrderStatus,
+    uploadCustomOrderFile,
+    packagingOptions,
+    coupleTemplates,
+    addCoupleTemplate,
+    updateCoupleTemplate,
+    deleteCoupleTemplate,
+    toggleCoupleTemplateActive,
+    coupleWebsites,
+    publishCoupleWebsite,
+    deleteCoupleWebsite,
     policies,
     updatePolicy,
     formatPrice,
@@ -78,7 +108,7 @@ export const AdminDashboard: React.FC = () => {
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<
-    'overview' | 'products' | 'orders' | 'emails' | 'custom' | 'marketing' | 'popup-banner' | 'billing' | 'api-keys' | 'youtube' | 'inventory' | 'automation' | 'gmc' | 'policies' | 'system'
+    'overview' | 'products' | 'orders' | 'emails' | 'custom' | 'couple-templates' | 'marketing' | 'popup-banner' | 'billing' | 'api-keys' | 'youtube' | 'inventory' | 'automation' | 'gmc' | 'policies' | 'system'
   >('overview');
 
   const [adminSearch, setAdminSearch] = useState('');
@@ -134,12 +164,29 @@ export const AdminDashboard: React.FC = () => {
   const [newProdImage, setNewProdImage] = useState('https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&auto=format&fit=crop&q=80');
   const [newProdPersonalizable, setNewProdPersonalizable] = useState(true);
 
-  // Quote Issuer State
+  // Custom Orders Admin State
+  const [customStatusFilter, setCustomStatusFilter] = useState<'all' | CustomOrder['status']>('all');
+  const [customSearch, setCustomSearch] = useState('');
   const [quoteOrderId, setQuoteOrderId] = useState<string | null>(null);
-  const [quoteAmount, setQuoteAmount] = useState(165);
-  const [quoteDays, setQuoteDays] = useState(3);
-  const [quotePackaging, setQuotePackaging] = useState('Valentine Luxury Velvet Box');
-  const [quoteNotes, setQuoteNotes] = useState('Includes 3D render preview + titanium alloy polishing.');
+  const [quoteAmount, setQuoteAmount] = useState(12500);
+  const [quoteDays, setQuoteDays] = useState(4);
+  const [quotePackaging, setQuotePackaging] = useState('Royal Velvet Keepsake Box');
+  const [quoteNotes, setQuoteNotes] = useState('Includes 3D CAD render preview, titanium laser engraving & insured courier dispatch.');
+  const [quoteProofUrl, setQuoteProofUrl] = useState('https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=600&auto=format&fit=crop&q=80');
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
+
+  // Status Progression & Logistics Modal
+  const [statusModalOrder, setStatusModalOrder] = useState<CustomOrder | null>(null);
+  const [nextCustomStatus, setNextCustomStatus] = useState<CustomOrder['status']>('In Design');
+  const [customCarrier, setCustomCarrier] = useState('BlueDart Apex Priority');
+  const [customTrackingAwb, setCustomTrackingAwb] = useState('');
+  const [customTrackingUrl, setCustomTrackingUrl] = useState('');
+
+  // Admin Direct Realtime Chat Drawer
+  const [adminChatOrder, setAdminChatOrder] = useState<CustomOrder | null>(null);
+  const [adminChatInput, setAdminChatInput] = useState('');
+  const [adminChatAttachments, setAdminChatAttachments] = useState<string[]>([]);
+  const [isAdminUploadingChatFile, setIsAdminUploadingChatFile] = useState(false);
 
   // Create Coupon Modal State
   const [isAddCouponOpen, setIsAddCouponOpen] = useState(false);
@@ -159,6 +206,22 @@ export const AdminDashboard: React.FC = () => {
   const [newVideoYoutubeId, setNewVideoYoutubeId] = useState('');
   const [newVideoCategory, setNewVideoCategory] = useState<'Engraving' | 'Couple Websites' | 'Bot Dashboard' | 'Unboxing'>('Engraving');
   const [newVideoDesc, setNewVideoDesc] = useState('');
+
+  // Couple Templates & Websites Admin State
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [tmplName, setTmplName] = useState('');
+  const [tmplVersion, setTmplVersion] = useState('v2.0');
+  const [tmplCategory, setTmplCategory] = useState<CoupleThemeCategory>('Romantic');
+  const [tmplPrice, setTmplPrice] = useState(4999);
+  const [tmplDesc, setTmplDesc] = useState('');
+  const [tmplImage, setTmplImage] = useState('https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&auto=format&fit=crop&q=80');
+  const [tmplDemoSubdomain, setTmplDemoSubdomain] = useState('forever-demo');
+  const [tmplFeatures, setTmplFeatures] = useState('Live Second Counter, Photo Wall, Soundtrack Player, Guestbook');
+  const [tmplColors, setTmplColors] = useState('#e11d48, #fb7185, #fda4af');
+  const [tmplFont, setTmplFont] = useState('Playfair Display');
+  const [tmplPopular, setTmplPopular] = useState(false);
+  const [tmplActive, setTmplActive] = useState(true);
 
   // 1. ADMIN LOCK SCREEN GATE
   if (!isAdminAuthenticated) {
@@ -224,24 +287,81 @@ export const AdminDashboard: React.FC = () => {
     setNewProdDesc('');
   };
 
-  const handleIssueQuote = (e: React.FormEvent) => {
+  const handleIssueQuote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quoteOrderId) return;
-    provideCustomOrderQuote(quoteOrderId, {
-      price: quoteAmount,
-      currency: 'USD',
-      estimatedDays: quoteDays,
-      breakdown: {
-        fabrication: quoteAmount - 35,
-        packaging: 20,
-        expressShipping: 15
-      },
+    await provideCustomOrderQuote(quoteOrderId, {
+      amount: quoteAmount,
+      currency: 'INR',
+      turnaroundDays: quoteDays,
       packagingIncluded: quotePackaging,
       notes: quoteNotes,
-      status: 'pending',
-      validUntil: '2026-09-01'
+      designProofUrl: quoteProofUrl || undefined,
+      status: 'pending_review',
+      validUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString().split('T')[0]
     });
     setQuoteOrderId(null);
+  };
+
+  const handleUploadProofFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsUploadingProof(true);
+    try {
+      const res = await uploadCustomOrderFile(files[0], quoteOrderId || undefined);
+      if (res.success && res.url) {
+        setQuoteProofUrl(res.url);
+        showToast('CAD proof image uploaded to Supabase Storage!');
+      }
+    } catch {
+      showToast('Failed to upload CAD proof.');
+    } finally {
+      setIsUploadingProof(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSaveStatusTransition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statusModalOrder) return;
+    await updateCustomOrderStatus(statusModalOrder.id, nextCustomStatus, {
+      carrier: customCarrier,
+      trackingNumber: customTrackingAwb,
+      trackingUrl: customTrackingUrl || undefined
+    });
+    setStatusModalOrder(null);
+  };
+
+  const handleSendAdminChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((!adminChatInput.trim() && adminChatAttachments.length === 0) || !adminChatOrder) return;
+    await sendCustomOrderMessage(
+      adminChatOrder.id,
+      adminChatInput.trim(),
+      'admin',
+      adminChatAttachments.length > 0 ? adminChatAttachments : undefined
+    );
+    setAdminChatInput('');
+    setAdminChatAttachments([]);
+    showToast('Direct artisan message sent to patron.');
+  };
+
+  const handleAdminChatFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !adminChatOrder) return;
+    setIsAdminUploadingChatFile(true);
+    try {
+      const res = await uploadCustomOrderFile(files[0], adminChatOrder.id);
+      if (res.success && res.url) {
+        setAdminChatAttachments(prev => [...prev, res.url]);
+        showToast('Attachment uploaded to chat.');
+      }
+    } catch {
+      showToast('Failed to upload file.');
+    } finally {
+      setIsAdminUploadingChatFile(false);
+      e.target.value = '';
+    }
   };
 
   const handleCreateCoupon = (e: React.FormEvent) => {
@@ -296,6 +416,90 @@ export const AdminDashboard: React.FC = () => {
     setNewVideoTitle('');
     setNewVideoYoutubeId('');
     setNewVideoDesc('');
+  };
+
+  const handleOpenAddTemplate = () => {
+    setEditingTemplateId(null);
+    setTmplName('');
+    setTmplVersion('v2.0');
+    setTmplCategory('Romantic');
+    setTmplPrice(4999);
+    setTmplDesc('A modern, responsive love sanctuary with live anniversary counter, photo wall and guestbook.');
+    setTmplImage('https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&auto=format&fit=crop&q=80');
+    setTmplDemoSubdomain('demo');
+    setTmplFeatures('Live Second Counter, Photo Wall, Soundtrack Player, Guestbook');
+    setTmplColors('#e11d48, #fb7185, #fda4af');
+    setTmplFont('Playfair Display');
+    setTmplPopular(false);
+    setTmplActive(true);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleOpenEditTemplate = (t: CoupleWebsiteTemplate) => {
+    setEditingTemplateId(t.id);
+    setTmplName(t.name);
+    setTmplVersion(t.version || 'v2.0');
+    setTmplCategory(t.themeCategory || 'Romantic');
+    setTmplPrice(t.price);
+    setTmplDesc(t.description);
+    setTmplImage(t.previewImage);
+    setTmplDemoSubdomain(t.demoSubdomain || 'demo');
+    setTmplFeatures(t.features.join(', '));
+    setTmplColors(t.colorPalette ? t.colorPalette.join(', ') : '#e11d48, #fb7185');
+    setTmplFont(t.defaultFont || 'Playfair Display');
+    setTmplPopular(t.popular || false);
+    setTmplActive(t.isActive !== false);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleSaveTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tmplName.trim()) {
+      showToast('Template name is required.');
+      return;
+    }
+
+    const feats = tmplFeatures.split(',').map(s => s.trim()).filter(Boolean);
+    const colors = tmplColors.split(',').map(s => s.trim()).filter(Boolean);
+
+    if (editingTemplateId) {
+      const existing = coupleTemplates.find(t => t.id === editingTemplateId);
+      if (existing) {
+        await updateCoupleTemplate({
+          ...existing,
+          name: tmplName.trim(),
+          version: tmplVersion.trim() || 'v2.0',
+          themeCategory: tmplCategory,
+          price: Number(tmplPrice),
+          description: tmplDesc.trim(),
+          previewImage: tmplImage.trim(),
+          demoSubdomain: tmplDemoSubdomain.trim().toLowerCase(),
+          features: feats.length > 0 ? feats : ['Live Counter', 'Photo Gallery'],
+          colorPalette: colors,
+          defaultFont: tmplFont,
+          popular: tmplPopular,
+          isActive: tmplActive
+        });
+      }
+    } else {
+      await addCoupleTemplate({
+        name: tmplName.trim(),
+        version: tmplVersion.trim() || 'v2.0',
+        themeCategory: tmplCategory,
+        price: Number(tmplPrice),
+        description: tmplDesc.trim(),
+        previewImage: tmplImage.trim(),
+        demoSubdomain: tmplDemoSubdomain.trim().toLowerCase(),
+        features: feats.length > 0 ? feats : ['Live Counter', 'Photo Gallery', 'Guestbook'],
+        colorPalette: colors,
+        defaultFont: tmplFont,
+        popular: tmplPopular,
+        isActive: tmplActive,
+        releaseDate: new Date().toISOString().split('T')[0]
+      });
+    }
+
+    setIsTemplateModalOpen(false);
   };
 
   // Aggregated Stats
@@ -380,6 +584,16 @@ export const AdminDashboard: React.FC = () => {
             >
               <Sparkles className="w-4 h-4" />
               <span>Custom Requests ({customOrders.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('couple-templates')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all cursor-pointer ${
+                activeSection === 'couple-templates' ? 'bg-amber-500 text-zinc-950 font-bold shadow-md shadow-amber-500/10' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+              }`}
+            >
+              <Heart className="w-4 h-4 text-rose-400" />
+              <span>Couple Sites & Themes ({coupleTemplates.length})</span>
             </button>
 
             <div className="pt-2 pb-1 px-3 text-[10px] font-mono uppercase text-zinc-500 tracking-wider">
@@ -1123,7 +1337,26 @@ export const AdminDashboard: React.FC = () => {
                         <option value="Shipped">Shipped</option>
                         <option value="Out for Delivery">Out for Delivery</option>
                         <option value="Delivered">Delivered</option>
+                        <option value="Refunded">Refunded</option>
                       </select>
+
+                      {order.status !== 'Refunded' && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (confirm(`Process full refund of ${formatPrice(order.total)} for order ${order.orderNumber}?`)) {
+                              await processOrderRefund({
+                                orderId: order.id,
+                                reason: 'Customer requested refund via admin panel',
+                                restockInventory: true
+                              });
+                            }
+                          }}
+                          className="px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-800/80 text-rose-300 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer"
+                        >
+                          Refund
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1131,11 +1364,29 @@ export const AdminDashboard: React.FC = () => {
                     <div>
                       <span className="text-[10px] text-zinc-500 uppercase font-mono block">Delivery Address</span>
                       <p>{order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.zip}</p>
-                      <p className="text-[11px] text-zinc-400 font-mono mt-1">Carrier: {order.carrier} • Tracking #{order.trackingNumber}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[11px] text-zinc-400 font-mono">Carrier: {order.carrier} • Tracking #{order.trackingNumber}</span>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const newTracking = prompt('Enter new tracking number:', order.trackingNumber || '');
+                            if (newTracking && newTracking !== order.trackingNumber) {
+                              await updateOrderLogistics(order.id, {
+                                trackingNumber: newTracking,
+                                carrier: order.carrier
+                              });
+                            }
+                          }}
+                          className="text-[10px] text-amber-400 hover:underline cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </div>
                     <div className="sm:text-right">
                       <span className="text-[10px] text-zinc-500 uppercase font-mono block">Total Amount</span>
                       <p className="font-mono text-lg font-bold text-amber-400">{formatPrice(order.total)}</p>
+                      <span className="text-[10px] text-zinc-400 font-mono">Payment: {order.paymentMethod.toUpperCase()} ({order.paymentStatus})</span>
                     </div>
                   </div>
                 </div>
@@ -1152,43 +1403,456 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* 8. CUSTOM ORDERS */}
+        {/* 8. CUSTOM BESPOKE ORDERS ATELIER */}
         {activeSection === 'custom' && (
           <div className="space-y-6">
-            <div className="border-b border-zinc-800 pb-4">
-              <h3 className="text-lg font-serif font-bold text-zinc-100">Bespoke Custom Orders & Quotations</h3>
-              <p className="text-xs text-zinc-400">Review briefs submitted by customers and provide custom pricing.</p>
+            <div className="border-b border-zinc-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-serif font-bold text-zinc-100">Bespoke Custom Orders & Atelier Pipeline</h3>
+                <p className="text-xs text-zinc-400">Manage client briefs, dispatch official quotes with CAD blueprints, advance fabrication, and chat in realtime.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-mono font-bold">
+                  {customOrders.length} Total Projects
+                </span>
+              </div>
             </div>
 
+            {/* Filter Pills & Search */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                {(['all', 'Submitted', 'Quoted', 'Paid', 'In Design', 'Production', 'Shipped', 'Delivered'] as const).map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setCustomStatusFilter(st)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                      customStatusFilter === st
+                        ? 'bg-amber-400 text-zinc-950 font-bold shadow-sm'
+                        : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                    }`}
+                  >
+                    {st === 'all' ? 'All Projects' : st}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-zinc-500" />
+                <input
+                  type="text"
+                  value={customSearch}
+                  onChange={(e) => setCustomSearch(e.target.value)}
+                  placeholder="Search request #, customer, recipient..."
+                  className="bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-400 w-full sm:w-64"
+                />
+              </div>
+            </div>
+
+            {/* Projects List */}
             <div className="space-y-4">
-              {customOrders.map(co => (
-                <div key={co.id} className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 text-xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                    <div>
-                      <span className="font-mono text-base font-bold text-zinc-100">{co.requestNumber}</span>
-                      <p className="text-[11px] text-zinc-400">{co.customerName} ({co.customerEmail}) • {co.productType}</p>
+              {customOrders
+                .filter(co => customStatusFilter === 'all' || co.status === customStatusFilter)
+                .filter(co => {
+                  if (!customSearch.trim()) return true;
+                  const q = customSearch.toLowerCase();
+                  return (
+                    co.requestNumber.toLowerCase().includes(q) ||
+                    co.customerName.toLowerCase().includes(q) ||
+                    co.customerEmail.toLowerCase().includes(q) ||
+                    co.recipient.toLowerCase().includes(q) ||
+                    co.productType.toLowerCase().includes(q)
+                  );
+                })
+                .map(co => (
+                  <div key={co.id} className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-6 text-xs space-y-4 shadow-xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/80">
+                            {co.requestNumber}
+                          </span>
+                          <span className="font-bold text-zinc-100 text-sm">{co.productType}</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                          Patron: <strong className="text-zinc-200">{co.customerName}</strong> ({co.customerEmail}) • Recipient: <strong className="text-zinc-200">{co.recipient} ({co.relationship})</strong>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase ${
+                          co.status === 'Paid' || co.status === 'Delivered' || co.status === 'Completed'
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                            : co.status === 'Shipped' || co.status === 'Production' || co.status === 'In Design'
+                            ? 'bg-sky-950 text-sky-300 border border-sky-800'
+                            : 'bg-amber-950 text-amber-300 border border-amber-800'
+                        }`}>
+                          Status: {co.status}
+                        </span>
+                      </div>
                     </div>
-                    <span className="px-2.5 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-mono font-bold">
-                      Status: {co.status}
-                    </span>
-                  </div>
 
-                  <p className="text-zinc-300 bg-zinc-950 p-3.5 rounded-xl border border-zinc-800">
-                    "{co.description}"
-                  </p>
+                    {/* Brief Description & Specs */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-zinc-950/70 p-4 rounded-xl border border-zinc-800/80">
+                      <div className="md:col-span-2 space-y-2">
+                        <span className="text-[10px] uppercase font-mono text-zinc-500 block">Artisan Fabrication Brief</span>
+                        <p className="text-zinc-200 leading-relaxed italic">
+                          "{co.description}"
+                        </p>
+                        {co.giftNote && (
+                          <p className="text-amber-300/80 text-[11px] font-serif">
+                            <strong>Calligraphy Gift Note:</strong> "{co.giftNote}"
+                          </p>
+                        )}
+                      </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-zinc-400">Budget: {co.budget} • Occasion: {co.occasion}</span>
-                    <button
-                      onClick={() => setQuoteOrderId(co.id)}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl cursor-pointer"
-                    >
-                      Issue Official Quotation
-                    </button>
+                      <div className="space-y-1.5 text-[11px] text-zinc-400 border-t md:border-t-0 md:border-l border-zinc-800 md:pl-4">
+                        <div><strong className="text-zinc-300">Occasion:</strong> {co.occasion}</div>
+                        <div><strong className="text-zinc-300">Budget Range:</strong> {co.budgetRange}</div>
+                        <div><strong className="text-zinc-300">Target Date:</strong> {co.targetDeliveryDate || 'Flexible'}</div>
+                        <div><strong className="text-zinc-300">Colors:</strong> {co.preferredColors.join(', ')}</div>
+                        <div><strong className="text-zinc-300">Style:</strong> {co.preferredStyle}</div>
+                      </div>
+                    </div>
+
+                    {/* Uploaded Sketches & Proofs */}
+                    {(co.uploadedFiles.length > 0 || co.quote?.designProofUrl || co.designProofUrl) && (
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] uppercase font-mono text-zinc-500 block">Brief Sketches & CAD Blueprints:</span>
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                          {co.uploadedFiles.map((fUrl, i) => (
+                            <a
+                              key={i}
+                              href={fUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="relative group w-16 h-16 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-950 shrink-0"
+                            >
+                              <img src={fUrl} alt="" className="w-full h-full object-cover" />
+                              <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[8px] text-center text-zinc-300">
+                                Client #{i + 1}
+                              </span>
+                            </a>
+                          ))}
+
+                          {(co.quote?.designProofUrl || co.designProofUrl) && (
+                            <a
+                              href={co.quote?.designProofUrl || co.designProofUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="relative group w-16 h-16 rounded-xl overflow-hidden border-2 border-amber-400 bg-zinc-950 shrink-0"
+                            >
+                              <img src={co.quote?.designProofUrl || co.designProofUrl} alt="" className="w-full h-full object-cover" />
+                              <span className="absolute bottom-0 inset-x-0 bg-amber-500 text-zinc-950 font-bold text-[8px] text-center">
+                                CAD Proof
+                              </span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quote Details summary if active */}
+                    {co.quote && (
+                      <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <span className="text-amber-400 font-mono font-bold text-sm">
+                            Quoted: {formatPrice(co.quote.amount)}
+                          </span>
+                          <span className="text-zinc-400 text-[11px]">
+                            ({co.quote.turnaroundDays} business days turnaround • {co.quote.packagingIncluded})
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-300 uppercase">
+                          Quote Status: {co.quote.status}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Shipping info if dispatched */}
+                    {co.trackingNumber && (
+                      <div className="p-3 bg-emerald-950/30 border border-emerald-800/60 rounded-xl flex items-center justify-between text-[11px]">
+                        <div>
+                          <span className="text-emerald-400 font-bold">Dispatched via {co.carrier}:</span>
+                          <span className="font-mono text-zinc-200 ml-2">AWB #{co.trackingNumber}</span>
+                        </div>
+                        {co.trackingUrl && (
+                          <a href={co.trackingUrl} target="_blank" rel="noreferrer" className="text-amber-400 hover:underline flex items-center gap-1">
+                            <span>Track Parcel</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Admin Action Buttons */}
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+                      <button
+                        onClick={() => {
+                          setAdminChatOrder(co);
+                        }}
+                        className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 font-medium text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <Mail className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Artisan Chat ({co.messages.length})</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setStatusModalOrder(co);
+                          setNextCustomStatus(co.status);
+                          setCustomCarrier(co.carrier || 'BlueDart Apex Priority');
+                          setCustomTrackingAwb(co.trackingNumber || '');
+                          setCustomTrackingUrl(co.trackingUrl || '');
+                        }}
+                        className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-medium text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <Sliders className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Advance Workflow Status</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setQuoteOrderId(co.id);
+                          if (co.quote) {
+                            setQuoteAmount(co.quote.amount);
+                            setQuoteDays(co.quote.turnaroundDays);
+                            setQuotePackaging(co.quote.packagingIncluded);
+                            setQuoteNotes(co.quote.notes || '');
+                            setQuoteProofUrl(co.quote.designProofUrl || '');
+                          }
+                        }}
+                        className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5"
+                      >
+                        <DollarSign className="w-3.5 h-3.5" />
+                        <span>{co.quote ? 'Revise Quotation & CAD' : 'Issue Official Quotation'}</span>
+                      </button>
+                    </div>
+
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
+          </div>
+        )}
+
+        {/* 8. COUPLE SANCTUARY TEMPLATES & DOMAINS */}
+        {activeSection === 'couple-templates' && (
+          <div className="space-y-6">
+            <div className="border-b border-zinc-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-serif font-bold text-zinc-100">Couple Sanctuary Templates & Live Subdomains</h3>
+                <p className="text-xs text-zinc-400">
+                  Manage marketplace template versions, pricing, color aesthetics, and monitor all active patron sanctuaries.
+                </p>
+              </div>
+              <button
+                onClick={handleOpenAddTemplate}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-600/20 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Template</span>
+              </button>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl">
+                <span className="text-[11px] text-zinc-400 font-mono">Marketplace Templates</span>
+                <p className="text-xl font-serif font-bold text-zinc-100 mt-1">{coupleTemplates.length}</p>
+                <span className="text-[10px] text-emerald-400">{coupleTemplates.filter(t => t.isActive !== false).length} Active</span>
+              </div>
+              <div className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl">
+                <span className="text-[11px] text-zinc-400 font-mono">Patron Sanctuaries</span>
+                <p className="text-xl font-serif font-bold text-rose-400 mt-1">{coupleWebsites.length}</p>
+                <span className="text-[10px] text-zinc-500">Live subdomains</span>
+              </div>
+              <div className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl">
+                <span className="text-[11px] text-zinc-400 font-mono">Total Hearts Sent</span>
+                <p className="text-xl font-serif font-bold text-rose-400 mt-1">
+                  {coupleWebsites.reduce((acc, ws) => acc + (ws.heartsGiven || 0), 0)}
+                </p>
+                <span className="text-[10px] text-zinc-500">Realtime interactions</span>
+              </div>
+              <div className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl">
+                <span className="text-[11px] text-zinc-400 font-mono">Guestbook Entries</span>
+                <p className="text-xl font-serif font-bold text-amber-400 mt-1">
+                  {coupleWebsites.reduce((acc, ws) => acc + (ws.guestbook?.length || 0), 0)}
+                </p>
+                <span className="text-[10px] text-zinc-500">Patron wishes</span>
+              </div>
+            </div>
+
+            {/* Template Catalog Grid */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-serif font-bold text-zinc-200">Catalog Templates ({coupleTemplates.length})</h4>
+                <span className="text-[11px] text-zinc-500 font-mono">Version control & pricing active</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {coupleTemplates.map(t => {
+                  const isActive = t.isActive !== false;
+                  return (
+                    <div
+                      key={t.id}
+                      className={`bg-zinc-900/70 border rounded-3xl p-5 space-y-4 text-xs transition-all ${
+                        isActive ? 'border-zinc-800 hover:border-zinc-700' : 'border-zinc-800/40 opacity-60'
+                      }`}
+                    >
+                      {/* Image Preview & Badges */}
+                      <div className="relative h-40 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950">
+                        <img src={t.previewImage} alt={t.name} className="w-full h-full object-cover" />
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-950/80 backdrop-blur-md text-[10px] font-mono text-zinc-200 border border-zinc-700">
+                            {t.version || 'v2.0'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-rose-950/80 backdrop-blur-md text-[10px] font-mono text-rose-300 border border-rose-800">
+                            {t.themeCategory || 'Romantic'}
+                          </span>
+                        </div>
+                        {t.popular && (
+                          <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-amber-500 text-zinc-950 font-bold text-[9px] uppercase tracking-wider">
+                            Popular
+                          </div>
+                        )}
+                        <div className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-xl bg-zinc-950/90 backdrop-blur-md text-amber-400 font-mono font-bold text-xs border border-zinc-800">
+                          {formatPrice(t.price)}
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div>
+                        <h5 className="font-serif font-bold text-base text-zinc-100">{t.name}</h5>
+                        <p className="text-zinc-400 line-clamp-2 mt-1 text-[11px]">{t.description}</p>
+                      </div>
+
+                      {/* Features */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {t.features.slice(0, 3).map((f, i) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="pt-3 border-t border-zinc-800 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleCoupleTemplateActive(t.id)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono border cursor-pointer ${
+                              isActive
+                                ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300'
+                                : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                            }`}
+                          >
+                            {isActive ? '● Active' : '○ Disabled'}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditTemplate(t)}
+                            className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg cursor-pointer transition-colors"
+                            title="Edit Template"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete template "${t.name}"?`)) {
+                                deleteCoupleTemplate(t.id);
+                              }
+                            }}
+                            className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg cursor-pointer transition-colors"
+                            title="Delete Template"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Patron Sanctuaries Table */}
+            <div className="space-y-3 pt-4 border-t border-zinc-800">
+              <h4 className="text-sm font-serif font-bold text-zinc-200">Patron Live Sanctuaries ({coupleWebsites.length})</h4>
+
+              <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-zinc-950 border-b border-zinc-800 font-mono text-[10px] uppercase text-zinc-400">
+                      <tr>
+                        <th className="p-3.5">Partners</th>
+                        <th className="p-3.5">Subdomain URL</th>
+                        <th className="p-3.5">Template</th>
+                        <th className="p-3.5">Engagement</th>
+                        <th className="p-3.5">Status</th>
+                        <th className="p-3.5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/60">
+                      {coupleWebsites.map(ws => {
+                        const isLive = ws.isPublished !== false && ws.status === 'active';
+                        const liveUrl = `https://${ws.subdomain}.harconxsshop.com`;
+                        return (
+                          <tr key={ws.id} className="hover:bg-zinc-850/40">
+                            <td className="p-3.5 font-bold text-zinc-100">
+                              {ws.partner1Name} & {ws.partner2Name}
+                            </td>
+                            <td className="p-3.5 font-mono text-amber-400">
+                              <a href={liveUrl} target="_blank" rel="noreferrer" className="hover:underline inline-flex items-center gap-1">
+                                <span>{ws.subdomain}.harconxsshop.com</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </td>
+                            <td className="p-3.5 font-mono text-zinc-400">
+                              {ws.templateId}
+                            </td>
+                            <td className="p-3.5 text-[11px] text-zinc-400">
+                              <span className="text-rose-400 font-bold">{ws.heartsGiven || 0} ❤️</span> •{' '}
+                              <span className="text-amber-400 font-bold">{ws.guestbook?.length || 0} ✍️</span> •{' '}
+                              <span>{ws.views || 0} views</span>
+                            </td>
+                            <td className="p-3.5">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                                isLive ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                              }`}>
+                                {isLive ? 'Live' : 'Paused'}
+                              </span>
+                            </td>
+                            <td className="p-3.5 text-right">
+                              <div className="inline-flex items-center gap-2">
+                                <button
+                                  onClick={() => publishCoupleWebsite(ws.id, !isLive)}
+                                  className={`px-2 py-1 rounded text-[10px] font-mono cursor-pointer border ${
+                                    isLive ? 'bg-zinc-800 text-zinc-300 border-zinc-700' : 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                                  }`}
+                                >
+                                  {isLive ? 'Pause' : 'Go Live'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Delete this sanctuary permanently?')) {
+                                      deleteCoupleWebsite(ws.id);
+                                    }
+                                  }}
+                                  className="p-1 text-zinc-500 hover:text-rose-400 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -1443,47 +2107,288 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* 2. ISSUE QUOTE MODAL */}
+      {/* 2. ISSUE / REVISE QUOTE MODAL */}
       {quoteOrderId && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-serif font-bold text-zinc-100 text-sm">Issue Official Atelier Quotation</h3>
-            <form onSubmit={handleIssueQuote} className="space-y-3 text-xs">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div>
-                <label className="text-zinc-400 block mb-1">Custom Fabrication Price ($ USD)</label>
-                <input
-                  type="number"
-                  value={quoteAmount}
-                  onChange={(e) => setQuoteAmount(Number(e.target.value))}
-                  required
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 text-zinc-100 outline-none font-mono"
+                <h3 className="font-serif font-bold text-zinc-100 text-sm">Issue Official Atelier Quotation</h3>
+                <span className="text-[10px] text-zinc-500 font-mono">Custom Project Specifier</span>
+              </div>
+              <button onClick={() => setQuoteOrderId(null)} className="text-zinc-400 hover:text-zinc-200">✕</button>
+            </div>
+
+            <form onSubmit={handleIssueQuote} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-zinc-400 block mb-1">Fabrication Price (₹ INR)</label>
+                  <input
+                    type="number"
+                    value={quoteAmount}
+                    onChange={(e) => setQuoteAmount(Number(e.target.value))}
+                    required
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none font-mono focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-zinc-400 block mb-1">Turnaround Time (Days)</label>
+                  <input
+                    type="number"
+                    value={quoteDays}
+                    onChange={(e) => setQuoteDays(Number(e.target.value))}
+                    required
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-amber-400 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-zinc-400 block mb-1">Presentation Packaging Included</label>
+                <select
+                  value={quotePackaging}
+                  onChange={(e) => setQuotePackaging(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-amber-400"
+                >
+                  {packagingOptions.map(p => (
+                    <option key={p.id} value={p.name}>{p.name} (+{formatPrice(p.price)})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-zinc-400 block mb-1">Fabrication Specifications & Engineering Notes</label>
+                <textarea
+                  value={quoteNotes}
+                  onChange={(e) => setQuoteNotes(e.target.value)}
+                  rows={3}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-amber-400 resize-none"
+                  placeholder="Details regarding 24K gilding, laser depth, titanium alloy..."
                 />
               </div>
-              <div>
-                <label className="text-zinc-400 block mb-1">Turnaround Time (Business Days)</label>
-                <input
-                  type="number"
-                  value={quoteDays}
-                  onChange={(e) => setQuoteDays(Number(e.target.value))}
-                  required
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 text-zinc-100 outline-none"
-                />
+
+              {/* CAD Design Proof Upload (Supabase Storage) */}
+              <div className="space-y-1.5 p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+                <label className="text-zinc-300 font-semibold block text-[11px]">Attach 3D CAD Blueprint / Laser Render</label>
+                <div className="flex items-center gap-2">
+                  <label className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg cursor-pointer text-xs font-semibold flex items-center gap-1.5 border border-zinc-700">
+                    <span>{isUploadingProof ? 'Uploading...' : 'Upload CAD Proof'}</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.svg"
+                      onChange={handleUploadProofFile}
+                      className="hidden"
+                      disabled={isUploadingProof}
+                    />
+                  </label>
+                  <input
+                    type="url"
+                    value={quoteProofUrl}
+                    onChange={(e) => setQuoteProofUrl(e.target.value)}
+                    placeholder="Or paste Proof Image URL..."
+                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg p-1.5 text-xs text-zinc-200 outline-none"
+                  />
+                </div>
+                {quoteProofUrl && (
+                  <div className="w-16 h-10 rounded overflow-hidden mt-1 border border-zinc-700">
+                    <img src={quoteProofUrl} alt="Proof" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setQuoteOrderId(null)}
-                  className="flex-1 py-2 bg-zinc-900 text-zinc-400 rounded-xl font-bold cursor-pointer"
+                  className="flex-1 py-2.5 bg-zinc-900 text-zinc-400 rounded-xl font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-xl cursor-pointer"
+                  className="flex-1 py-2.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold rounded-xl cursor-pointer shadow-lg"
                 >
-                  Dispatch Quotation
+                  Dispatch Official Quotation
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2.1 STATUS TRANSITION & LOGISTICS MODAL */}
+      {statusModalOrder && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div>
+                <h3 className="font-serif font-bold text-zinc-100 text-sm">Advance Fabrication Workflow</h3>
+                <span className="text-[10px] text-zinc-500 font-mono">Project #{statusModalOrder.requestNumber}</span>
+              </div>
+              <button onClick={() => setStatusModalOrder(null)} className="text-zinc-400 hover:text-zinc-200">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveStatusTransition} className="space-y-3.5 text-xs">
+              <div>
+                <label className="text-zinc-400 block mb-1">New Workflow Stage</label>
+                <select
+                  value={nextCustomStatus}
+                  onChange={(e) => setNextCustomStatus(e.target.value as any)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-amber-400"
+                >
+                  <option value="Submitted">Submitted (Under Brief Review)</option>
+                  <option value="Quoted">Quoted (Quotation Dispatched)</option>
+                  <option value="Paid">Paid (Payment Verified)</option>
+                  <option value="In Design">In Design (3D CAD & Laser Proofing)</option>
+                  <option value="Production">Production (Machining & Hand-Mounting)</option>
+                  <option value="Shipped">Shipped (Dispatched with Courier)</option>
+                  <option value="Delivered">Delivered (Completed Delivery)</option>
+                  <option value="Completed">Completed (Final Sign-off)</option>
+                </select>
+              </div>
+
+              {(nextCustomStatus === 'Shipped' || nextCustomStatus === 'Delivered') && (
+                <div className="space-y-3 p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-2xl">
+                  <span className="text-[10px] uppercase font-mono text-amber-400 block font-bold">Courier Logistics Details</span>
+                  <div>
+                    <label className="text-zinc-400 block mb-1">Logistics Carrier</label>
+                    <input
+                      type="text"
+                      value={customCarrier}
+                      onChange={(e) => setCustomCarrier(e.target.value)}
+                      placeholder="e.g. BlueDart Apex Priority / DHL Express"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-zinc-100 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 block mb-1">AWB Tracking Number</label>
+                    <input
+                      type="text"
+                      value={customTrackingAwb}
+                      onChange={(e) => setCustomTrackingAwb(e.target.value)}
+                      placeholder="e.g. BD-893201948"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-zinc-100 outline-none font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 block mb-1">Public Courier Tracking URL</label>
+                    <input
+                      type="url"
+                      value={customTrackingUrl}
+                      onChange={(e) => setCustomTrackingUrl(e.target.value)}
+                      placeholder="https://track.bluedart.com/..."
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-zinc-100 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStatusModalOrder(null)}
+                  className="flex-1 py-2.5 bg-zinc-900 text-zinc-400 rounded-xl font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold rounded-xl cursor-pointer"
+                >
+                  Update Lifecycle State
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2.2 ARTISAN DIRECT CHAT DRAWER */}
+      {adminChatOrder && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl flex flex-col h-[600px]">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div>
+                <h3 className="font-serif font-bold text-zinc-100 text-sm">Direct Artisan Messaging</h3>
+                <p className="text-[11px] text-zinc-400">
+                  Client: <strong className="text-zinc-200">{adminChatOrder.customerName}</strong> • Ref: <span className="font-mono text-amber-400">{adminChatOrder.requestNumber}</span>
+                </p>
+              </div>
+              <button onClick={() => setAdminChatOrder(null)} className="text-zinc-400 hover:text-zinc-200">✕</button>
+            </div>
+
+            {/* Chat Thread */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2 text-xs">
+              {adminChatOrder.messages.map((m) => {
+                const isAdmin = m.sender === 'admin';
+                return (
+                  <div key={m.id} className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
+                    <span className="text-[10px] text-zinc-500 font-mono mb-0.5">
+                      {isAdmin ? 'HARCONXS Atelier' : m.senderName} • {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <div className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${
+                      isAdmin ? 'bg-amber-400 text-zinc-950 font-medium rounded-tr-none' : 'bg-zinc-850 text-zinc-200 rounded-tl-none border border-zinc-700'
+                    }`}>
+                      <p>{m.text}</p>
+                      {m.attachments && m.attachments.length > 0 && (
+                        <div className="mt-2 flex gap-2 overflow-x-auto">
+                          {m.attachments.map((att, i) => (
+                            <img key={i} src={att} alt="" className="w-16 h-16 rounded-lg object-cover border border-zinc-700 bg-zinc-900" />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Attachment preview in chat */}
+            {adminChatAttachments.length > 0 && (
+              <div className="flex gap-2 pt-2 border-t border-zinc-800">
+                {adminChatAttachments.map((url, i) => (
+                  <div key={i} className="relative w-12 h-12 rounded overflow-hidden border border-zinc-700">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setAdminChatAttachments([])}
+                      className="absolute top-0 right-0 bg-black/80 text-white text-[8px] p-0.5"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input Composer */}
+            <form onSubmit={handleSendAdminChat} className="pt-2 border-t border-zinc-800 flex items-center gap-2">
+              <label className="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 rounded-xl cursor-pointer border border-zinc-800" title="Attach image">
+                <Plus className="w-4 h-4" />
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleAdminChatFileUpload}
+                  className="hidden"
+                  disabled={isAdminUploadingChatFile}
+                />
+              </label>
+
+              <input
+                type="text"
+                value={adminChatInput}
+                onChange={(e) => setAdminChatInput(e.target.value)}
+                placeholder="Type response from master artisan..."
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 outline-none focus:border-amber-400"
+              />
+
+              <button
+                type="submit"
+                disabled={!adminChatInput.trim() && adminChatAttachments.length === 0}
+                className="px-4 py-2 bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-zinc-950 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Send
+              </button>
             </form>
           </div>
         </div>
@@ -1605,6 +2510,191 @@ export const AdminDashboard: React.FC = () => {
                   className="flex-1 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-xl cursor-pointer"
                 >
                   Create Code
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5. ADD / EDIT COUPLE TEMPLATE MODAL */}
+      {isTemplateModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Heart className="w-5 h-5 text-rose-400" />
+                <h3 className="font-serif font-bold text-zinc-100 text-base">
+                  {editingTemplateId ? 'Edit Sanctuary Template' : 'Add New Marketplace Template'}
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                HARCONXS Atelier
+              </span>
+            </div>
+
+            <form onSubmit={handleSaveTemplate} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-zinc-400 block mb-1">Template Name</label>
+                  <input
+                    type="text"
+                    value={tmplName}
+                    onChange={(e) => setTmplName(e.target.value)}
+                    placeholder="e.g. Celestial Starlight"
+                    required
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-rose-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-zinc-400 block mb-1">Version</label>
+                  <input
+                    type="text"
+                    value={tmplVersion}
+                    onChange={(e) => setTmplVersion(e.target.value)}
+                    placeholder="e.g. v2.1"
+                    required
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 font-mono outline-none focus:border-rose-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-zinc-400 block mb-1">Theme Aesthetic Category</label>
+                  <select
+                    value={tmplCategory}
+                    onChange={(e) => setTmplCategory(e.target.value as CoupleThemeCategory)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-rose-400"
+                  >
+                    <option value="Romantic">Romantic (Rose & Blush)</option>
+                    <option value="Minimal">Minimal (Clean Monochrome)</option>
+                    <option value="Luxury">Luxury (Obsidian & Gold)</option>
+                    <option value="Cute">Cute (Pastel Playful)</option>
+                    <option value="Elegance">Elegance (Fine Serif)</option>
+                    <option value="Golden Hour">Golden Hour (Sunset Glow)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-zinc-400 block mb-1">Base Price (INR)</label>
+                  <input
+                    type="number"
+                    value={tmplPrice}
+                    onChange={(e) => setTmplPrice(Number(e.target.value))}
+                    required
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 font-mono outline-none focus:border-rose-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-zinc-400 block mb-1">Description</label>
+                <textarea
+                  value={tmplDesc}
+                  onChange={(e) => setTmplDesc(e.target.value)}
+                  rows={2}
+                  placeholder="Describe the aesthetic and mood of this theme..."
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-rose-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-zinc-400 block mb-1">Preview Thumbnail Image URL</label>
+                <input
+                  type="url"
+                  value={tmplImage}
+                  onChange={(e) => setTmplImage(e.target.value)}
+                  required
+                  placeholder="https://..."
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 font-mono text-[11px] outline-none focus:border-rose-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-zinc-400 block mb-1">Demo Subdomain</label>
+                  <input
+                    type="text"
+                    value={tmplDemoSubdomain}
+                    onChange={(e) => setTmplDemoSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    placeholder="demo-celestial"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 font-mono outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-zinc-400 block mb-1">Default Typography</label>
+                  <select
+                    value={tmplFont}
+                    onChange={(e) => setTmplFont(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none"
+                  >
+                    <option value="Playfair Display">Playfair Display (Serif)</option>
+                    <option value="Cormorant Garamond">Cormorant Garamond (Fine Classic)</option>
+                    <option value="Cinzel">Cinzel (Roman Heritage)</option>
+                    <option value="Great Vibes">Great Vibes (Romantic Script)</option>
+                    <option value="Inter">Inter (Ultra Clean)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-zinc-400 block mb-1">Key Features (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tmplFeatures}
+                  onChange={(e) => setTmplFeatures(e.target.value)}
+                  placeholder="Live Counter, Photo Wall, Soundtrack Player, Guestbook"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-zinc-400 block mb-1">Accent Hex Colors (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tmplColors}
+                  onChange={(e) => setTmplColors(e.target.value)}
+                  placeholder="#e11d48, #fb7185, #fda4af"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 font-mono text-[11px] outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-6 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={tmplPopular}
+                    onChange={(e) => setTmplPopular(e.target.checked)}
+                    className="rounded border-zinc-700 text-amber-500 focus:ring-0"
+                  />
+                  <span className="text-zinc-300">Mark as Featured / Popular</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={tmplActive}
+                    onChange={(e) => setTmplActive(e.target.checked)}
+                    className="rounded border-zinc-700 text-emerald-500 focus:ring-0"
+                  />
+                  <span className="text-zinc-300">Active in Storefront Marketplace</span>
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  className="flex-1 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl cursor-pointer shadow-lg shadow-rose-600/20"
+                >
+                  {editingTemplateId ? 'Save Changes' : 'Publish Template'}
                 </button>
               </div>
             </form>

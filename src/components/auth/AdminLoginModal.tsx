@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { Shield, Lock, User, X, AlertCircle, Sparkles, KeyRound } from 'lucide-react';
+import { Shield, Lock, Mail, X, AlertCircle, KeyRound } from 'lucide-react';
 
 export const AdminLoginModal: React.FC = () => {
   const {
@@ -10,28 +10,31 @@ export const AdminLoginModal: React.FC = () => {
     isAdminAuthenticated
   } = useStore();
 
-  const [username, setUsername] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isAdminLoginModalOpen || isAdminAuthenticated) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const res = adminLogin(username, password);
+    try {
+      const res = await adminLogin(adminEmail, password);
       setIsLoading(false);
       if (!res.success) {
         setErrorMessage(res.message);
       } else {
-        setUsername('');
+        setAdminEmail('');
         setPassword('');
       }
-    }, 400);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMessage(err?.message || 'Authentication failed.');
+    }
   };
 
   return (
@@ -60,7 +63,7 @@ export const AdminLoginModal: React.FC = () => {
               Admin Atelier Console
             </h2>
             <p className="text-xs text-zinc-400">
-              Restricted portal for HARCONXS administrators
+              Supabase RBAC verified administrator portal
             </p>
           </div>
         </div>
@@ -75,15 +78,15 @@ export const AdminLoginModal: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-              Admin Username
+              Admin Email Address
             </label>
             <div className="relative">
-              <User className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter admin ID"
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="admin@harconxs.com"
                 required
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60"
               />
@@ -92,7 +95,7 @@ export const AdminLoginModal: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-              Master Password
+              Password
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -114,11 +117,11 @@ export const AdminLoginModal: React.FC = () => {
               className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isLoading ? (
-                <span>Verifying credentials...</span>
+                <span>Verifying credentials with Supabase...</span>
               ) : (
                 <>
                   <KeyRound className="w-4 h-4" />
-                  <span>Unlock Admin Suite</span>
+                  <span>Authenticate Admin Portal</span>
                 </>
               )}
             </button>
@@ -127,7 +130,7 @@ export const AdminLoginModal: React.FC = () => {
 
         <div className="mt-6 pt-4 border-t border-zinc-800/80 text-center">
           <p className="text-[11px] text-zinc-400">
-            Authorized personnel only. All access attempts are cryptographically logged.
+            Protected by Supabase Auth and Row Level Security. All administrative activities are auditable.
           </p>
         </div>
 
