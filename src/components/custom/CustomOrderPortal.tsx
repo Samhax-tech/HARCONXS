@@ -21,8 +21,38 @@ import {
   Check,
   ChevronRight,
   Eye,
-  Download
+  Download,
+  HelpCircle,
+  XCircle,
+  Layers,
+  Palette,
+  CreditCard
 } from 'lucide-react';
+
+interface TimelineStepMeta {
+  status: CustomOrderStatus;
+  label: string;
+  shortLabel: string;
+  description: string;
+  orderIndex: number;
+}
+
+const TIMELINE_PIPELINE: TimelineStepMeta[] = [
+  { status: 'REQUESTED', label: 'Brief Submitted', shortLabel: 'Requested', description: 'Brief received by Atelier Intake Engine', orderIndex: 1 },
+  { status: 'UNDER_REVIEW', label: 'Feasibility Review', shortLabel: 'Reviewing', description: 'Master jeweler evaluating tolerances & metallurgy', orderIndex: 2 },
+  { status: 'NEEDS_INFORMATION', label: 'Clarification Needed', shortLabel: 'Info Needed', description: 'Artisan submitted questions regarding specs', orderIndex: 3 },
+  { status: 'QUOTED', label: 'Quotation Issued', shortLabel: 'Quoted', description: 'Pricing, turnaround & CAD proof ready for approval', orderIndex: 4 },
+  { status: 'QUOTE_ACCEPTED', label: 'Quote Accepted', shortLabel: 'Accepted', description: 'Terms accepted, bench allocation locked', orderIndex: 5 },
+  { status: 'PAYMENT_PENDING', label: 'Payment Pending', shortLabel: 'Pay Pending', description: 'Awaiting deposit or full authorization', orderIndex: 6 },
+  { status: 'PAID', label: 'Payment Confirmed', shortLabel: 'Paid', description: 'Precious metals & movements reserved in vault', orderIndex: 7 },
+  { status: 'DESIGNING', label: '3D CAD Modeling', shortLabel: 'Designing', description: 'Precision laser & optical 3D CAD blueprints being rendered', orderIndex: 8 },
+  { status: 'CUSTOMER_REVIEW', label: 'Proof Approval', shortLabel: 'Review Proof', description: '3D blueprint submitted for your review', orderIndex: 9 },
+  { status: 'APPROVED', label: 'Design Approved', shortLabel: 'Approved', description: 'CAD blueprint signed off for CNC lathe & laser engraving', orderIndex: 10 },
+  { status: 'PRODUCTION', label: 'Artisan Fabrication', shortLabel: 'Production', description: 'Hand-machining, laser engraving & assembly in progress', orderIndex: 11 },
+  { status: 'PACKING', label: 'White-Glove Packing', shortLabel: 'Packing', description: 'Final inspection, beeswax polish & wax-sealed packaging', orderIndex: 12 },
+  { status: 'SHIPPED', label: 'Courier Transit', shortLabel: 'Dispatched', description: 'Dispatched via insured express transit with tracking', orderIndex: 13 },
+  { status: 'DELIVERED', label: 'Delivered', shortLabel: 'Delivered', description: 'Keepsake received by patron', orderIndex: 14 }
+];
 
 export const CustomOrderPortal: React.FC = () => {
   const {
@@ -30,6 +60,7 @@ export const CustomOrderPortal: React.FC = () => {
     sendCustomOrderMessage,
     respondToQuote,
     uploadCustomOrderFile,
+    updateCustomOrderStatus,
     subscribeToCustomOrder,
     formatPrice,
     setCurrentView,
@@ -66,27 +97,23 @@ export const CustomOrderPortal: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeOrder?.messages]);
 
-  const pipelineSteps: { status: CustomOrderStatus; label: string; sub: string }[] = [
-    { status: 'Submitted', label: '1. Brief Submitted', sub: 'Artisans reviewing requirements' },
-    { status: 'Quoted', label: '2. Quote Issued', sub: 'Pricing & CAD proof ready' },
-    { status: 'Paid', label: '3. Payment Verified', sub: 'Materials reserved & queued' },
-    { status: 'In Design', label: '4. Atelier 3D Design', sub: 'CAD laser modeling & proofing' },
-    { status: 'Production', label: '5. Fabrication', sub: 'Hand-machining & engraving' },
-    { status: 'Shipped', label: '6. Dispatched', sub: 'Courier transit & tracking' },
-    { status: 'Delivered', label: '7. Delivered', sub: 'Keepsake received by patron' }
-  ];
+  // Determine current timeline status index
+  const getStatusIndex = (status: CustomOrderStatus): number => {
+    // Check direct match
+    const step = TIMELINE_PIPELINE.find(s => s.status === status);
+    if (step) return step.orderIndex;
 
-  const getStepIndex = (status: CustomOrderStatus) => {
+    // Legacy aliases normalization
     switch (status) {
-      case 'Submitted': return 0;
-      case 'Quoted': return 1;
-      case 'Paid': return 2;
-      case 'In Design': return 3;
-      case 'Production': return 4;
-      case 'Shipped': return 5;
+      case 'Submitted': return 1;
+      case 'Quoted': return 4;
+      case 'Paid': return 7;
+      case 'In Design': return 8;
+      case 'Production': return 11;
+      case 'Shipped': return 13;
       case 'Delivered':
-      case 'Completed': return 6;
-      default: return 0;
+      case 'Completed': return 14;
+      default: return 1;
     }
   };
 
@@ -139,6 +166,15 @@ export const CustomOrderPortal: React.FC = () => {
     setRevisionNote('');
   };
 
+  const handleApproveProof = async () => {
+    if (!activeOrder) return;
+    await updateCustomOrderStatus(activeOrder.id, 'APPROVED', {
+      notes: 'Customer approved the 3D CAD laser blueprint.'
+    });
+    showToast('✨ 3D Proof approved! Project queued for CNC laser fabrication.');
+    setIsProofModalOpen(false);
+  };
+
   if (!activeOrder) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-200 py-16 text-center border-b border-zinc-800">
@@ -155,7 +191,9 @@ export const CustomOrderPortal: React.FC = () => {
     );
   }
 
-  const currentStepIdx = getStepIndex(activeOrder.status);
+  const currentOrderIdx = getStatusIndex(activeOrder.status);
+  const isCancelled = activeOrder.status === 'CANCELLED';
+  const isRejected = activeOrder.status === 'REJECTED';
 
   return (
     <div className="bg-zinc-950 min-h-screen py-8 text-zinc-200 border-b border-zinc-800">
@@ -209,7 +247,7 @@ export const CustomOrderPortal: React.FC = () => {
           </div>
         )}
 
-        {/* HERO PROJECT SUMMARY & PIPELINE */}
+        {/* HERO PROJECT SUMMARY & COMPLETE 16-STATUS TIMELINE */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-6">
@@ -218,8 +256,12 @@ export const CustomOrderPortal: React.FC = () => {
                 <span className="font-mono text-sm font-bold text-amber-400 bg-amber-950/60 px-2.5 py-1 rounded-lg border border-amber-800/80">
                   {activeOrder.requestNumber}
                 </span>
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-950 text-rose-300 border border-rose-800">
-                  Status: {activeOrder.status}
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
+                  isCancelled || isRejected
+                    ? 'bg-rose-950 text-rose-300 border border-rose-800'
+                    : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                }`}>
+                  Status: {activeOrder.status.replace(/_/g, ' ')}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-serif font-bold text-zinc-100 mt-2">
@@ -231,55 +273,96 @@ export const CustomOrderPortal: React.FC = () => {
             </div>
 
             <div className="text-left md:text-right bg-zinc-950/80 p-4 rounded-2xl border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-widest block font-mono">Estimated Budget</span>
-              <span className="text-lg font-bold text-amber-400 font-mono">{activeOrder.budgetRange}</span>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest block font-mono">Budget / Quote</span>
+              <span className="text-lg font-bold text-amber-400 font-mono">
+                {activeOrder.quote ? formatPrice(activeOrder.quote.amount) : activeOrder.budgetRange}
+              </span>
               <p className="text-[11px] text-zinc-400 mt-0.5">Target: {activeOrder.targetDeliveryDate || 'Flexible'}</p>
             </div>
           </div>
 
-          {/* 7-Step Lifecycle Milestone Pipeline */}
-          <div className="space-y-2">
+          {/* Cancellation / Rejection Banner if applicable */}
+          {(isCancelled || isRejected) && (
+            <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800/80 flex items-center gap-3 text-xs text-rose-200">
+              <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
+              <div>
+                <p className="font-bold">This custom commission has been {activeOrder.status.toLowerCase()}.</p>
+                <p className="text-[11px] text-rose-300/80 mt-0.5">Please contact the atelier chat below or submit a new custom brief for assistance.</p>
+              </div>
+            </div>
+          )}
+
+          {/* 14-Step Milestone Pipeline Track */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
-              <span>Fabrication Lifecycle Progress</span>
-              <span className="text-amber-400 font-bold">Step {currentStepIdx + 1} of {pipelineSteps.length}</span>
+              <span className="flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-amber-400" />
+                <span>Atelier Lifecycle Timeline ({TIMELINE_PIPELINE.length} Stages)</span>
+              </span>
+              <span className="text-amber-400 font-bold">
+                Stage {currentOrderIdx} of {TIMELINE_PIPELINE.length}: {TIMELINE_PIPELINE.find(s => s.orderIndex === currentOrderIdx)?.label || activeOrder.status}
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
-              {pipelineSteps.map((step, idx) => {
-                const isCompleted = idx < currentStepIdx;
-                const isCurrent = idx === currentStepIdx;
+            {/* Horizontal Scrollable Stage Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+              {TIMELINE_PIPELINE.map((step) => {
+                const isCompleted = currentOrderIdx > step.orderIndex;
+                const isCurrent = currentOrderIdx === step.orderIndex;
 
                 return (
                   <div
                     key={step.status}
                     className={`p-3 rounded-2xl border flex flex-col justify-between transition-all ${
                       isCurrent
-                        ? 'bg-amber-950/50 border-amber-400 shadow-lg shadow-amber-400/10'
+                        ? 'bg-amber-950/60 border-amber-400 shadow-lg shadow-amber-400/10'
                         : isCompleted
-                        ? 'bg-zinc-900 border-emerald-800/80 text-zinc-200'
+                        ? 'bg-zinc-900 border-emerald-800/60 text-zinc-200'
                         : 'bg-zinc-950/40 border-zinc-800/60 text-zinc-600'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-1.5">
                       <span className={`text-[10px] font-mono font-bold ${isCurrent ? 'text-amber-400' : isCompleted ? 'text-emerald-400' : 'text-zinc-600'}`}>
-                        0{idx + 1}
+                        {step.orderIndex < 10 ? `0${step.orderIndex}` : step.orderIndex}
                       </span>
                       {isCompleted ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                       ) : isCurrent ? (
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
                       ) : null}
                     </div>
+
                     <div>
-                      <p className={`text-xs font-bold leading-tight ${isCurrent ? 'text-amber-300' : isCompleted ? 'text-zinc-100' : 'text-zinc-500'}`}>
+                      <p className={`text-[11px] font-bold leading-tight ${isCurrent ? 'text-amber-300' : isCompleted ? 'text-zinc-100' : 'text-zinc-500'}`}>
                         {step.label}
                       </p>
-                      <p className="text-[10px] text-zinc-500 mt-1 leading-tight">{step.sub}</p>
+                      <p className="text-[9px] text-zinc-500 mt-1 leading-tight line-clamp-2">{step.description}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Detailed Timeline Audit Log */}
+            {activeOrder.timeline && activeOrder.timeline.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-zinc-800/80 bg-zinc-950/40 p-4 rounded-2xl space-y-2">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 block font-bold">
+                  Verified Timestamp Audit Ledger
+                </span>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto text-xs pr-2">
+                  {activeOrder.timeline.map((event, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-[11px]">
+                      <span className="font-mono text-zinc-500 shrink-0 text-[10px]">
+                        {new Date(event.timestamp).toLocaleDateString()} {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span className="text-amber-400 font-bold font-mono uppercase text-[10px]">[{event.status}]:</span>
+                      <span className="text-zinc-300">{event.description}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
 
         </div>
@@ -316,7 +399,7 @@ export const CustomOrderPortal: React.FC = () => {
 
                 <div className="bg-zinc-900/90 rounded-2xl p-4 border border-zinc-800 space-y-3 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-400">Custom Fabrication & Machining</span>
+                    <span className="text-zinc-400">Custom Fabrication & Materials</span>
                     <span className="text-lg font-bold text-zinc-100 font-mono">{formatPrice(activeOrder.quote.amount)}</span>
                   </div>
                   <div className="flex items-center justify-between text-zinc-400">
@@ -328,7 +411,7 @@ export const CustomOrderPortal: React.FC = () => {
                     <span className="font-semibold text-amber-300">{activeOrder.quote.packagingIncluded}</span>
                   </div>
                   <div className="flex items-center justify-between text-zinc-400">
-                    <span>Express Insured Shipping</span>
+                    <span>Express Insured Transit</span>
                     <span className="font-semibold text-emerald-400">FREE Atelier Vault Transit</span>
                   </div>
 
@@ -339,7 +422,7 @@ export const CustomOrderPortal: React.FC = () => {
                   )}
                 </div>
 
-                {/* 3D CAD Design Proof Preview (if provided by admin) */}
+                {/* 3D CAD Design Proof Preview */}
                 {(activeOrder.quote.designProofUrl || activeOrder.designProofUrl) && (
                   <div className="p-3 bg-zinc-950 rounded-2xl border border-zinc-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -374,7 +457,7 @@ export const CustomOrderPortal: React.FC = () => {
                       className="w-full sm:flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 font-bold text-xs shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Check className="w-4 h-4" />
-                      <span>Accept Quote & Launch Fabrication</span>
+                      <span>Accept Quote & Reserve Materials</span>
                     </button>
                     <button
                       onClick={() => setIsRevisionModalOpen(true)}
@@ -395,13 +478,13 @@ export const CustomOrderPortal: React.FC = () => {
                 <Clock className="w-8 h-8 text-amber-400 mx-auto" />
                 <h3 className="text-sm font-bold text-zinc-200 font-serif">Quotation Under Artisan Review</h3>
                 <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
-                  Our master jewelers and aerospace machining engineers are analyzing your brief, calculating titanium tolerances, and creating a preliminary 3D rendering. Expect your quotation in &lt;12 hours.
+                  Our master jewelers and aerospace engineers are analyzing your brief, calculating titanium tolerances, and creating a preliminary 3D rendering. Expect your quotation in &lt;12 hours.
                 </p>
               </div>
             )}
 
             {/* 2. Shipping & Logistics Live Tracking Card */}
-            {(activeOrder.status === 'Shipped' || activeOrder.status === 'Delivered') && (
+            {(activeOrder.status === 'SHIPPED' || activeOrder.status === 'DELIVERED' || activeOrder.status === 'Shipped' || activeOrder.status === 'Delivered') && (
               <div className="bg-zinc-900/60 border border-emerald-500/40 rounded-3xl p-6 space-y-4 shadow-xl">
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                   <div className="flex items-center gap-2">
@@ -438,21 +521,37 @@ export const CustomOrderPortal: React.FC = () => {
               </div>
             )}
 
-            {/* 3. Detailed Design Brief Specs */}
+            {/* 3. Detailed Design Brief & Personal Text Specs */}
             <div className="bg-zinc-900/40 border border-zinc-800 rounded-3xl p-6 space-y-4 text-xs">
-              <h4 className="font-bold text-zinc-200 uppercase tracking-widest text-[11px]">Submitted Design Brief</h4>
-              <p className="text-zinc-300 leading-relaxed font-sans bg-zinc-950/60 p-3 rounded-xl border border-zinc-800">
-                "{activeOrder.description}"
-              </p>
+              <h4 className="font-bold text-zinc-200 uppercase tracking-widest text-[11px]">Submitted Design Specifications</h4>
               
-              <div className="grid grid-cols-2 gap-3 pt-1 text-[11px]">
+              <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-2">
+                <span className="text-[10px] text-zinc-500 uppercase font-mono block">Inscribed Names & Dates:</span>
+                <p className="text-amber-300 font-serif font-bold text-sm">
+                  {activeOrder.personalText?.primaryNames || activeOrder.recipient}
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
+                  <span>{activeOrder.personalText?.milestoneDate || 'Date: Pending'}</span>
+                  <span>•</span>
+                  <span>{activeOrder.personalText?.coordinates || 'Coordinates: Calibrated'}</span>
+                </div>
+                {activeOrder.personalText?.customQuote && (
+                  <p className="text-zinc-300 italic font-serif text-xs pt-1 border-t border-zinc-800">
+                    "{activeOrder.personalText.customQuote}"
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
                 <div>
-                  <span className="text-zinc-500 block">Colors:</span>
-                  <span className="text-zinc-200 font-medium">{activeOrder.preferredColors.join(', ')}</span>
+                  <span className="text-zinc-500 block">Colors / Alloys:</span>
+                  <span className="text-zinc-200 font-medium">
+                    {activeOrder.selectedColors?.join(', ') || activeOrder.preferredColors?.join(', ') || 'Custom'}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-zinc-500 block">Aesthetic:</span>
-                  <span className="text-zinc-200 font-medium">{activeOrder.preferredStyle}</span>
+                  <span className="text-zinc-500 block">Design Aesthetic:</span>
+                  <span className="text-zinc-200 font-medium">{activeOrder.customDesign || activeOrder.preferredStyle}</span>
                 </div>
               </div>
 
@@ -463,13 +562,16 @@ export const CustomOrderPortal: React.FC = () => {
                 </div>
               )}
 
-              {activeOrder.uploadedFiles.length > 0 && (
+              {/* Uploaded Photos and Reference Drawings */}
+              {activeOrder.uploadedFiles && activeOrder.uploadedFiles.length > 0 && (
                 <div className="pt-2 border-t border-zinc-800/80">
-                  <span className="text-zinc-500 text-[10px] uppercase block mb-2">Attached Sketches & Assets ({activeOrder.uploadedFiles.length}):</span>
+                  <span className="text-zinc-500 text-[10px] uppercase block mb-2">
+                    Attached Files ({activeOrder.uploadedFiles.length}):
+                  </span>
                   <div className="grid grid-cols-3 gap-2">
                     {activeOrder.uploadedFiles.map((url, i) => (
                       <div key={i} className="aspect-video rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900">
-                        <img src={url} alt="Sketch" className="w-full h-full object-cover" />
+                        <img src={url} alt="Attached asset" className="w-full h-full object-cover" />
                       </div>
                     ))}
                   </div>
@@ -560,7 +662,7 @@ export const CustomOrderPortal: React.FC = () => {
 
             {/* Input Bar with Supabase Storage File Attachments */}
             <form onSubmit={handleSendMessage} className="mt-3 pt-3 border-t border-zinc-800 flex items-center gap-2">
-              <label className="p-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 rounded-xl cursor-pointer transition-colors border border-zinc-800" title="Attach file or photo">
+              <label className="p-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 rounded-xl cursor-pointer transition-colors border border-zinc-800" title="Attach file or photo to chat">
                 <Paperclip className="w-4 h-4" />
                 <input
                   type="file"
@@ -575,7 +677,7 @@ export const CustomOrderPortal: React.FC = () => {
                 type="text"
                 value={chatMessage}
                 onChange={(e) => setChatMessage(e.target.value)}
-                placeholder="Ask artisan about metal alloy, laser depth, or delivery date..."
+                placeholder="Ask master artisan about metallurgy, tolerances, or speed..."
                 className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-400 font-sans"
               />
 
@@ -633,13 +735,13 @@ export const CustomOrderPortal: React.FC = () => {
         </div>
       )}
 
-      {/* CAD 3D PROOF PREVIEW MODAL */}
+      {/* CAD 3D PROOF PREVIEW & APPROVAL MODAL */}
       {isProofModalOpen && (activeOrder.quote?.designProofUrl || activeOrder.designProofUrl) && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div>
-                <h3 className="text-base font-serif font-bold text-zinc-100">Artisan CAD Proof & 3D Render</h3>
+                <h3 className="text-base font-serif font-bold text-zinc-100">Artisan CAD Proof & 3D Laser Render</h3>
                 <span className="text-[10px] text-zinc-500 font-mono">Reference: {activeOrder.requestNumber}</span>
               </div>
               <button
@@ -658,13 +760,25 @@ export const CustomOrderPortal: React.FC = () => {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setIsProofModalOpen(false)}
-                className="px-5 py-2 bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl"
-              >
-                Close Blueprint
-              </button>
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs text-zinc-400">
+                Approving advances project directly into CNC laser fabrication.
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsProofModalOpen(false)}
+                  className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold text-xs rounded-xl"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handleApproveProof}
+                  className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Approve 3D Proof</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

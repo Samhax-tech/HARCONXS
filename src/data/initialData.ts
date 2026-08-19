@@ -555,18 +555,51 @@ export const INITIAL_SAMPLE_CUSTOM_ORDERS: CustomOrder[] = [
     customerId: 'cust-hamza',
     customerName: 'Hamza Shahid',
     customerEmail: 'hamzashahid1152901@gmail.com',
-    recipient: 'Sarah',
-    relationship: 'Girlfriend',
+    recipient: 'Sarah Al-Mansoor',
+    relationship: 'girlfriend',
     occasion: 'Birthday',
-    budgetRange: '$100 - $250',
-    productType: 'Custom Handcrafted Mechanical Music Box with Holographic Portrait',
-    description: 'I would like a vintage mahogany hand-crank music box that plays "La Vie En Rose", with a rotating acrylic photo cube inside engraved with our first trip to Paris.',
-    preferredColors: ['Deep Rosewood', 'Antique Brass Gold', 'Ivory'],
-    preferredStyle: 'Vintage Romantic Luxury',
-    uploadedFiles: ['https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=600&auto=format&fit=crop&q=80'],
+    budgetRange: '$150 - $300',
+    productType: 'Titanium Mechanical Music Box with Holographic Portrait & Star Map',
+    customDesign: 'Celestial Romance & 3D Laser Crystal',
+    personalText: {
+      primaryNames: 'Hamza & Sarah',
+      milestoneDate: '2024-09-15',
+      coordinates: '48.8584° N, 2.2945° E',
+      customQuote: 'Every note in this melody is a chapter in our infinite story. Forever yours.',
+      typographyFont: 'Royal Calligraphy',
+      engravingPlacement: 'Inside Lid & Outer Ring Bezel'
+    },
+    uploadedImages: [
+      'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=600&auto=format&fit=crop&q=80'
+    ],
+    referenceImages: [
+      'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&auto=format&fit=crop&q=80'
+    ],
+    uploadedFiles: [
+      'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80'
+    ],
+    selectedColors: ['Deep Rosewood', 'Antique Brass Gold', 'Midnight Obsidian'],
+    preferredColors: ['Deep Rosewood', 'Antique Brass Gold', 'Midnight Obsidian'],
+    preferredStyle: 'Vintage Romantic Luxury Atelier',
+    customOptions: {
+      'Mechanism Tune': "Can't Help Falling in Love (18-Note Sankyo Gold)",
+      'Engraving Depth': '0.45mm Micro-Diamond Scribed',
+      'Finish': 'Triple Hand-Polished Beeswax Satin'
+    },
     selectedPackagingId: 'pkg-luxury',
+    giftNote: 'To my dearest Sarah, happy birthday! May this little melody remind you of Paris under the stars.',
+    customerNotes: 'Please ensure the Eiffel tower star coordinates are centered directly beneath the date.',
+    description: 'A hand-polished mahogany and aerospace titanium keepsake box playing "Can\'t Help Falling in Love", with precision laser engraved starry sky coordinates and illuminated crystal couple portrait.',
     targetDeliveryDate: '2026-09-01',
-    status: 'Quoted',
+    status: 'QUOTED',
+    designProofUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&auto=format&fit=crop&q=80',
+    timeline: [
+      { status: 'REQUESTED', timestamp: '2026-08-15T10:00:00Z', description: 'Custom order request received by Atelier Intake Engine.', actor: 'customer' },
+      { status: 'UNDER_REVIEW', timestamp: '2026-08-15T10:15:00Z', description: 'Senior Master Jeweler Julian assigned to review fabrication tolerances.', actor: 'artisan' },
+      { status: 'QUOTED', timestamp: '2026-08-15T12:00:00Z', description: 'Official quotation #quote-co-1 generated with 3D design proof.', actor: 'artisan' }
+    ],
     quote: {
       id: 'quote-co-1',
       amount: 175.00,
@@ -575,26 +608,111 @@ export const INITIAL_SAMPLE_CUSTOM_ORDERS: CustomOrder[] = [
       notes: 'Includes custom 18-note Japanese Sankyo movement, laser-etched crystal photo cube, and Midnight Velvet presentation box with LED illuminate header.',
       packagingIncluded: 'Velvet Midnight Luxury Box',
       validUntil: '2026-08-30',
-      status: 'pending_review'
+      status: 'pending_review',
+      designProofUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&auto=format&fit=crop&q=80'
     },
     messages: [
       {
         id: 'm1',
         sender: 'customer',
         senderName: 'Hamza Shahid',
-        text: 'Hi Harconxs team! Can we make sure the wood has a warm gloss finish?',
+        text: 'Hi Harconxs team! Can we make sure the wood has a warm gloss finish and the engraving is crisp?',
         timestamp: '2026-08-15T11:20:00Z'
       },
       {
         id: 'm2',
         sender: 'admin',
         senderName: 'Atelier Master Julian',
-        text: 'Hello Hamza! Absolutely. We apply 3 coats of organic beeswax polish for a deep lustrous satin feel. We have prepared quote #quote-co-1 for your review!',
+        text: 'Hello Hamza! Absolutely. We apply 3 coats of organic beeswax polish for a deep lustrous satin feel. We have prepared quotation #quote-co-1 with CAD rendering for your approval!',
         timestamp: '2026-08-15T12:05:00Z'
       }
     ],
-    createdAt: '2026-08-15T10:30:00Z',
+    createdAt: '2026-08-15T10:00:00Z',
     updatedAt: '2026-08-15T12:05:00Z'
+  },
+  {
+    id: 'co-10002',
+    requestNumber: 'CO-10002',
+    customerId: 'cust-hamza',
+    customerName: 'Hamza Shahid',
+    customerEmail: 'hamzashahid1152901@gmail.com',
+    recipient: 'Julian & Elena',
+    relationship: 'couple',
+    occasion: 'Anniversary',
+    budgetRange: '$200 - $450',
+    productType: 'Celestial Coordinates Rotating Dual-Axis Kinetic Ring Box',
+    customDesign: 'Planetary Orbit & Constellation Inlay',
+    personalText: {
+      primaryNames: 'Julian & Elena',
+      milestoneDate: '2021-10-24',
+      coordinates: '37.7749° N, 122.4194° W',
+      customQuote: 'Two orbits intertwined across all celestial skies.',
+      typographyFont: 'Minimal Modern Sans',
+      engravingPlacement: 'Inner Brass Bezel'
+    },
+    uploadedImages: [
+      'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?w=600&auto=format&fit=crop&q=80'
+    ],
+    referenceImages: [
+      'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&auto=format&fit=crop&q=80'
+    ],
+    uploadedFiles: [
+      'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?w=600&auto=format&fit=crop&q=80'
+    ],
+    selectedColors: ['Brushed Titanium', 'Rose Gold Accents'],
+    preferredColors: ['Brushed Titanium', 'Rose Gold Accents'],
+    preferredStyle: 'Modern Kinetic Aerospace',
+    customOptions: {
+      'Gear Mechanism': 'Precision Swiss 64-Tooth Brass Planetary Gear',
+      'Ring Slot': 'Dual Velvet Ring Pillows'
+    },
+    selectedPackagingId: 'pkg-proposal',
+    giftNote: 'Happy 5th Anniversary! May our orbits stay locked forever.',
+    description: 'Precision CNC-machined titanium kinetic box where rotating the outer ring reveals the dual wedding bands illuminated by subtle warm LED halo.',
+    targetDeliveryDate: '2026-09-20',
+    status: 'PRODUCTION',
+    carrier: 'BlueDart Apex Gold',
+    trackingNumber: 'HX-DEL-984210',
+    trackingUrl: 'https://track.bluedart.com/awb=HX-DEL-984210',
+    timeline: [
+      { status: 'REQUESTED', timestamp: '2026-08-10T09:00:00Z', description: 'Brief submitted for dual-axis kinetic ring box.', actor: 'customer' },
+      { status: 'UNDER_REVIEW', timestamp: '2026-08-10T11:00:00Z', description: 'Kinetic engineering review complete.', actor: 'artisan' },
+      { status: 'QUOTED', timestamp: '2026-08-10T14:30:00Z', description: 'Quotation of $240 generated.', actor: 'artisan' },
+      { status: 'QUOTE_ACCEPTED', timestamp: '2026-08-11T08:15:00Z', description: 'Customer accepted quotation.', actor: 'customer' },
+      { status: 'PAID', timestamp: '2026-08-11T08:20:00Z', description: 'Payment of $240 confirmed via Card.', actor: 'customer' },
+      { status: 'DESIGNING', timestamp: '2026-08-12T10:00:00Z', description: '3D CAD micro-gear blueprints finalized.', actor: 'artisan' },
+      { status: 'CUSTOMER_REVIEW', timestamp: '2026-08-12T16:00:00Z', description: 'CAD proof sent to customer for review.', actor: 'artisan' },
+      { status: 'APPROVED', timestamp: '2026-08-13T09:00:00Z', description: 'Customer approved 3D CAD blueprints.', actor: 'customer' },
+      { status: 'PRODUCTION', timestamp: '2026-08-14T08:00:00Z', description: 'Aerospace Grade 5 Titanium CNC milling and laser engraving in progress.', actor: 'artisan' }
+    ],
+    quote: {
+      id: 'quote-co-2',
+      amount: 240.00,
+      shippingFee: 0.00,
+      turnaroundDays: 10,
+      notes: 'Includes aerospace Grade 5 Titanium CNC milling, Swiss brass gears, and luxury lighted presentation vault.',
+      packagingIncluded: 'Secret Proposal Vault Box',
+      validUntil: '2026-08-25',
+      status: 'accepted'
+    },
+    messages: [
+      {
+        id: 'm3',
+        sender: 'customer',
+        senderName: 'Hamza Shahid',
+        text: 'The 3D CAD preview looks incredible! Excited to see the finished gears.',
+        timestamp: '2026-08-13T09:05:00Z'
+      },
+      {
+        id: 'm4',
+        sender: 'admin',
+        senderName: 'Master Artisan Elena',
+        text: 'Thank you Hamza! The CNC lathe is running right now. Tolerances are within 0.02mm.',
+        timestamp: '2026-08-14T08:30:00Z'
+      }
+    ],
+    createdAt: '2026-08-10T09:00:00Z',
+    updatedAt: '2026-08-14T08:30:00Z'
   }
 ];
 

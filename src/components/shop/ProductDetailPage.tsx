@@ -21,6 +21,7 @@ export const ProductDetailPage: React.FC = () => {
   const {
     selectedProductId,
     products,
+    reviews,
     packagingOptions,
     formatPrice,
     addToCart,
@@ -31,6 +32,12 @@ export const ProductDetailPage: React.FC = () => {
   } = useStore();
 
   const product = products.find(p => p.id === selectedProductId) || products[0];
+
+  const productReviews = (reviews || []).filter(r => r.productId === product.id && r.status !== 'rejected' && r.status !== 'hidden');
+  const totalReviewsCount = productReviews.length > 0 ? productReviews.length : (product.reviewCount || 0);
+  const avgRating = productReviews.length > 0
+    ? (productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length).toFixed(1)
+    : (product.rating || 5.0).toFixed(1);
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(

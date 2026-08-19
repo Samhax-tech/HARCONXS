@@ -2234,16 +2234,24 @@ export const AdminDashboard: React.FC = () => {
                 <select
                   value={nextCustomStatus}
                   onChange={(e) => setNextCustomStatus(e.target.value as any)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-amber-400"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-amber-400 font-mono text-xs"
                 >
-                  <option value="Submitted">Submitted (Under Brief Review)</option>
-                  <option value="Quoted">Quoted (Quotation Dispatched)</option>
-                  <option value="Paid">Paid (Payment Verified)</option>
-                  <option value="In Design">In Design (3D CAD & Laser Proofing)</option>
-                  <option value="Production">Production (Machining & Hand-Mounting)</option>
-                  <option value="Shipped">Shipped (Dispatched with Courier)</option>
-                  <option value="Delivered">Delivered (Completed Delivery)</option>
-                  <option value="Completed">Completed (Final Sign-off)</option>
+                  <option value="REQUESTED">REQUESTED (Brief Submitted)</option>
+                  <option value="UNDER_REVIEW">UNDER_REVIEW (Feasibility & Metallurgy Analysis)</option>
+                  <option value="NEEDS_INFORMATION">NEEDS_INFORMATION (Clarification Required)</option>
+                  <option value="QUOTED">QUOTED (Quotation Dispatched)</option>
+                  <option value="QUOTE_ACCEPTED">QUOTE_ACCEPTED (Quote Accepted by Patron)</option>
+                  <option value="PAYMENT_PENDING">PAYMENT_PENDING (Awaiting Payment Authorization)</option>
+                  <option value="PAID">PAID (Payment Verified & Vault Reserved)</option>
+                  <option value="DESIGNING">DESIGNING (3D CAD & Laser Proofing)</option>
+                  <option value="CUSTOMER_REVIEW">CUSTOMER_REVIEW (3D Proof Ready for Patron Review)</option>
+                  <option value="APPROVED">APPROVED (CAD Blueprints Approved)</option>
+                  <option value="PRODUCTION">PRODUCTION (Machining & Laser Engraving)</option>
+                  <option value="PACKING">PACKING (Polishing & Wax-Sealed Packaging)</option>
+                  <option value="SHIPPED">SHIPPED (Dispatched with Courier)</option>
+                  <option value="DELIVERED">DELIVERED (Completed Delivery)</option>
+                  <option value="CANCELLED">CANCELLED (Cancelled by Patron/Store)</option>
+                  <option value="REJECTED">REJECTED (Brief Rejected)</option>
                 </select>
               </div>
 

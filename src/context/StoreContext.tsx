@@ -9,6 +9,7 @@ import {
   CustomOrder,
   CustomOrderQuote,
   CustomOrderStatus,
+  CustomOrderTrackingEvent,
   CustomOrderMessage,
   CoupleWebsiteProject,
   CoupleWebsiteTemplate,
@@ -1936,31 +1937,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast(`Order status updated to ${status}. Email update dispatched!`);
   };
 
-  // Custom Orders
-  const createCustomOrderRequest = (req: Omit<CustomOrder, 'id' | 'requestNumber' | 'status' | 'messages' | 'createdAt' | 'updatedAt'>): CustomOrder => {
+  // Custom Orders & Bespoke Commissions
+  const createCustomOrderRequest = (req: Omit<CustomOrder, 'id' | 'requestNumber' | 'status' | 'messages' | 'createdAt' | 'updatedAt' | 'timeline'>): CustomOrder => {
     const requestNumber = `CO-${Math.floor(10000 + Math.random() * 90000)}`;
+    const nowIso = new Date().toISOString();
+    const initialFiles = req.uploadedFiles || [];
+
     const newCustom: CustomOrder = {
       ...req,
       id: `co-${Date.now()}`,
       requestNumber,
-      status: 'Submitted',
+      status: 'REQUESTED',
+      selectedColors: req.selectedColors || req.preferredColors || [],
+      uploadedFiles: initialFiles,
+      uploadedImages: req.uploadedImages || [],
+      referenceImages: req.referenceImages || [],
+      timeline: [
+        {
+          status: 'REQUESTED',
+          timestamp: nowIso,
+          description: `Custom commission brief for ${req.recipient || 'recipient'} (${req.relationship || 'custom'}) submitted to HARCONXS Atelier.`,
+          actor: 'customer'
+        }
+      ],
       messages: [
         {
           id: `msg-${Date.now()}`,
           sender: 'customer',
-          senderName: req.customerName,
-          text: req.description,
-          timestamp: new Date().toISOString(),
-          attachments: req.uploadedFiles.length > 0 ? req.uploadedFiles : undefined
+          senderName: req.customerName || 'Customer',
+          text: req.description || `Submitted custom order request for ${req.productType}.`,
+          timestamp: nowIso,
+          attachments: initialFiles.length > 0 ? initialFiles : undefined
         }
       ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: nowIso,
+      updatedAt: nowIso
     };
 
     setCustomOrders(prev => [newCustom, ...prev]);
     upsertCustomOrderInSupabase(newCustom);
-    trackAnalyticsEvent('create_custom_order', { requestNumber, recipient: req.recipient });
+    trackAnalyticsEvent('create_custom_order', { requestNumber, recipient: req.recipient, relationship: req.relationship });
     showToast(`Custom order request ${requestNumber} submitted to Atelier!`);
     return newCustom;
   };
@@ -2010,15 +2026,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       id: `q-${Date.now()}`
     };
 
+    const nowIso = new Date().toISOString();
+    const newEvent: CustomOrderTrackingEvent = {
+      status: 'QUOTED',
+      timestamp: nowIso,
+      description: `Official Atelier Quotation issued (${quoteData.amount.toFixed(2)}) with ${quoteData.turnaroundDays}-day turnaround.`,
+      actor: 'artisan'
+    };
+
     setCustomOrders(prev =>
       prev.map(co => {
         if (co.id === customOrderId) {
+          const updatedTimeline = [...(co.timeline || []), newEvent];
           const updated = {
             ...co,
-            status: 'Quoted' as const,
+            status: 'QUOTED' as CustomOrderStatus,
             quote,
+            timeline: updatedTimeline,
             designProofUrl: quoteData.designProofUrl || co.designProofUrl,
-            updatedAt: new Date().toISOString()
+            updatedAt: nowIso
           };
           upsertCustomOrderInSupabase(updated);
           return updated;
@@ -2030,18 +2056,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const respondToQuote = async (customOrderId: string, accept: boolean, revisionReason?: string): Promise<void> => {
+    const nowIso = new Date().toISOString();
+    const newStatus: CustomOrderStatus = accept ? 'QUOTE_ACCEPTED' : 'UNDER_REVIEW';
+    const newEvent: CustomOrderTrackingEvent = {
+      status: newStatus,
+      timestamp: nowIso,
+      description: accept 
+        ? 'Customer accepted the quotation. Materials and artisan bench reserved.'
+        : `Customer requested revision: "${revisionReason || 'Adjustments requested'}"`,
+      actor: 'customer'
+    };
+
     setCustomOrders(prev =>
       prev.map(co => {
         if (co.id === customOrderId && co.quote) {
+          const updatedTimeline = [...(co.timeline || []), newEvent];
           const updated = {
             ...co,
-            status: (accept ? 'Paid' : 'Submitted') as any,
+            status: newStatus,
+            timeline: updatedTimeline,
             quote: {
               ...co.quote,
               status: (accept ? 'accepted' : 'revised') as any,
               revisedReason: !accept ? revisionReason : undefined
             },
-            updatedAt: new Date().toISOString()
+            updatedAt: nowIso
           };
           upsertCustomOrderInSupabase(updated);
           return updated;
@@ -2051,7 +2090,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 
     if (accept) {
-      showToast('🎉 Quote accepted & verified! Project queued for atelier design & fabrication.');
+      showToast('🎉 Quote accepted! Project queued for atelier design & fabrication.');
     } else {
       if (revisionReason) {
         await sendCustomOrderMessage(
@@ -2075,9 +2114,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       notes?: string;
     }
   ): Promise<void> => {
+    const nowIso = new Date().toISOString();
+    const newEvent: CustomOrderTrackingEvent = {
+      status,
+      timestamp: nowIso,
+      description: trackingDetails?.notes || `Project transitioned to ${status.replace(/_/g, ' ')}.`,
+      actor: 'artisan'
+    };
+
     setCustomOrders(prev =>
       prev.map(co => {
         if (co.id === customOrderId) {
+          const updatedTimeline = [...(co.timeline || []), newEvent];
           const updated = {
             ...co,
             status,
@@ -2085,7 +2133,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             trackingNumber: trackingDetails?.trackingNumber || co.trackingNumber,
             trackingUrl: trackingDetails?.trackingUrl || co.trackingUrl,
             designProofUrl: trackingDetails?.designProofUrl || co.designProofUrl,
-            updatedAt: new Date().toISOString()
+            timeline: updatedTimeline,
+            updatedAt: nowIso
           };
           upsertCustomOrderInSupabase(updated);
           return updated;

@@ -175,7 +175,7 @@ export const ProductReviewsSection: React.FC<ProductReviewsSectionProps> = ({ pr
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).slice(0, 4).forEach(file => {
+    Array.from(files).slice(0, 4).forEach((file: File) => {
       const reader = new FileReader();
       reader.onload = (uploadEvent) => {
         if (uploadEvent.target?.result) {

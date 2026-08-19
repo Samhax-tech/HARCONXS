@@ -185,11 +185,74 @@ export interface Order {
   createdAt: string;
 }
 
-export type CustomOrderRelationship = 'Me' | 'Friend' | 'Best Friend' | 'Girlfriend' | 'Boyfriend' | 'Husband' | 'Wife' | 'Partner' | 'Family' | 'Other';
+export type CustomOrderRelationship = 
+  | 'girlfriend' 
+  | 'boyfriend' 
+  | 'husband' 
+  | 'wife' 
+  | 'friend' 
+  | 'family member' 
+  | 'couple' 
+  | 'other'
+  | 'Girlfriend'
+  | 'Boyfriend'
+  | 'Husband'
+  | 'Wife'
+  | 'Friend'
+  | 'Best Friend'
+  | 'Partner'
+  | 'Family'
+  | 'Me'
+  | 'Other';
 
-export type CustomOrderOccasion = 'Birthday' | 'Anniversary' | 'Valentine\'s Day' | 'Wedding' | 'Proposal' | 'Friendship' | 'Graduation' | 'Celebration' | 'Surprise' | 'Other';
+export type CustomOrderOccasion = 
+  | 'Birthday' 
+  | 'Anniversary' 
+  | "Valentine's Day" 
+  | 'Wedding' 
+  | 'Proposal' 
+  | 'Friendship' 
+  | 'Graduation' 
+  | 'Celebration' 
+  | 'Surprise' 
+  | 'Just Because'
+  | 'Other';
 
-export type CustomOrderStatus = 'Submitted' | 'Quoted' | 'Paid' | 'In Design' | 'Production' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled';
+export type CustomOrderStatus = 
+  | 'REQUESTED'
+  | 'UNDER_REVIEW'
+  | 'NEEDS_INFORMATION'
+  | 'QUOTED'
+  | 'QUOTE_ACCEPTED'
+  | 'PAYMENT_PENDING'
+  | 'PAID'
+  | 'DESIGNING'
+  | 'CUSTOMER_REVIEW'
+  | 'APPROVED'
+  | 'PRODUCTION'
+  | 'PACKING'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELLED'
+  | 'REJECTED'
+  // Legacy aliases for backward compatibility:
+  | 'Submitted'
+  | 'Quoted'
+  | 'Paid'
+  | 'In Design'
+  | 'Production'
+  | 'Shipped'
+  | 'Delivered'
+  | 'Completed'
+  | 'Cancelled';
+
+export interface CustomOrderTrackingEvent {
+  status: CustomOrderStatus;
+  timestamp: string;
+  description: string;
+  actor?: 'customer' | 'artisan' | 'system';
+  location?: string;
+}
 
 export interface CustomOrderQuote {
   id: string;
@@ -213,6 +276,15 @@ export interface CustomOrderMessage {
   attachments?: string[];
 }
 
+export interface CustomOrderPersonalText {
+  primaryNames?: string;
+  milestoneDate?: string;
+  coordinates?: string;
+  customQuote?: string;
+  typographyFont?: string;
+  engravingPlacement?: string;
+}
+
 export interface CustomOrder {
   id: string;
   requestNumber: string;
@@ -224,18 +296,26 @@ export interface CustomOrder {
   occasion: CustomOrderOccasion;
   budgetRange: string;
   productType: string;
-  description: string;
-  preferredColors: string[];
-  preferredStyle: string;
+  customDesign?: string;
+  personalText?: CustomOrderPersonalText;
+  uploadedImages?: string[];
+  referenceImages?: string[];
   uploadedFiles: string[];
+  selectedColors: string[];
+  preferredColors?: string[];
+  preferredStyle?: string;
+  customOptions?: Record<string, string>;
   selectedPackagingId?: string;
   giftNote?: string;
+  customerNotes?: string;
+  description: string;
   targetDeliveryDate?: string;
   carrier?: string;
   trackingNumber?: string;
   trackingUrl?: string;
   designProofUrl?: string;
   status: CustomOrderStatus;
+  timeline?: CustomOrderTrackingEvent[];
   quote?: CustomOrderQuote;
   messages: CustomOrderMessage[];
   createdAt: string;
