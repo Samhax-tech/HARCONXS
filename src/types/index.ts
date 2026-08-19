@@ -1,4 +1,4 @@
-export type CategoryType = 'men' | 'women' | 'unisex' | 'couples' | 'custom' | 'digital' | 'bot-panels';
+export type CategoryType = 'men' | 'women' | 'unisex' | 'couples' | 'custom' | 'digital' | 'digital-services' | 'bot-panels';
 export type ProductCategory = CategoryType;
 
 export type ProductBadge = 'Best Seller' | 'New' | 'Trending' | 'Limited' | 'Low Stock' | 'Almost Sold Out' | 'Sale' | 'Personalized' | 'Custom' | 'Digital' | 'Couples' | 'Featured';
@@ -180,6 +180,7 @@ export interface Order {
   trackingUrl?: string;
   giftNote?: string;
   deliveryDate?: string;
+  estimatedDelivery?: string;
   timeline: OrderTrackingEvent[];
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
   createdAt: string;
@@ -249,8 +250,9 @@ export type CustomOrderStatus =
 export interface CustomOrderTrackingEvent {
   status: CustomOrderStatus;
   timestamp: string;
-  description: string;
-  actor?: 'customer' | 'artisan' | 'system';
+  description?: string;
+  note?: string;
+  actor?: 'customer' | 'artisan' | 'system' | string;
   location?: string;
 }
 
@@ -267,6 +269,28 @@ export interface CustomOrderQuote {
   revisedReason?: string;
 }
 
+export interface CustomOrderAttachment {
+  id?: string;
+  url: string;
+  name: string;
+  size?: string;
+  fileSize?: number;
+  fileType?: string;
+  type?: 'image' | 'design_cad' | 'reference' | 'admin_proof' | 'document' | 'audio';
+  category?: 'customer_reference' | 'design_cad' | 'admin_proof' | 'specification';
+  previewUrl?: string;
+  uploadedAt?: string;
+  uploaderRole?: 'customer' | 'admin';
+}
+
+export type CustomOrderConversationStatus = 
+  | 'open' 
+  | 'in_progress' 
+  | 'waiting_on_customer' 
+  | 'waiting_on_artisan' 
+  | 'resolved' 
+  | 'archived';
+
 export interface CustomOrderMessage {
   id: string;
   sender: 'customer' | 'admin';
@@ -274,6 +298,12 @@ export interface CustomOrderMessage {
   text: string;
   timestamp: string;
   attachments?: string[];
+  fileAttachments?: CustomOrderAttachment[];
+  isRead?: boolean;
+  readAt?: string;
+  status?: 'sending' | 'sent' | 'delivered' | 'read';
+  isAdminProof?: boolean;
+  adminProofTitle?: string;
 }
 
 export interface CustomOrderPersonalText {
@@ -318,6 +348,12 @@ export interface CustomOrder {
   timeline?: CustomOrderTrackingEvent[];
   quote?: CustomOrderQuote;
   messages: CustomOrderMessage[];
+  assignedAdminId?: string;
+  assignedAdminName?: string;
+  assignedAdminRole?: string;
+  conversationStatus?: CustomOrderConversationStatus;
+  unreadCountCustomer?: number;
+  unreadCountAdmin?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -400,6 +436,7 @@ export interface BotPanelService {
   platform: 'Telegram' | 'Discord' | 'WhatsApp' | 'WordPress' | 'Hosting' | 'Custom';
   shortDesc: string;
   fullDesc: string;
+  description?: string;
   icon: string;
   badge?: string;
   plans: {
@@ -415,16 +452,205 @@ export interface BotPanelService {
   docsUrl: string;
 }
 
-export interface ApiKeyRecord {
+export type ApiScopeId = 
+  | 'products:read'
+  | 'orders:read'
+  | 'support:read'
+  | 'support:write'
+  | 'chat:use'
+  | 'custom_orders:read'
+  | 'custom_orders:write'
+  | 'faq:read'
+  | 'couple_websites:read'
+  | 'bot_services:read'
+  | 'knowledge:read'
+  | 'admin:all';
+
+export interface ApiKeyScope {
+  id: ApiScopeId;
+  name: string;
+  description: string;
+  category: 'Catalog' | 'Orders' | 'Support & Chat' | 'Custom' | 'Knowledge' | 'System';
+}
+
+export interface ApiClient {
   id: string;
   name: string;
-  prefix: string;
+  clientCode: 'HARCONXS-WEB' | 'HARCONXS-TELEGRAM' | 'HARCONXS-DISCORD' | 'HARCONXS-WORDPRESS' | 'HARCONXS-ADMIN' | string;
+  clientType: 'internal_bot' | 'internal_app' | 'admin_cli';
+  description: string;
+  isActive: boolean;
+  rateLimitPerMinute: number;
+  defaultScopes: ApiScopeId[];
   createdAt: string;
-  lastUsed: string;
-  rateLimit: number;
-  requestCount: number;
-  permissions: string[];
-  status: 'active' | 'revoked';
+  updatedAt: string;
+  status?: string;
+  allowedScopes?: (ApiScopeId | string)[];
+}
+
+export interface ApiKeyRecord {
+  id: string;
+  clientId?: string;
+  clientName?: string;
+  name: string;
+  keyPrefix?: string;
+  keyHash?: string; // SHA-256 hash (never plaintext)
+  scopes?: (ApiScopeId | string)[];
+  status: 'active' | 'revoked' | 'expired';
+  rateLimit: number; // requests per minute
+  usageCount?: number;
+  lastUsedAt?: string;
+  expiresAt?: string;
+  createdAt: string;
+  revokedAt?: string;
+  lastIp?: string;
+  // Legacy aliases for backward compatibility:
+  prefix?: string;
+  lastUsed?: string;
+  requestCount?: number;
+  permissions?: string[];
+}
+
+export interface ApiUsageLog {
+  id: string;
+  requestId: string;
+  keyId: string;
+  clientId: string;
+  clientName: string;
+  endpoint: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  statusCode: number;
+  responseTimeMs: number;
+  ipAddress: string;
+  userAgent: string;
+  scopesUsed?: string[];
+  timestamp: string;
+  errorMessage?: string;
+}
+
+export interface ApiHealthResponse {
+  status: 'operational' | 'degraded' | 'maintenance';
+  version: string;
+  timestamp: string;
+  uptimeSeconds: number;
+  system: {
+    database: 'healthy' | 'degraded' | 'disconnected';
+    realtime: 'healthy' | 'degraded';
+    storage: 'healthy' | 'degraded';
+    aiBotEngine: 'healthy' | 'degraded';
+    rateLimiter: 'active';
+  };
+  environment: 'production' | 'preview' | 'development';
+}
+
+export interface KnowledgeCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  icon: string;
+  displayOrder: number;
+  articleCount?: number;
+}
+
+export interface KnowledgeArticle {
+  id: string;
+  categoryId: string;
+  categoryName?: string;
+  slug: string;
+  title: string;
+  content: string;
+  summary: string;
+  tags: string[];
+  views: number;
+  helpfulVotes: number;
+  isFeatured?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FaqItem {
+  id: string;
+  categoryId: string;
+  categoryName?: string;
+  question: string;
+  answer: string;
+  tags: string[];
+  orderIndex: number;
+  isFeatured: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ApiChatRequest {
+  message: string;
+  conversationId?: string;
+  clientId?: string;
+  customerId?: string;
+  customerEmail?: string;
+  sessionToken?: string;
+  context?: {
+    channel?: 'telegram' | 'discord' | 'wordpress' | 'web';
+    userId?: string;
+    userEmail?: string;
+    customerId?: string;
+    customerEmail?: string;
+    customerName?: string;
+    isLoggedIn?: boolean;
+    orderId?: string;
+    cartItemCount?: number;
+    currentView?: string;
+    createTicketDirectly?: boolean;
+  };
+}
+
+export interface ApiChatAction {
+  label: string;
+  view: string;
+  productId?: string;
+  orderId?: string;
+  actionType?: 'navigate' | 'create_ticket' | 'open_modal';
+}
+
+export interface ApiChatResponse {
+  reply: string;
+  conversationId: string;
+  action?: ApiChatAction;
+  actions?: ApiChatAction[];
+  suggestions?: string[];
+  relatedProducts?: {
+    id: string;
+    name: string;
+    price: number;
+    category: string;
+    imageUrl: string;
+    url: string;
+  }[];
+  orderLookupResult?: {
+    orderNumber: string;
+    status: string;
+    carrier?: string;
+    trackingNumber?: string;
+    estimatedDelivery?: string;
+    itemsSummary?: string;
+    trackingUrl?: string;
+  };
+  ticketOffer?: {
+    offer: boolean;
+    subject?: string;
+    category?: 'General' | 'Order Issue' | 'Custom Project' | 'Couple Website' | 'Bot Panel' | 'Payment / Refund';
+    reason?: string;
+  };
+  createdTicket?: {
+    id: string;
+    ticketNumber: string;
+    subject: string;
+    status: string;
+  };
+  sourcesUsed?: string[];
+  modelUsed?: string;
+  confidence: number;
+  timestamp: string;
 }
 
 export interface DiscountCoupon {

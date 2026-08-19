@@ -1,13 +1,28 @@
 import { createClient, SupabaseClient, User as SupabaseUser, Session } from '@supabase/supabase-js';
 
+// Safe environment variable accessor for browser, Vite build, and serverless Node runtimes
+const getEnvVar = (key: string, defaultValue = ''): string => {
+  try {
+    if (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.[key]) {
+      return (import.meta as any).env[key];
+    }
+  } catch {}
+  try {
+    if (typeof process !== 'undefined' && process.env?.[key]) {
+      return process.env[key]!;
+    }
+  } catch {}
+  return defaultValue;
+};
+
 // Environment variables or default Supabase project configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://v6ky2ym2gn3s6b7y2opdtl.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InY2a3kyeW0yZ24zczZiN3kyb3BkdGwiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY5MjIwMDAwMCwiZXhwIjoxOTk5OTk5OTk5fQ.placeholder_key';
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', 'https://v6ky2ym2gn3s6b7y2opdtl.supabase.co');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InY2a3kyeW0yZ24zczZiN3kyb3BkdGwiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY5MjIwMDAwMCwiZXhwIjoxOTk5OTk5OTk5fQ.placeholder_key');
 
 export const isSupabaseConfigured = Boolean(
-  import.meta.env.VITE_SUPABASE_URL && 
-  import.meta.env.VITE_SUPABASE_ANON_KEY &&
-  !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
+  getEnvVar('VITE_SUPABASE_URL') && 
+  getEnvVar('VITE_SUPABASE_ANON_KEY') &&
+  !getEnvVar('VITE_SUPABASE_URL').includes('placeholder')
 );
 
 // Create Supabase client instance with auto-refresh and session persistence

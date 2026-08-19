@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
 import {
   Product,
@@ -59,6 +59,9 @@ import {
   Sparkle
 } from 'lucide-react';
 import { EmailNotificationCenter } from '../account/EmailNotificationCenter';
+import { AdminApiConsole } from './AdminApiConsole';
+import { AdminReviewsModeration } from './AdminReviewsModeration';
+import { Star } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -72,6 +75,9 @@ export const AdminDashboard: React.FC = () => {
     updateOrderLogistics,
     customOrders,
     sendCustomOrderMessage,
+    markCustomOrderMessagesAsRead,
+    assignCustomOrderStaff,
+    updateCustomOrderConversationStatus,
     provideCustomOrderQuote,
     updateCustomOrderStatus,
     uploadCustomOrderFile,
@@ -108,7 +114,7 @@ export const AdminDashboard: React.FC = () => {
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<
-    'overview' | 'products' | 'orders' | 'emails' | 'custom' | 'couple-templates' | 'marketing' | 'popup-banner' | 'billing' | 'api-keys' | 'youtube' | 'inventory' | 'automation' | 'gmc' | 'policies' | 'system'
+    'overview' | 'products' | 'orders' | 'emails' | 'custom' | 'couple-templates' | 'marketing' | 'popup-banner' | 'reviews' | 'billing' | 'api-keys' | 'youtube' | 'inventory' | 'automation' | 'gmc' | 'policies' | 'system'
   >('overview');
 
   const [adminSearch, setAdminSearch] = useState('');
@@ -187,6 +193,22 @@ export const AdminDashboard: React.FC = () => {
   const [adminChatInput, setAdminChatInput] = useState('');
   const [adminChatAttachments, setAdminChatAttachments] = useState<string[]>([]);
   const [isAdminUploadingChatFile, setIsAdminUploadingChatFile] = useState(false);
+  const [isAdminProofUpload, setIsAdminProofUpload] = useState(false);
+  const [adminProofTitle, setAdminProofTitle] = useState('3D CAD Blueprint');
+  const [selectedStaffAssignee, setSelectedStaffAssignee] = useState('Hamza (Lead Master Artisan)');
+
+  // Keep active chat modal synced with live context & mark messages as read
+  useEffect(() => {
+    if (adminChatOrder) {
+      const live = customOrders.find(co => co.id === adminChatOrder.id);
+      if (live) {
+        setAdminChatOrder(live);
+        if ((live.unreadCountAdmin ?? 0) > 0) {
+          markCustomOrderMessagesAsRead(live.id, 'admin');
+        }
+      }
+    }
+  }, [customOrders, adminChatOrder?.id, markCustomOrderMessagesAsRead]);
 
   // Create Coupon Modal State
   const [isAddCouponOpen, setIsAddCouponOpen] = useState(false);
@@ -194,11 +216,6 @@ export const AdminDashboard: React.FC = () => {
   const [couponDiscount, setCouponDiscount] = useState(20);
   const [couponType, setCouponType] = useState<'percentage' | 'fixed'>('percentage');
   const [couponMinSpend, setCouponMinSpend] = useState(50);
-
-  // API Key creation
-  const [newKeyName, setNewKeyName] = useState('');
-  const [newKeyPerms, setNewKeyPerms] = useState<string[]>(['orders:read', 'products:read', 'webhooks:listen']);
-  const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
 
   // YouTube Video Add State
   const [isAddVideoOpen, setIsAddVideoOpen] = useState(false);
@@ -332,18 +349,24 @@ export const AdminDashboard: React.FC = () => {
     setStatusModalOrder(null);
   };
 
-  const handleSendAdminChat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if ((!adminChatInput.trim() && adminChatAttachments.length === 0) || !adminChatOrder) return;
+  const handleSendAdminChat = async (e?: React.FormEvent, presetText?: string) => {
+    if (e) e.preventDefault();
+    const textToSend = presetText || adminChatInput.trim();
+    if ((!textToSend && adminChatAttachments.length === 0) || !adminChatOrder) return;
     await sendCustomOrderMessage(
       adminChatOrder.id,
-      adminChatInput.trim(),
+      textToSend,
       'admin',
-      adminChatAttachments.length > 0 ? adminChatAttachments : undefined
+      {
+        attachments: adminChatAttachments.length > 0 ? adminChatAttachments : undefined,
+        isAdminProof: isAdminProofUpload && adminChatAttachments.length > 0,
+        adminProofTitle: isAdminProofUpload ? adminProofTitle : undefined
+      }
     );
     setAdminChatInput('');
     setAdminChatAttachments([]);
-    showToast('Direct artisan message sent to patron.');
+    setIsAdminProofUpload(false);
+    showToast('Direct artisan message sent to patron via Supabase Realtime.');
   };
 
   const handleAdminChatFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -380,14 +403,6 @@ export const AdminDashboard: React.FC = () => {
     setIsAddCouponOpen(false);
     setCouponCode('');
     showToast(`Promo code ${newC.code} generated.`);
-  };
-
-  const handleCreateApiKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newKeyName.trim()) return;
-    const res = createApiKey(newKeyName.trim(), newKeyPerms, 2000);
-    setGeneratedSecret(res.secretKey);
-    setNewKeyName('');
   };
 
   const handleSavePopupBanner = (e: React.FormEvent) => {
@@ -618,6 +633,16 @@ export const AdminDashboard: React.FC = () => {
             >
               <Tag className="w-4 h-4" />
               <span>Coupons & Promos</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('reviews')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all cursor-pointer ${
+                activeSection === 'reviews' ? 'bg-amber-500 text-zinc-950 font-bold shadow-md shadow-amber-500/10' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+              }`}
+            >
+              <Star className="w-4 h-4 text-amber-400" />
+              <span>Reviews & Testimonials</span>
             </button>
 
             <button
@@ -1083,115 +1108,17 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* 4. API KEYS (ADMIN RESTRICTED) */}
+        {/* 4. API KEYS & INTERNAL SERVICE GATEWAY (ADMIN RESTRICTED) */}
         {activeSection === 'api-keys' && (
-          <div className="max-w-4xl space-y-6">
-            <div className="border-b border-zinc-800 pb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-serif font-bold text-zinc-100">Admin API Management & Scoped Keys</h3>
-                <p className="text-xs text-zinc-400">
-                  Generate cryptographic API tokens for Discord bots, Telegram webhooks, and private storefront microservices.
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs font-semibold">
-                <Shield className="w-3.5 h-3.5" />
-                <span>Admin Restricted</span>
-              </div>
-            </div>
+          <div className="space-y-6">
+            <AdminApiConsole />
+          </div>
+        )}
 
-            {/* Generated Secret One-Time Notice */}
-            {generatedSecret && (
-              <div className="p-4 bg-emerald-950/40 border border-emerald-700/60 rounded-2xl space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>New Secret API Key Generated! Copy it now (will never be displayed again):</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={generatedSecret}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-xs font-mono text-emerald-400 outline-none select-all"
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generatedSecret);
-                      showToast('API Key copied to clipboard.');
-                    }}
-                    className="px-3 py-2 bg-emerald-500 text-zinc-950 font-bold text-xs rounded-xl cursor-pointer"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Create API Key Box */}
-            <form onSubmit={handleCreateApiKey} className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-4 text-xs">
-              <h4 className="font-bold text-zinc-200 uppercase tracking-wider text-[11px]">Generate New Service Key</h4>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-zinc-400 mb-1 font-semibold">Key Identifier / Integration Name</label>
-                  <input
-                    type="text"
-                    value={newKeyName}
-                    onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder="e.g. Telegram Bot Dispatcher or Discord Sync"
-                    required
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-zinc-400 mb-1 font-semibold">Rate Limit (Req/Hour)</label>
-                  <input
-                    type="number"
-                    defaultValue={2000}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-zinc-100 font-mono outline-none"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/10 cursor-pointer transition-all"
-              >
-                Generate Token
-              </button>
-            </form>
-
-            {/* Existing Keys Table */}
-            <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-4">
-              <h4 className="font-bold text-zinc-200 uppercase tracking-wider text-[11px]">Active Service Keys ({apiKeys.length})</h4>
-              
-              <div className="space-y-2.5 text-xs">
-                {apiKeys.map((k) => (
-                  <div key={k.id} className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-zinc-100">{k.name}</span>
-                        <span className="font-mono text-[10px] text-zinc-500">{k.prefix}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${k.status === 'active' ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'}`}>
-                          {k.status}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">Rate: {k.rateLimit} req/hr • Last Used: {k.lastUsed}</p>
-                    </div>
-
-                    {k.status === 'active' && (
-                      <button
-                        onClick={() => revokeApiKey(k.id)}
-                        className="px-3 py-1 bg-rose-950/60 text-rose-300 border border-rose-800/80 rounded-lg text-xs hover:bg-rose-900 transition-colors cursor-pointer"
-                      >
-                        Revoke Key
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
+        {/* 4.1 REVIEWS & CUSTOMER TESTIMONIAL MODERATION */}
+        {activeSection === 'reviews' && (
+          <div className="space-y-6">
+            <AdminReviewsModeration />
           </div>
         )}
 
@@ -1585,47 +1512,76 @@ export const AdminDashboard: React.FC = () => {
                     )}
 
                     {/* Admin Action Buttons */}
-                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-                      <button
-                        onClick={() => {
-                          setAdminChatOrder(co);
-                        }}
-                        className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 font-medium text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
-                      >
-                        <Mail className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Artisan Chat ({co.messages.length})</span>
-                      </button>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-zinc-800">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-zinc-500 font-mono">Assigned:</span>
+                        <span className="text-xs font-bold text-zinc-300">
+                          {co.assignedAdminName || 'Hamza (Master Atelier)'}
+                        </span>
+                        {co.conversationStatus && (
+                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border uppercase ${
+                            co.conversationStatus === 'waiting_on_customer'
+                              ? 'bg-amber-950/60 border-amber-800 text-amber-300'
+                              : co.conversationStatus === 'waiting_on_artisan'
+                              ? 'bg-rose-950/60 border-rose-800 text-rose-300 animate-pulse'
+                              : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                          }`}>
+                            {co.conversationStatus.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                      </div>
 
-                      <button
-                        onClick={() => {
-                          setStatusModalOrder(co);
-                          setNextCustomStatus(co.status);
-                          setCustomCarrier(co.carrier || 'BlueDart Apex Priority');
-                          setCustomTrackingAwb(co.trackingNumber || '');
-                          setCustomTrackingUrl(co.trackingUrl || '');
-                        }}
-                        className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-medium text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
-                      >
-                        <Sliders className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Advance Workflow Status</span>
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setAdminChatOrder(co);
+                          }}
+                          className={`px-3.5 py-2 font-medium text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors ${
+                            (co.unreadCountAdmin ?? 0) > 0
+                              ? 'bg-rose-500 text-white font-bold animate-pulse shadow-lg shadow-rose-500/20'
+                              : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700'
+                          }`}
+                        >
+                          <Mail className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Artisan Chat ({co.messages.length})</span>
+                          {(co.unreadCountAdmin ?? 0) > 0 && (
+                            <span className="px-1.5 py-0.2 bg-white text-rose-600 rounded-full text-[9px] font-bold">
+                              {co.unreadCountAdmin} new
+                            </span>
+                          )}
+                        </button>
 
-                      <button
-                        onClick={() => {
-                          setQuoteOrderId(co.id);
-                          if (co.quote) {
-                            setQuoteAmount(co.quote.amount);
-                            setQuoteDays(co.quote.turnaroundDays);
-                            setQuotePackaging(co.quote.packagingIncluded);
-                            setQuoteNotes(co.quote.notes || '');
-                            setQuoteProofUrl(co.quote.designProofUrl || '');
-                          }
-                        }}
-                        className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5"
-                      >
-                        <DollarSign className="w-3.5 h-3.5" />
-                        <span>{co.quote ? 'Revise Quotation & CAD' : 'Issue Official Quotation'}</span>
-                      </button>
+                        <button
+                          onClick={() => {
+                            setStatusModalOrder(co);
+                            setNextCustomStatus(co.status);
+                            setCustomCarrier(co.carrier || 'BlueDart Apex Priority');
+                            setCustomTrackingAwb(co.trackingNumber || '');
+                            setCustomTrackingUrl(co.trackingUrl || '');
+                          }}
+                          className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-medium text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Sliders className="w-3.5 h-3.5 text-sky-400" />
+                          <span>Advance Workflow Status</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setQuoteOrderId(co.id);
+                            if (co.quote) {
+                              setQuoteAmount(co.quote.amount);
+                              setQuoteDays(co.quote.turnaroundDays);
+                              setQuotePackaging(co.quote.packagingIncluded);
+                              setQuoteNotes(co.quote.notes || '');
+                              setQuoteProofUrl(co.quote.designProofUrl || '');
+                            }
+                          }}
+                          className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5"
+                        >
+                          <DollarSign className="w-3.5 h-3.5" />
+                          <span>{co.quote ? 'Revise Quotation & CAD' : 'Issue Official Quotation'}</span>
+                        </button>
+                      </div>
                     </div>
 
                   </div>
@@ -2314,15 +2270,104 @@ export const AdminDashboard: React.FC = () => {
       {/* 2.2 ARTISAN DIRECT CHAT DRAWER */}
       {adminChatOrder && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl flex flex-col h-[600px]">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <div>
-                <h3 className="font-serif font-bold text-zinc-100 text-sm">Direct Artisan Messaging</h3>
-                <p className="text-[11px] text-zinc-400">
-                  Client: <strong className="text-zinc-200">{adminChatOrder.customerName}</strong> • Ref: <span className="font-mono text-amber-400">{adminChatOrder.requestNumber}</span>
-                </p>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl flex flex-col h-[700px]">
+            {/* Header with Assignment & Conversation Status */}
+            <div className="border-b border-zinc-800 pb-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <h3 className="font-serif font-bold text-zinc-100 text-sm">Direct Artisan Messaging Console</h3>
+                  <span className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 px-2 py-0.5 rounded">
+                    Supabase Realtime
+                  </span>
+                </div>
+                <button onClick={() => setAdminChatOrder(null)} className="text-zinc-400 hover:text-zinc-200 text-sm cursor-pointer">✕</button>
               </div>
-              <button onClick={() => setAdminChatOrder(null)} className="text-zinc-400 hover:text-zinc-200">✕</button>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] bg-zinc-900/60 p-2.5 rounded-2xl border border-zinc-800">
+                <div>
+                  <span className="text-zinc-400">Patron: </span>
+                  <strong className="text-zinc-200">{adminChatOrder.customerName}</strong>
+                  <span className="text-zinc-500 ml-1">({adminChatOrder.customerEmail})</span>
+                  <span className="mx-2 text-zinc-600">•</span>
+                  <span className="text-zinc-400">Order: </span>
+                  <span className="font-mono text-amber-400 font-bold">{adminChatOrder.requestNumber}</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Assign Staff */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-500 font-mono text-[10px]">Staff:</span>
+                    <select
+                      value={adminChatOrder.assignedAdminName || 'Hamza (Master Atelier)'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        assignCustomOrderStaff(adminChatOrder.id, 'admin-1', val);
+                        showToast(`Custom order assigned to ${val}`);
+                      }}
+                      className="bg-zinc-950 border border-zinc-700 text-zinc-200 text-[11px] rounded-lg px-2 py-1 outline-none focus:border-amber-400"
+                    >
+                      <option value="Hamza (Master Atelier)">Hamza (Master Atelier)</option>
+                      <option value="Lucas (3D CAD Engineer)">Lucas (3D CAD Engineer)</option>
+                      <option value="Elena (Laser & Metallurgy)">Elena (Laser & Metallurgy)</option>
+                      <option value="Sarah (Client Concierge)">Sarah (Client Concierge)</option>
+                    </select>
+                  </div>
+
+                  {/* Conversation Status */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-500 font-mono text-[10px]">Status:</span>
+                    <select
+                      value={adminChatOrder.conversationStatus || 'waiting_on_customer'}
+                      onChange={(e) => {
+                        const val = e.target.value as any;
+                        updateCustomOrderConversationStatus(adminChatOrder.id, val);
+                        showToast(`Conversation marked as ${val.replace(/_/g, ' ')}`);
+                      }}
+                      className="bg-zinc-950 border border-zinc-700 text-zinc-200 text-[11px] rounded-lg px-2 py-1 outline-none focus:border-amber-400"
+                    >
+                      <option value="waiting_on_customer">Waiting on Patron</option>
+                      <option value="waiting_on_artisan">Waiting on Artisan</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick response chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[10px]">
+              <span className="text-zinc-500 shrink-0 font-mono">Quick reply:</span>
+              <button
+                type="button"
+                onClick={() => handleSendAdminChat(undefined, 'We have prepared your quotation and CAD specifications. Please review them at your convenience.')}
+                className="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg border border-zinc-800 shrink-0 cursor-pointer"
+              >
+                Quotation Issued
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendAdminChat(undefined, 'Your revised 3D CAD blueprint is rendered and attached below for your approval.')}
+                className="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg border border-zinc-800 shrink-0 cursor-pointer"
+              >
+                CAD Blueprint Ready
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendAdminChat(undefined, 'Your custom keepsake is currently on our atelier bench undergoing titanium laser engraving.')}
+                className="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg border border-zinc-800 shrink-0 cursor-pointer"
+              >
+                Engraving On Bench
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSendAdminChat(undefined, 'Quality inspection complete. Your parcel has been packed in velvet and dispatched via priority courier.')}
+                className="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg border border-zinc-800 shrink-0 cursor-pointer"
+              >
+                Dispatched via Courier
+              </button>
             </div>
 
             {/* Chat Thread */}
@@ -2331,18 +2376,41 @@ export const AdminDashboard: React.FC = () => {
                 const isAdmin = m.sender === 'admin';
                 return (
                   <div key={m.id} className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
-                    <span className="text-[10px] text-zinc-500 font-mono mb-0.5">
-                      {isAdmin ? 'HARCONXS Atelier' : m.senderName} • {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <div className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${
-                      isAdmin ? 'bg-amber-400 text-zinc-950 font-medium rounded-tr-none' : 'bg-zinc-850 text-zinc-200 rounded-tl-none border border-zinc-700'
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[10px] text-zinc-500 font-mono">
+                        {isAdmin ? 'HARCONXS Atelier' : m.senderName} • {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {isAdmin && (
+                        <span className="text-[9px] text-zinc-500 font-mono">
+                          {m.readByCustomer ? '✓✓ Seen by Patron' : '✓ Delivered'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className={`p-3.5 rounded-2xl max-w-[85%] leading-relaxed ${
+                      isAdmin ? 'bg-amber-400 text-zinc-950 font-medium rounded-tr-none shadow-md' : 'bg-zinc-900 text-zinc-200 rounded-tl-none border border-zinc-800'
                     }`}>
                       <p>{m.text}</p>
+
+                      {/* Attachments preview */}
                       {m.attachments && m.attachments.length > 0 && (
-                        <div className="mt-2 flex gap-2 overflow-x-auto">
-                          {m.attachments.map((att, i) => (
-                            <img key={i} src={att} alt="" className="w-16 h-16 rounded-lg object-cover border border-zinc-700 bg-zinc-900" />
-                          ))}
+                        <div className="mt-2.5 space-y-2 border-t border-black/10 pt-2">
+                          <div className="flex gap-2 overflow-x-auto">
+                            {m.attachments.map((att, i) => (
+                              <a
+                                key={i}
+                                href={att}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="relative group block w-20 h-20 rounded-xl overflow-hidden border border-black/20 bg-black/5"
+                              >
+                                <img src={att} alt="" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold transition-opacity">
+                                  View
+                                </div>
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2351,31 +2419,59 @@ export const AdminDashboard: React.FC = () => {
               })}
             </div>
 
-            {/* Attachment preview in chat */}
+            {/* CAD Proof Upload Metadata options if attachment selected */}
             {adminChatAttachments.length > 0 && (
-              <div className="flex gap-2 pt-2 border-t border-zinc-800">
-                {adminChatAttachments.map((url, i) => (
-                  <div key={i} className="relative w-12 h-12 rounded overflow-hidden border border-zinc-700">
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setAdminChatAttachments([])}
-                      className="absolute top-0 right-0 bg-black/80 text-white text-[8px] p-0.5"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+              <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-zinc-200">Attached File(s)</span>
+                  <button
+                    type="button"
+                    onClick={() => setAdminChatAttachments([])}
+                    className="text-[10px] text-rose-400 hover:underline cursor-pointer"
+                  >
+                    Clear attachments
+                  </button>
+                </div>
+
+                <div className="flex gap-2">
+                  {adminChatAttachments.map((url, i) => (
+                    <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-zinc-700">
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1 border-t border-zinc-800">
+                  <label className="flex items-center gap-1.5 text-xs text-amber-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isAdminProofUpload}
+                      onChange={(e) => setIsAdminProofUpload(e.target.checked)}
+                      className="rounded border-zinc-700 bg-zinc-950 text-amber-400"
+                    />
+                    <span>Mark as Official 3D CAD Blueprint Proof</span>
+                  </label>
+                  {isAdminProofUpload && (
+                    <input
+                      type="text"
+                      value={adminProofTitle}
+                      onChange={(e) => setAdminProofTitle(e.target.value)}
+                      placeholder="Blueprint Title (e.g. Dimensions v2.1)"
+                      className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-zinc-100 outline-none"
+                    />
+                  )}
+                </div>
               </div>
             )}
 
             {/* Input Composer */}
-            <form onSubmit={handleSendAdminChat} className="pt-2 border-t border-zinc-800 flex items-center gap-2">
-              <label className="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 rounded-xl cursor-pointer border border-zinc-800" title="Attach image">
-                <Plus className="w-4 h-4" />
+            <form onSubmit={(e) => handleSendAdminChat(e)} className="pt-2 border-t border-zinc-800 flex items-center gap-2">
+              <label className="p-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-xl cursor-pointer border border-zinc-800 flex items-center gap-1 text-xs" title="Upload design file or CAD blueprint">
+                <Plus className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline">Attach</span>
                 <input
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/*,.pdf,.dwg,.dxf"
                   onChange={handleAdminChatFileUpload}
                   className="hidden"
                   disabled={isAdminUploadingChatFile}
@@ -2386,16 +2482,17 @@ export const AdminDashboard: React.FC = () => {
                 type="text"
                 value={adminChatInput}
                 onChange={(e) => setAdminChatInput(e.target.value)}
-                placeholder="Type response from master artisan..."
-                className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 outline-none focus:border-amber-400"
+                placeholder="Type response from master artisan / atelier team..."
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 outline-none focus:border-amber-400 placeholder-zinc-500"
               />
 
               <button
                 type="submit"
                 disabled={!adminChatInput.trim() && adminChatAttachments.length === 0}
-                className="px-4 py-2 bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-zinc-950 font-bold text-xs rounded-xl cursor-pointer"
+                className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-zinc-950 font-bold text-xs rounded-xl cursor-pointer transition-all shadow-md flex items-center gap-1.5"
               >
-                Send
+                <Send className="w-3.5 h-3.5" />
+                <span>Send</span>
               </button>
             </form>
           </div>

@@ -488,27 +488,84 @@ CREATE TABLE IF NOT EXISTS public.bot_subscriptions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.api_keys (
+-- ==============================================================================
+-- 13. INTERNAL API INFRASTRUCTURE (CLIENTS, SCOPES, HASHED KEYS & TELEMETRY)
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.api_clients (
     id TEXT PRIMARY KEY,
-    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    prefix TEXT NOT NULL,
-    key_hash TEXT,
-    rate_limit INTEGER DEFAULT 120,
-    request_count INTEGER DEFAULT 0,
-    permissions TEXT[] DEFAULT '{"read:products", "read:orders"}',
-    status TEXT DEFAULT 'active',
-    last_used TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    client_code TEXT UNIQUE NOT NULL, -- 'HARCONXS-WEB', 'HARCONXS-TELEGRAM', 'HARCONXS-DISCORD', 'HARCONXS-WORDPRESS', 'HARCONXS-ADMIN'
+    client_type TEXT NOT NULL DEFAULT 'internal_bot', -- 'internal_bot', 'internal_app', 'admin_cli'
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    rate_limit_per_minute INTEGER DEFAULT 120,
+    default_scopes TEXT[] DEFAULT '{"products:read", "faq:read", "chat:use"}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.api_usage_logs (
+CREATE TABLE IF NOT EXISTS public.api_key_scopes (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL
+);
+
+INSERT INTO public.api_key_scopes (id, name, description, category) VALUES
+('products:read', 'Read Products Catalog', 'Query products, variants, categories and live inventory', 'Catalog'),
+('orders:read', 'Read Order Status & Tracking', 'Query order tracking milestones and delivery updates', 'Orders'),
+('support:read', 'Read Support Tickets', 'Access customer support threads and knowledge tickets', 'Support & Chat'),
+('support:write', 'Create Support Tickets & Replies', 'Submit customer tickets and bot response messages', 'Support & Chat'),
+('chat:use', 'Access AI Support Intelligence', 'Send messages to HARCONXS grounded AI support engine', 'Support & Chat'),
+('custom_orders:read', 'Read Custom Order Statuses', 'Query bespoke atelier custom order briefs and design proofs', 'Custom'),
+('custom_orders:write', 'Submit Custom Order Briefs', 'Create custom gifting requests and attach references', 'Custom'),
+('faq:read', 'Read Knowledge Base & Policies', 'Retrieve store FAQs, refund policy and shipping tariffs', 'Knowledge'),
+('couple_websites:read', 'Read Couple Websites', 'Query romantic couple sanctuary templates and active projects', 'Knowledge'),
+('bot_services:read', 'Read Bot Panel Catalog', 'Query available Telegram, Discord, and WordPress bot panel tiers', 'Knowledge'),
+('admin:all', 'Root Administrative Access', 'Full internal unrestricted scope for administrative tooling', 'System')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.api_clients (id, name, client_code, client_type, description, is_active, rate_limit_per_minute, default_scopes) VALUES
+('client_web', 'HARCONXS Web Platform', 'HARCONXS-WEB', 'internal_app', 'Official HARCONXS Web Storefront Client & Embedded AI Assistant', true, 180, '{"products:read", "orders:read", "support:read", "support:write", "chat:use", "custom_orders:read", "custom_orders:write", "faq:read", "couple_websites:read", "bot_services:read"}'),
+('client_telegram', 'HARCONXS Telegram Support Bot', 'HARCONXS-TELEGRAM', 'internal_bot', 'Official Telegram Bot for Customer Inquiries, Order Tracking & Custom Gifting', true, 90, '{"products:read", "orders:read", "support:write", "chat:use", "custom_orders:read", "faq:read"}'),
+('client_discord', 'HARCONXS Discord Community Bot', 'HARCONXS-DISCORD', 'internal_bot', 'Official Discord Bot for Community Support, VIP Drops & Atelier Updates', true, 90, '{"products:read", "orders:read", "support:write", "chat:use", "faq:read"}'),
+('client_wordpress', 'HARCONXS WordPress Bridge Plugin', 'HARCONXS-WORDPRESS', 'internal_app', 'Official WordPress / WooCommerce Catalog Sync & Support Widget', true, 120, '{"products:read", "faq:read", "chat:use"}'),
+('client_admin', 'HARCONXS Admin Internal CLI', 'HARCONXS-ADMIN', 'admin_cli', 'Master Administrative CLI & Automated Worker Tools', true, 300, '{"admin:all", "products:read", "orders:read", "support:read", "support:write", "chat:use", "custom_orders:read", "custom_orders:write", "faq:read"}')
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.api_keys (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL REFERENCES public.api_clients(id) ON DELETE CASCADE,
+    client_name TEXT NOT NULL,
+    name TEXT NOT NULL,
+    key_prefix TEXT NOT NULL, -- e.g. hx_live_tg_8f93... (first 14 chars for safe identification)
+    key_hash TEXT NOT NULL UNIQUE, -- SHA-256 hash of secret key (never stored plaintext)
+    scopes JSONB NOT NULL DEFAULT '["products:read", "faq:read", "chat:use"]'::jsonb,
+    rate_limit INTEGER DEFAULT 120,
+    usage_count INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'revoked', 'expired')),
+    expires_at TIMESTAMP WITH TIME ZONE,
+    last_used_at TIMESTAMP WITH TIME ZONE,
+    last_ip TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    revoked_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS public.api_key_usage (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    api_key_id TEXT REFERENCES public.api_keys(id) ON DELETE CASCADE,
+    request_id TEXT NOT NULL,
+    key_id TEXT REFERENCES public.api_keys(id) ON DELETE SET NULL,
+    client_id TEXT REFERENCES public.api_clients(id) ON DELETE SET NULL,
+    client_name TEXT NOT NULL,
     endpoint TEXT NOT NULL,
     method TEXT NOT NULL,
     status_code INTEGER NOT NULL,
+    response_time_ms NUMERIC(8, 2) NOT NULL,
     ip_address TEXT,
+    user_agent TEXT,
+    scopes_used TEXT[],
+    error_message TEXT,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

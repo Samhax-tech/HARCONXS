@@ -17,7 +17,10 @@ import {
   YouTubeVideoItem,
   SocialLinksConfig,
   EmailNotification,
-  BillingInvoice
+  BillingInvoice,
+  KnowledgeCategory,
+  KnowledgeArticle,
+  FaqItem
 } from '../types';
 
 
@@ -771,23 +774,37 @@ export const INITIAL_SAMPLE_COUPLE_WEBSITES: CoupleWebsiteProject[] = [
 export const INITIAL_API_KEYS: ApiKeyRecord[] = [
   {
     id: 'key-1',
+    clientId: 'cli_discord',
+    clientName: 'HARCONXS Discord Bot',
     name: 'Production Discord Bot Sync',
+    keyPrefix: 'hx_live_89a1',
+    keyHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    scopes: ['read:orders', 'read:products', 'chat:grounded'],
     prefix: 'hx_live_89a1...492b',
     createdAt: '2026-07-01',
     lastUsed: 'Just now',
+    lastUsedAt: '2026-08-19T06:00:00Z',
     rateLimit: 120,
     requestCount: 14820,
+    usageCount: 14820,
     permissions: ['orders.read', 'bot.broadcast', 'webhooks.manage'],
     status: 'active'
   },
   {
     id: 'key-2',
+    clientId: 'cli_telegram',
+    clientName: 'HARCONXS Telegram Bot',
     name: 'Telegram VIP Webhook Gateway',
+    keyPrefix: 'hx_live_33f2',
+    keyHash: 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb',
+    scopes: ['read:orders', 'write:support', 'chat:grounded'],
     prefix: 'hx_live_33f2...99ca',
     createdAt: '2026-07-15',
     lastUsed: '2 hours ago',
+    lastUsedAt: '2026-08-19T04:00:00Z',
     rateLimit: 60,
     requestCount: 3940,
+    usageCount: 3940,
     permissions: ['bot.verify_member', 'coupons.validate'],
     status: 'active'
   }
@@ -1265,4 +1282,265 @@ export const INITIAL_THEME_CONFIG = {
   supportPhone: '+91 98200 12890',
   freeShippingThreshold: 1500
 };
+
+export const INITIAL_KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
+  {
+    id: 'kc-shipping',
+    name: 'Shipping & Delivery',
+    slug: 'shipping-delivery',
+    description: 'Dispatch timelines, domestic & worldwide courier partners, real-time live tracking, and tamper-proof insured packaging.',
+    icon: 'Truck',
+    displayOrder: 1,
+    articleCount: 3
+  },
+  {
+    id: 'kc-returns',
+    name: 'Returns & Refunds',
+    slug: 'returns-refunds',
+    description: '30-day money-back guarantee, non-customized product returns, damaged in transit replacements, and refund methods.',
+    icon: 'RotateCcw',
+    displayOrder: 2,
+    articleCount: 3
+  },
+  {
+    id: 'kc-custom',
+    name: 'Custom & Personalized Orders',
+    slug: 'custom-orders',
+    description: 'Laser engraving specs, 3D brief submission, custom quotation #CO workflows, design approvals, and master jewelers.',
+    icon: 'Sparkles',
+    displayOrder: 3,
+    articleCount: 4
+  },
+  {
+    id: 'kc-couple-sites',
+    name: 'Couple Websites & Sanctuaries',
+    slug: 'couple-websites',
+    description: 'Subdomains, anniversary live countdown timers, multimedia galleries, background audio tracks, guestbook moderation, and custom domains.',
+    icon: 'Heart',
+    displayOrder: 4,
+    articleCount: 3
+  },
+  {
+    id: 'kc-bots',
+    name: 'Bot Panels & Digital Infrastructure',
+    slug: 'bot-panels',
+    description: 'Telegram VIP gateways, Discord bot moderation dashboards, WhatsApp CRM automation, API rate limits, and private billing portals.',
+    icon: 'Bot',
+    displayOrder: 5,
+    articleCount: 3
+  },
+  {
+    id: 'kc-payments',
+    name: 'Payments & Store Credit',
+    slug: 'payments-billing',
+    description: 'UPI, Credit/Debit cards, NetBanking, Razorpay PG, Cashfree, GST invoices, discount promo codes, and loyalty reward redemption.',
+    icon: 'CreditCard',
+    displayOrder: 6,
+    articleCount: 2
+  }
+];
+
+export const INITIAL_KNOWLEDGE_ARTICLES: KnowledgeArticle[] = [
+  {
+    id: 'ka-1',
+    categoryId: 'kc-shipping',
+    categoryName: 'Shipping & Delivery',
+    slug: 'delivery-times-and-rates',
+    title: 'Standard and Express Delivery Timelines',
+    summary: 'Standard delivery takes 3-5 business days across domestic metros. Express courier arrives in 1-2 business days with full GPS tracking.',
+    content: `All HARCONXS orders are securely packed and dispatched from our primary fulfillment centers within 24 to 48 hours.
+
+### Delivery Windows
+- **Metro Cities (Delhi, Mumbai, Bengaluru, etc.):** 2 to 4 business days.
+- **Rest of Country:** 4 to 6 business days.
+- **Express Guaranteed Courier:** 24 to 48 hours for eligible zip codes.
+- **International Orders:** 7 to 12 business days via DHL Express / FedEx Global.
+
+### Free Shipping Threshold
+Orders exceeding ₹1,500 ($50 USD equivalent) qualify for 100% Free Insured Shipping.
+
+### Real-Time Tracking
+Once your package is packed and handed over to our courier partner (BlueDart, Delhivery, or DHL), you will receive an automated SMS and Email with your tracking link. You can also monitor your live shipment progress directly in your My Account > Orders tab or by asking our AI concierge with your authenticated account.`,
+    tags: ['shipping', 'delivery', 'tracking', 'courier', 'express', 'free shipping'],
+    views: 3420,
+    helpfulVotes: 288,
+    isFeatured: true,
+    createdAt: '2026-06-01T00:00:00Z',
+    updatedAt: '2026-08-10T00:00:00Z'
+  },
+  {
+    id: 'ka-2',
+    categoryId: 'kc-returns',
+    categoryName: 'Returns & Refunds',
+    slug: 'returns-and-refund-policy',
+    title: '30-Day Return Window and Damaged Replacement Guarantee',
+    summary: 'Non-customized physical products are eligible for a 30-day hassle-free return. Personalized laser-engraved items are protected with a free replacement if defective or damaged.',
+    content: `We take extraordinary pride in the craftsmanship of every HARCONXS creation.
+
+### Physical Ready-Made Items
+You can initiate a return or exchange within **30 days** of delivery. The item must be unworn, in original packaging with protective seals intact.
+
+### Personalized & Bespoke Items
+Because personalized products (e.g. custom laser coordinates, photo projection jewelry, engraved nameplates) are handcrafted exclusively to your custom specifications, they are exempt from standard remorse returns. However:
+- If your personalized piece arrives damaged or has a transcription flaw caused by our atelier, we provide a **100% free immediate replacement or full store credit**.
+
+### How to Request a Refund or Return
+1. Navigate to **My Account > Orders > Request Return** or open a Support Ticket.
+2. Our customer concierge team approves requests within 12 business hours.
+3. Refunds are credited to your original payment method within 3-5 bank business days after inspection.`,
+    tags: ['returns', 'refunds', 'replacement', 'warranty', 'money back'],
+    views: 2910,
+    helpfulVotes: 215,
+    isFeatured: true,
+    createdAt: '2026-06-01T00:00:00Z',
+    updatedAt: '2026-08-12T00:00:00Z'
+  },
+  {
+    id: 'ka-3',
+    categoryId: 'kc-custom',
+    categoryName: 'Custom & Personalized Orders',
+    slug: 'custom-order-quotation-workflow',
+    title: 'How Custom Bespoke Orders & Quotations (#CO) Work',
+    summary: 'Submit your bespoke brief with recipient, occasion, budget, and design inspirations. Our master jewelers provide a detailed 3D preview and official quote within 24 hours.',
+    content: `HARCONXS Atelier lets you bring any physical or digital concept into reality.
+
+### 4-Step Bespoke Process
+1. **Submit Your Brief:** Visit the "Create Something Special" custom builder. Select your recipient (Friend, Girlfriend, Boyfriend, Husband, Wife, Partner), occasion, budget, and upload any reference sketches or photos.
+2. **Atelier Review & Quotation:** Our master jewelers analyze your requirements and issue an official Quotation (e.g. #CO-10032) with fixed pricing, turnaround schedule, and 3D mockups.
+3. **Approval & Payment:** Review the quote in your Custom Projects dashboard. Accept or request adjustments, then complete payment securely.
+4. **Handcrafting & Delivery:** Watch real-time milestone updates through Design, Casting, Engraving, Quality Inspection, and Insured Dispatch.`,
+    tags: ['custom orders', 'bespoke', 'quotation', 'custom builder', 'engraving', 'brief'],
+    views: 4120,
+    helpfulVotes: 376,
+    isFeatured: true,
+    createdAt: '2026-06-05T00:00:00Z',
+    updatedAt: '2026-08-15T00:00:00Z'
+  },
+  {
+    id: 'ka-4',
+    categoryId: 'kc-couple-sites',
+    categoryName: 'Couple Websites & Sanctuaries',
+    slug: 'couple-website-features-and-setup',
+    title: 'Couple Sanctuary Websites: Setup, Custom Subdomains & Features',
+    summary: 'Create a permanent, interactive love sanctuary with live anniversary counters, romantic photo galleries, background acoustic audio, and customizable subdomains.',
+    content: `A HARCONXS Couple Sanctuary is an exclusive, private digital website dedicated to your romantic journey.
+
+### Included Features
+- **Live Anniversary & Relationship Timer:** Precise to the exact second.
+- **HD Story Timeline & Photo Galleries:** Curate milestones from your first date to today with cloud-optimized CDN streaming.
+- **Romantic Audio Player:** Set your favorite acoustic ballad as background music.
+- **Interactive Love Guestbook:** Friends, family, or your partner can leave heartfelt messages.
+- **Secret Valentine Letter & Video Capsule:** Password-locked surprise reveal for special dates.
+- **Subdomain / Custom Domain:** Choose your custom address like \`alex-and-sarah.harconxsshop.com\` or connect your own domain (\`.love\`, \`.com\`).
+
+### Instant Generation & Lifetime Cloud Hosting
+Upon checkout, your sanctuary is deployed instantly with an easy-to-use customer management dashboard to update photos and memories anytime.`,
+    tags: ['couple website', 'anniversary', 'relationship timer', 'guestbook', 'music', 'subdomain'],
+    views: 3880,
+    helpfulVotes: 340,
+    isFeatured: true,
+    createdAt: '2026-06-10T00:00:00Z',
+    updatedAt: '2026-08-16T00:00:00Z'
+  },
+  {
+    id: 'ka-5',
+    categoryId: 'kc-bots',
+    categoryName: 'Bot Panels & Digital Infrastructure',
+    slug: 'bot-panel-services-and-api',
+    title: 'Bot Panels, Webhooks & Private Billing Integrations',
+    summary: 'Explore our enterprise-grade Telegram VIP portals, Discord community bots, WhatsApp CRM systems, and developer API keys with sub-50ms latency.',
+    content: `HARCONXS Digital Infrastructure provides turnkey hosting and management panels for conversational automation.
+
+### Available Digital Bot Services
+1. **Telegram VIP Member Portal:** Automated payment-to-invite link issuance, subscription expiry kicks, and real-time broadcasts.
+2. **Discord Bot Suite:** Server economy, role synchronization, auto-moderation, and custom commands.
+3. **WhatsApp Business CRM Panel:** Multi-agent inbox, automated dispatch notifications, and template broadcasts.
+
+### Private Billing Separation
+All bot hosting subscriptions, plan upgrades, and recurring billing are managed via the dedicated Private Billing Portal for maximum enterprise security and isolation.
+
+### Developer API Access
+Customers can generate secure scoped API tokens (\`read:products\`, \`read:orders\`, \`chat:use\`) under My Account > API Keys to integrate with custom headless bots and websites.`,
+    tags: ['bot panels', 'telegram', 'discord', 'whatsapp', 'api keys', 'webhooks', 'private billing'],
+    views: 2650,
+    helpfulVotes: 198,
+    isFeatured: false,
+    createdAt: '2026-06-15T00:00:00Z',
+    updatedAt: '2026-08-17T00:00:00Z'
+  }
+];
+
+export const INITIAL_FAQ_ITEMS: FaqItem[] = [
+  {
+    id: 'faq-1',
+    categoryId: 'kc-shipping',
+    categoryName: 'Shipping & Delivery',
+    question: 'How do I track my order status?',
+    answer: 'You can check your live order and shipment status at any time by signing into your account, navigating to My Account > Orders, or simply asking our AI concierge "Where is my order?" while logged in. You will see carrier details, real-time GPS milestones, and estimated delivery dates.',
+    tags: ['tracking', 'order status', 'shipment', 'delivery'],
+    orderIndex: 1,
+    isFeatured: true
+  },
+  {
+    id: 'faq-2',
+    categoryId: 'kc-custom',
+    categoryName: 'Custom & Personalized Orders',
+    question: 'Can I preview my custom laser engraving before it is crafted?',
+    answer: 'Yes! Our online Personalizer provides an instant interactive live 3D visual preview. For bespoke custom orders (#CO), our jeweler atelier provides a comprehensive digital proof for your sign-off before manufacturing begins.',
+    tags: ['custom preview', 'engraving', 'personalizer', '3d mockup'],
+    orderIndex: 2,
+    isFeatured: true
+  },
+  {
+    id: 'faq-3',
+    categoryId: 'kc-returns',
+    categoryName: 'Returns & Refunds',
+    question: 'What is your refund policy if an item arrives damaged?',
+    answer: 'If your package arrives defective or damaged during transit, notify us within 48 hours of delivery. We will dispatch a 100% free expedited replacement immediately with no return hassle.',
+    tags: ['damaged', 'refund', 'replacement', 'warranty'],
+    orderIndex: 3,
+    isFeatured: true
+  },
+  {
+    id: 'faq-4',
+    categoryId: 'kc-couple-sites',
+    categoryName: 'Couple Websites & Sanctuaries',
+    question: 'How long does a couple website stay online?',
+    answer: 'All HARCONXS Couple Sanctuaries remain active for the duration of your chosen plan (1 Year, 3 Years, or Lifetime Eternity pass). You can renew or upgrade your hosting anytime from your project dashboard with 100% data preservation.',
+    tags: ['couple website', 'expiry', 'hosting', 'renewal'],
+    orderIndex: 4,
+    isFeatured: true
+  },
+  {
+    id: 'faq-5',
+    categoryId: 'kc-payments',
+    categoryName: 'Payments & Store Credit',
+    question: 'What payment methods do you accept?',
+    answer: 'We accept all major UPI apps (Google Pay, PhonePe, Paytm), Credit & Debit Cards (Visa, MasterCard, Rupay, Amex), Net Banking across 50+ banks, Store Credit, and Cash on Delivery for physical items.',
+    tags: ['payment methods', 'upi', 'cards', 'cod', 'cashfree', 'razorpay'],
+    orderIndex: 5,
+    isFeatured: true
+  },
+  {
+    id: 'faq-6',
+    categoryId: 'kc-bots',
+    categoryName: 'Bot Panels & Digital Infrastructure',
+    question: 'How do I connect my Telegram or Discord bot to HARCONXS API?',
+    answer: 'Generate a private API key with the "chat:use" and "products:read" scopes under My Account > API Keys. Use our JSON endpoint POST /api/v1/chat with your API key header "X-HARCONXS-API-KEY" to ground your bot in live inventory and order data.',
+    tags: ['api', 'telegram bot', 'discord bot', 'integration', 'token'],
+    orderIndex: 6,
+    isFeatured: false
+  },
+  {
+    id: 'faq-7',
+    categoryId: 'kc-custom',
+    categoryName: 'Custom & Personalized Orders',
+    question: 'What luxury gift packaging options are available?',
+    answer: 'We offer Minimal Eco Kraft boxes (free), Velvet Midnight Luxury Boxes ($14.99) with gold foil embossing, and Romantic Eternal Rose Capsules ($24.99) featuring a preserved crimson rose and hidden secret compartment.',
+    tags: ['packaging', 'gift box', 'velvet box', 'rose capsule'],
+    orderIndex: 7,
+    isFeatured: true
+  }
+];
+
 

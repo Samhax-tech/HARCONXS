@@ -7,6 +7,8 @@ import {
   Order,
   CustomOrder,
   CustomOrderMessage,
+  CustomOrderAttachment,
+  CustomOrderConversationStatus,
   CustomOrderStatus,
   CoupleWebsiteProject,
   CoupleWebsiteTemplate,
@@ -18,7 +20,10 @@ import {
   BillingInvoice,
   EmailNotification,
   ThemeConfig,
-  DiscountCoupon
+  DiscountCoupon,
+  KnowledgeCategory,
+  KnowledgeArticle,
+  FaqItem
 } from '../types';
 
 /**
@@ -1124,159 +1129,6 @@ export async function updateOrderLogisticsInSupabase(
 // 3. CUSTOM ORDERS & BESPOKE QUOTES
 // ==============================================================================
 
-// ==============================================================================
-// 3. CUSTOM ORDERS & BESPOKE QUOTES (SUPABASE STORAGE & REALTIME)
-// ==============================================================================
-
-/**
- * Upload Custom Order Brief File (Photo, CAD Sketch, Monogram Vector, 3D file) to Supabase Storage
- */
-export async function uploadCustomOrderFileToSupabase(
-  file: File,
-  customOrderId?: string
-): Promise<{ success: boolean; url: string; fileName: string; fileSize: number; error?: string }> {
-  try {
-    const fileExt = file.name.split('.').pop() || 'png';
-    const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-    const filePath = customOrderId ? `${customOrderId}/${cleanFileName}` : `uploads/${cleanFileName}`;
-
-    // Attempt upload to Supabase Storage bucket 'custom-order-files'
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('custom-order-files')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    if (!uploadError && uploadData) {
-      const { data: publicUrlData } = supabase.storage
-        .from('custom-order-files')
-        .getPublicUrl(filePath);
-
-      if (publicUrlData?.publicUrl) {
-        return {
-          success: true,
-          url: publicUrlData.publicUrl,
-          fileName: file.name,
-          fileSize: file.size
-        };
-      }
-    }
-
-    // Fallback if bucket is unavailable or offline: convert to secure base64 Data URL
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve({
-          success: true,
-          url: reader.result as string,
-          fileName: file.name,
-          fileSize: file.size
-        });
-      };
-      reader.onerror = () => {
-        resolve({
-          success: false,
-          url: '',
-          fileName: file.name,
-          fileSize: file.size,
-          error: 'Failed to read file for upload.'
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  } catch (err: any) {
-    return {
-      success: false,
-      url: '',
-      fileName: file.name,
-      fileSize: file.size,
-      error: err?.message || 'File upload error'
-    };
-  }
-}
-
-/**
- * Subscribe to Real-time Updates for a specific Custom Order via Supabase Realtime Channels
- */
-export function subscribeToCustomOrderRealtime(
-  customOrderId: string,
-  onUpdate: (updatedOrder: Partial<CustomOrder>) => void
-): () => void {
-  try {
-    const channel = supabase
-      .channel(`custom_order_channel_${customOrderId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'custom_orders',
-          filter: `id=eq.${customOrderId}`
-        },
-        (payload: any) => {
-          if (payload.new) {
-            const row = payload.new;
-            onUpdate({
-              id: row.id,
-              requestNumber: row.request_number,
-              status: row.status,
-              quote: row.quote,
-              messages: row.messages || [],
-              carrier: row.carrier,
-              trackingNumber: row.tracking_number,
-              trackingUrl: row.tracking_url,
-              designProofUrl: row.design_proof_url,
-              updatedAt: row.updated_at
-            });
-          }
-        }
-      )
-      .on(
-        'broadcast',
-        { event: 'custom_order_message' },
-        (payload: any) => {
-          if (payload.payload?.customOrderId === customOrderId && payload.payload?.message) {
-            onUpdate({
-              messages: payload.payload.allMessages || [payload.payload.message]
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  } catch {
-    return () => {};
-  }
-}
-
-/**
- * Broadcast Custom Order Message to Supabase Realtime Channel
- */
-export async function broadcastCustomOrderMessage(
-  customOrderId: string,
-  message: CustomOrderMessage,
-  allMessages: CustomOrderMessage[]
-): Promise<void> {
-  try {
-    const channel = supabase.channel(`custom_order_channel_${customOrderId}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'custom_order_message',
-      payload: {
-        customOrderId,
-        message,
-        allMessages
-      }
-    });
-  } catch {
-    // Non-critical realtime broadcast fallback
-  }
-}
-
 export async function fetchCustomOrdersFromSupabase(): Promise<CustomOrder[] | null> {
   try {
     const { data, error } = await supabase
@@ -1319,6 +1171,12 @@ export async function fetchCustomOrdersFromSupabase(): Promise<CustomOrder[] | n
       timeline: row.timeline || [],
       quote: row.quote || undefined,
       messages: row.messages || [],
+      assignedAdminId: row.assigned_admin_id || undefined,
+      assignedAdminName: row.assigned_admin_name || undefined,
+      assignedAdminRole: row.assigned_admin_role || undefined,
+      conversationStatus: row.conversation_status || 'open',
+      unreadCountCustomer: Number(row.unread_count_customer || 0),
+      unreadCountAdmin: Number(row.unread_count_admin || 0),
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }));
@@ -1362,11 +1220,334 @@ export async function upsertCustomOrderInSupabase(customOrder: CustomOrder): Pro
       timeline: customOrder.timeline || [],
       quote: customOrder.quote || null,
       messages: customOrder.messages,
+      assigned_admin_id: customOrder.assignedAdminId || null,
+      assigned_admin_name: customOrder.assignedAdminName || null,
+      assigned_admin_role: customOrder.assignedAdminRole || null,
+      conversation_status: customOrder.conversationStatus || 'open',
+      unread_count_customer: customOrder.unreadCountCustomer || 0,
+      unread_count_admin: customOrder.unreadCountAdmin || 0,
       created_at: customOrder.createdAt,
       updated_at: new Date().toISOString()
     };
 
     const { error } = await supabase.from('custom_orders').upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Uploads a customer or artisan file to Supabase Storage ('custom-order-files' bucket)
+ * strictly enforcing organized pathing without local storage bloat.
+ */
+export async function uploadCustomOrderFileToSupabase(
+  file: File,
+  customOrderId?: string
+): Promise<{ success: boolean; url: string; fileName: string; fileSize?: number; error?: string }> {
+  try {
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const folder = customOrderId ? `orders/${customOrderId}` : 'drafts';
+    const filePath = `${folder}/${Date.now()}_${safeName}`;
+
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.storage
+        .from('custom-order-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (!error && data) {
+        const { data: publicUrlData } = supabase.storage
+          .from('custom-order-files')
+          .getPublicUrl(data.path);
+
+        return {
+          success: true,
+          url: publicUrlData.publicUrl,
+          fileName: file.name,
+          fileSize: file.size
+        };
+      }
+    }
+
+    // Fallback if client is in preview offline mode
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve({
+          success: true,
+          url: (e.target?.result as string) || URL.createObjectURL(file),
+          fileName: file.name,
+          fileSize: file.size
+        });
+      };
+      reader.onerror = () => {
+        resolve({
+          success: false,
+          url: '',
+          fileName: file.name,
+          error: 'Failed to read local file.'
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  } catch (err: any) {
+    return {
+      success: false,
+      url: '',
+      fileName: file.name,
+      error: err?.message || 'Storage upload failed.'
+    };
+  }
+}
+
+/**
+ * Subscribes in realtime to custom order channel and DB row changes
+ */
+export function subscribeToCustomOrderRealtime(
+  customOrderId: string,
+  onUpdate: (data: Partial<CustomOrder>) => void
+): () => void {
+  if (!customOrderId) return () => {};
+
+  try {
+    const channel = supabase.channel(`custom_order_${customOrderId}`);
+
+    channel
+      .on('broadcast', { event: 'new_message' }, (payload) => {
+        if (payload?.payload?.orderId === customOrderId && payload?.payload?.messages) {
+          onUpdate({
+            messages: payload.payload.messages,
+            unreadCountCustomer: payload.payload.unreadCountCustomer,
+            unreadCountAdmin: payload.payload.unreadCountAdmin,
+            conversationStatus: payload.payload.conversationStatus
+          });
+        }
+      })
+      .on('broadcast', { event: 'status_updated' }, (payload) => {
+        if (payload?.payload?.orderId === customOrderId) {
+          onUpdate(payload.payload.data);
+        }
+      })
+      .on('broadcast', { event: 'messages_read' }, (payload) => {
+        if (payload?.payload?.orderId === customOrderId && payload?.payload?.messages) {
+          onUpdate({
+            messages: payload.payload.messages,
+            unreadCountCustomer: payload.payload.unreadCountCustomer,
+            unreadCountAdmin: payload.payload.unreadCountAdmin
+          });
+        }
+      })
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'custom_orders', filter: `id=eq.${customOrderId}` },
+        (payload) => {
+          if (payload.new) {
+            const row = payload.new;
+            onUpdate({
+              status: row.status,
+              timeline: row.timeline || [],
+              messages: row.messages || [],
+              quote: row.quote || undefined,
+              designProofUrl: row.design_proof_url,
+              assignedAdminId: row.assigned_admin_id,
+              assignedAdminName: row.assigned_admin_name,
+              assignedAdminRole: row.assigned_admin_role,
+              conversationStatus: row.conversation_status,
+              unreadCountCustomer: Number(row.unread_count_customer || 0),
+              unreadCountAdmin: Number(row.unread_count_admin || 0),
+              updatedAt: row.updated_at
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  } catch {
+    return () => {};
+  }
+}
+
+/**
+ * Broadcasts a new message across the Supabase Realtime channel and persists it in the database
+ */
+export async function broadcastCustomOrderMessage(
+  customOrderId: string,
+  newMsg: CustomOrderMessage,
+  allMessages: CustomOrderMessage[],
+  currentOrder?: Partial<CustomOrder>
+): Promise<boolean> {
+  try {
+    const isFromAdmin = newMsg.sender === 'admin';
+    const unreadCustomer = isFromAdmin ? ((currentOrder?.unreadCountCustomer || 0) + 1) : 0;
+    const unreadAdmin = !isFromAdmin ? ((currentOrder?.unreadCountAdmin || 0) + 1) : 0;
+    const convStatus: CustomOrderConversationStatus = isFromAdmin ? 'waiting_on_customer' : 'waiting_on_artisan';
+
+    const { error } = await supabase
+      .from('custom_orders')
+      .update({
+        messages: allMessages,
+        conversation_status: convStatus,
+        unread_count_customer: unreadCustomer,
+        unread_count_admin: unreadAdmin,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', customOrderId);
+
+    // Broadcast across realtime channel
+    const channel = supabase.channel(`custom_order_${customOrderId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'new_message',
+      payload: {
+        orderId: customOrderId,
+        newMessage: newMsg,
+        messages: allMessages,
+        unreadCountCustomer: unreadCustomer,
+        unreadCountAdmin: unreadAdmin,
+        conversationStatus: convStatus
+      }
+    });
+
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Marks messages as read in Supabase and clears unread counter
+ */
+export async function markCustomOrderMessagesAsReadInSupabase(
+  customOrderId: string,
+  readerRole: 'customer' | 'admin',
+  currentMessages: CustomOrderMessage[]
+): Promise<{ success: boolean; messages: CustomOrderMessage[] }> {
+  try {
+    const nowIso = new Date().toISOString();
+    let hasChanged = false;
+
+    const updatedMessages = currentMessages.map(msg => {
+      // If customer is reading, mark admin messages as read
+      if (readerRole === 'customer' && msg.sender === 'admin' && !msg.isRead) {
+        hasChanged = true;
+        return { ...msg, isRead: true, readAt: nowIso, status: 'read' as const };
+      }
+      // If admin is reading, mark customer messages as read
+      if (readerRole === 'admin' && msg.sender === 'customer' && !msg.isRead) {
+        hasChanged = true;
+        return { ...msg, isRead: true, readAt: nowIso, status: 'read' as const };
+      }
+      return msg;
+    });
+
+    if (!hasChanged) {
+      return { success: true, messages: currentMessages };
+    }
+
+    const updates: Record<string, any> = {
+      messages: updatedMessages,
+      updated_at: nowIso
+    };
+
+    if (readerRole === 'customer') {
+      updates.unread_count_customer = 0;
+    } else {
+      updates.unread_count_admin = 0;
+    }
+
+    await supabase.from('custom_orders').update(updates).eq('id', customOrderId);
+
+    // Broadcast read receipt
+    const channel = supabase.channel(`custom_order_${customOrderId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'messages_read',
+      payload: {
+        orderId: customOrderId,
+        messages: updatedMessages,
+        unreadCountCustomer: readerRole === 'customer' ? 0 : undefined,
+        unreadCountAdmin: readerRole === 'admin' ? 0 : undefined
+      }
+    });
+
+    return { success: true, messages: updatedMessages };
+  } catch {
+    return { success: false, messages: currentMessages };
+  }
+}
+
+/**
+ * Assigns an atelier staff member to a custom order
+ */
+export async function assignCustomOrderStaffInSupabase(
+  customOrderId: string,
+  adminId: string,
+  adminName: string,
+  adminRole?: string
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('custom_orders')
+      .update({
+        assigned_admin_id: adminId,
+        assigned_admin_name: adminName,
+        assigned_admin_role: adminRole || 'Lead Custom Artisan',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', customOrderId);
+
+    const channel = supabase.channel(`custom_order_${customOrderId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'status_updated',
+      payload: {
+        orderId: customOrderId,
+        data: {
+          assignedAdminId: adminId,
+          assignedAdminName: adminName,
+          assignedAdminRole: adminRole || 'Lead Custom Artisan'
+        }
+      }
+    });
+
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Updates conversation status (open, in_progress, waiting_on_customer, etc.)
+ */
+export async function updateCustomOrderConversationStatusInSupabase(
+  customOrderId: string,
+  conversationStatus: CustomOrderConversationStatus
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('custom_orders')
+      .update({
+        conversation_status: conversationStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', customOrderId);
+
+    const channel = supabase.channel(`custom_order_${customOrderId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'status_updated',
+      payload: {
+        orderId: customOrderId,
+        data: { conversationStatus }
+      }
+    });
+
     return !error;
   } catch {
     return false;
@@ -1749,12 +1930,19 @@ export async function fetchApiKeysFromSupabase(): Promise<ApiKeyRecord[] | null>
 
     return data.map(row => ({
       id: row.id,
+      clientId: row.client_id || 'cli_custom',
+      clientName: row.client_name || row.name || 'Internal API Client',
       name: row.name,
-      prefix: row.prefix,
+      keyPrefix: row.key_prefix || row.prefix || 'har_live_',
+      keyHash: row.key_hash || '',
+      scopes: row.scopes || row.permissions || ['read:products'],
+      prefix: row.prefix || row.key_prefix,
       createdAt: row.created_at,
       lastUsed: row.last_used || 'Never',
+      lastUsedAt: row.last_used_at || row.last_used,
       rateLimit: Number(row.rate_limit || 120),
       requestCount: Number(row.request_count || 0),
+      usageCount: Number(row.usage_count || row.request_count || 0),
       permissions: row.permissions || ['read:products'],
       status: row.status || 'active'
     }));
@@ -1925,3 +2113,151 @@ export async function trackAnalyticsEvent(
     // Gracefully handle
   }
 }
+
+// ==============================================================================
+// 11. KNOWLEDGE BASE & FAQ ENGINE (SUPABASE POSTGRESQL)
+// ==============================================================================
+
+export async function fetchKnowledgeCategoriesFromSupabase(): Promise<KnowledgeCategory[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('knowledge_categories')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (error || !data || data.length === 0) return null;
+
+    return data.map(row => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      description: row.description || '',
+      icon: row.icon || 'HelpCircle',
+      displayOrder: Number(row.display_order || 0),
+      articleCount: Number(row.article_count || 0)
+    }));
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertKnowledgeCategoryInSupabase(cat: KnowledgeCategory): Promise<boolean> {
+  try {
+    const payload = {
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description,
+      icon: cat.icon,
+      display_order: cat.displayOrder
+    };
+
+    const { error } = await supabase.from('knowledge_categories').upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchKnowledgeArticlesFromSupabase(): Promise<KnowledgeArticle[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('knowledge_articles')
+      .select('*')
+      .order('helpful_votes', { ascending: false });
+
+    if (error || !data || data.length === 0) return null;
+
+    return data.map(row => ({
+      id: row.id,
+      categoryId: row.category_id,
+      categoryName: row.category_name,
+      slug: row.slug,
+      title: row.title,
+      content: row.content,
+      summary: row.summary || '',
+      tags: row.tags || [],
+      views: Number(row.views || 0),
+      helpfulVotes: Number(row.helpful_votes || 0),
+      isFeatured: Boolean(row.is_featured),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at || row.created_at
+    }));
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertKnowledgeArticleInSupabase(art: KnowledgeArticle): Promise<boolean> {
+  try {
+    const payload = {
+      id: art.id,
+      category_id: art.categoryId,
+      category_name: art.categoryName,
+      slug: art.slug,
+      title: art.title,
+      content: art.content,
+      summary: art.summary,
+      tags: art.tags,
+      views: art.views,
+      helpful_votes: art.helpfulVotes,
+      is_featured: art.isFeatured || false,
+      created_at: art.createdAt,
+      updated_at: art.updatedAt || new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('knowledge_articles').upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchFaqItemsFromSupabase(): Promise<FaqItem[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('faq_items')
+      .select('*')
+      .order('order_index', { ascending: true });
+
+    if (error || !data || data.length === 0) return null;
+
+    return data.map(row => ({
+      id: row.id,
+      categoryId: row.category_id,
+      categoryName: row.category_name,
+      question: row.question,
+      answer: row.answer,
+      tags: row.tags || [],
+      orderIndex: Number(row.order_index || 0),
+      isFeatured: Boolean(row.is_featured),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertFaqItemInSupabase(item: FaqItem): Promise<boolean> {
+  try {
+    const payload = {
+      id: item.id,
+      category_id: item.categoryId,
+      category_name: item.categoryName,
+      question: item.question,
+      answer: item.answer,
+      tags: item.tags,
+      order_index: item.orderIndex,
+      is_featured: item.isFeatured,
+      created_at: item.createdAt || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('faq_items').upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+

@@ -11,6 +11,8 @@ import {
   CustomOrderStatus,
   CustomOrderTrackingEvent,
   CustomOrderMessage,
+  CustomOrderAttachment,
+  CustomOrderConversationStatus,
   CoupleWebsiteProject,
   CoupleWebsiteTemplate,
   BotPanelService,
@@ -97,6 +99,9 @@ import {
   uploadCustomOrderFileToSupabase,
   subscribeToCustomOrderRealtime,
   broadcastCustomOrderMessage,
+  markCustomOrderMessagesAsReadInSupabase,
+  assignCustomOrderStaffInSupabase,
+  updateCustomOrderConversationStatusInSupabase,
   fetchCoupleWebsitesFromSupabase,
   upsertCoupleWebsiteInSupabase,
   deleteCoupleWebsiteFromSupabase,
@@ -268,7 +273,20 @@ interface StoreContextType {
   // Custom Bespoke Orders
   customOrders: CustomOrder[];
   createCustomOrderRequest: (req: Omit<CustomOrder, 'id' | 'requestNumber' | 'status' | 'messages' | 'createdAt' | 'updatedAt'>) => CustomOrder;
-  sendCustomOrderMessage: (customOrderId: string, text: string, sender: 'customer' | 'admin', attachments?: string[]) => Promise<void>;
+  sendCustomOrderMessage: (
+    customOrderId: string,
+    text: string,
+    sender: 'customer' | 'admin',
+    options?: {
+      attachments?: string[];
+      fileAttachments?: CustomOrderAttachment[];
+      isAdminProof?: boolean;
+      adminProofTitle?: string;
+    }
+  ) => Promise<void>;
+  markCustomOrderMessagesAsRead: (customOrderId: string, readerRole: 'customer' | 'admin') => Promise<void>;
+  assignCustomOrderStaff: (customOrderId: string, adminId: string, adminName: string, adminRole?: string) => Promise<void>;
+  updateCustomOrderConversationStatus: (customOrderId: string, status: CustomOrderConversationStatus) => Promise<void>;
   provideCustomOrderQuote: (customOrderId: string, quote: Omit<CustomOrderQuote, 'id'>) => Promise<void>;
   respondToQuote: (customOrderId: string, accept: boolean, revisionReason?: string) => Promise<void>;
   updateCustomOrderStatus: (customOrderId: string, status: CustomOrderStatus, trackingDetails?: { carrier?: string; trackingNumber?: string; trackingUrl?: string; designProofUrl?: string; notes?: string }) => Promise<void>;
@@ -1985,29 +2003,45 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     customOrderId: string,
     text: string,
     sender: 'customer' | 'admin',
-    attachments?: string[]
+    options?: {
+      attachments?: string[];
+      fileAttachments?: CustomOrderAttachment[];
+      isAdminProof?: boolean;
+      adminProofTitle?: string;
+    }
   ): Promise<void> => {
     const targetOrder = customOrders.find(co => co.id === customOrderId);
-    const newMsg = {
+    const nowIso = new Date().toISOString();
+    const newMsg: CustomOrderMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       sender,
-      senderName: sender === 'admin' ? 'HARCONXS Master Artisan' : (targetOrder?.customerName || 'Customer'),
+      senderName: sender === 'admin' ? (targetOrder?.assignedAdminName || 'HARCONXS Master Artisan') : (targetOrder?.customerName || 'Customer'),
       text,
-      attachments: attachments && attachments.length > 0 ? attachments : undefined,
-      timestamp: new Date().toISOString()
+      attachments: options?.attachments && options.attachments.length > 0 ? options.attachments : undefined,
+      fileAttachments: options?.fileAttachments && options.fileAttachments.length > 0 ? options.fileAttachments : undefined,
+      isAdminProof: options?.isAdminProof,
+      adminProofTitle: options?.adminProofTitle,
+      timestamp: nowIso,
+      status: 'sent',
+      isRead: false
     };
 
-    let updatedAllMessages: typeof newMsg[] = [];
+    let updatedAllMessages: CustomOrderMessage[] = [];
+    const isFromAdmin = sender === 'admin';
+    const newConvStatus: CustomOrderConversationStatus = isFromAdmin ? 'waiting_on_customer' : 'waiting_on_artisan';
 
     setCustomOrders(prev =>
       prev.map(co => {
         if (co.id === customOrderId) {
           const updatedMessages = [...co.messages, newMsg];
           updatedAllMessages = updatedMessages;
-          const updated = {
+          const updated: CustomOrder = {
             ...co,
             messages: updatedMessages,
-            updatedAt: new Date().toISOString()
+            conversationStatus: newConvStatus,
+            unreadCountCustomer: isFromAdmin ? ((co.unreadCountCustomer || 0) + 1) : co.unreadCountCustomer,
+            unreadCountAdmin: !isFromAdmin ? ((co.unreadCountAdmin || 0) + 1) : co.unreadCountAdmin,
+            updatedAt: nowIso
           };
           upsertCustomOrderInSupabase(updated);
           return updated;
@@ -2017,7 +2051,71 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 
     // Broadcast to Supabase Realtime channel for instant sub-second delivery
-    await broadcastCustomOrderMessage(customOrderId, newMsg, updatedAllMessages);
+    await broadcastCustomOrderMessage(customOrderId, newMsg, updatedAllMessages, targetOrder);
+  };
+
+  const markCustomOrderMessagesAsRead = async (
+    customOrderId: string,
+    readerRole: 'customer' | 'admin'
+  ): Promise<void> => {
+    const target = customOrders.find(co => co.id === customOrderId);
+    if (!target) return;
+
+    const result = await markCustomOrderMessagesAsReadInSupabase(customOrderId, readerRole, target.messages);
+    if (result.success) {
+      setCustomOrders(prev =>
+        prev.map(co => {
+          if (co.id === customOrderId) {
+            return {
+              ...co,
+              messages: result.messages,
+              unreadCountCustomer: readerRole === 'customer' ? 0 : co.unreadCountCustomer,
+              unreadCountAdmin: readerRole === 'admin' ? 0 : co.unreadCountAdmin
+            };
+          }
+          return co;
+        })
+      );
+    }
+  };
+
+  const assignCustomOrderStaff = async (
+    customOrderId: string,
+    adminId: string,
+    adminName: string,
+    adminRole?: string
+  ): Promise<void> => {
+    const success = await assignCustomOrderStaffInSupabase(customOrderId, adminId, adminName, adminRole);
+    if (success) {
+      setCustomOrders(prev =>
+        prev.map(co => {
+          if (co.id === customOrderId) {
+            return {
+              ...co,
+              assignedAdminId: adminId,
+              assignedAdminName: adminName,
+              assignedAdminRole: adminRole || 'Lead Custom Artisan'
+            };
+          }
+          return co;
+        })
+      );
+      recordAuditLog(adminName, 'Assigned Artisan to Custom Order', 'custom_orders', customOrderId);
+      showToast(`Assigned ${adminName} to custom order.`);
+    }
+  };
+
+  const updateCustomOrderConversationStatus = async (
+    customOrderId: string,
+    status: CustomOrderConversationStatus
+  ): Promise<void> => {
+    const success = await updateCustomOrderConversationStatusInSupabase(customOrderId, status);
+    if (success) {
+      setCustomOrders(prev =>
+        prev.map(co => (co.id === customOrderId ? { ...co, conversationStatus: status } : co))
+      );
+      showToast(`Conversation marked as ${status.replace(/_/g, ' ')}.`);
+    }
   };
 
   const provideCustomOrderQuote = async (customOrderId: string, quoteData: Omit<CustomOrderQuote, 'id'>): Promise<void> => {
@@ -2315,12 +2413,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const record: ApiKeyRecord = {
       id: `key-${Date.now()}`,
+      clientId: 'cli_custom',
+      clientName: name,
       name,
+      keyPrefix: `hx_live_${randomHex.substring(0, 8)}`,
+      keyHash: `hash_${randomHex}`,
+      scopes: permissions,
       prefix,
       createdAt: new Date().toISOString(),
       lastUsed: 'Never',
       rateLimit,
       requestCount: 0,
+      usageCount: 0,
       permissions,
       status: 'active'
     };
@@ -2506,8 +2610,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         customOrders,
         createCustomOrderRequest,
         sendCustomOrderMessage,
+        markCustomOrderMessagesAsRead,
+        assignCustomOrderStaff,
+        updateCustomOrderConversationStatus,
         provideCustomOrderQuote,
         respondToQuote,
+        updateCustomOrderStatus,
+        uploadCustomOrderFile,
+        subscribeToCustomOrder,
         coupleTemplates,
         addCoupleTemplate,
         updateCoupleTemplate,
