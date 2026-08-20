@@ -254,14 +254,49 @@ export const MarketingAdminSection: React.FC<MarketingAdminSectionProps> = ({
             </p>
             <button
               onClick={() => setIsCouponModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-400/20"
+              className="px-3.5 py-2 min-h-[40px] rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-400/20 shrink-0"
             >
               <Plus className="w-4 h-4" />
               Create Coupon
             </button>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE COUPONS CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {coupons.map(cpn => (
+              <div key={cpn.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="font-mono font-bold text-amber-400 text-sm tracking-wider">{cpn.code}</span>
+                    <p className="text-xs text-zinc-400">Expires: {cpn.expiresAt}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono uppercase">
+                    {cpn.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 bg-zinc-950/60 p-2.5 rounded-xl text-xs border border-zinc-800 text-center">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Discount</span>
+                    <span className="font-mono font-bold text-zinc-100">
+                      {cpn.discountType === 'percentage' ? `${cpn.discountValue}%` : `₹${cpn.discountValue}`}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Min. Spend</span>
+                    <span className="font-mono text-zinc-300">₹{cpn.minOrderAmount}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Used</span>
+                    <span className="font-mono text-amber-400">{cpn.usedCount}/{cpn.usageLimit}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP COUPONS TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -307,7 +342,49 @@ export const MarketingAdminSection: React.FC<MarketingAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE AFFILIATES CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {affiliates.map(aff => (
+              <div key={aff.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-zinc-100 text-sm">{aff.name}</h4>
+                    <span className="text-xs font-mono font-bold text-amber-400">{aff.code}</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 font-mono">
+                    {aff.commissionRate}% Commission
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 bg-zinc-950/60 p-2.5 rounded-xl text-xs border border-zinc-800">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Sales Driven</span>
+                    <span className="font-mono font-bold text-zinc-100">₹{aff.totalSalesGenerated.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Pending Commission</span>
+                    <span className="font-mono font-bold text-emerald-400">₹{aff.pendingPayout.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  {aff.pendingPayout > 0 ? (
+                    <button
+                      onClick={() => handlePayoutAffiliate(aff)}
+                      className="px-4 py-1.5 min-h-[38px] rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 cursor-pointer"
+                    >
+                      Settle Payout
+                    </button>
+                  ) : (
+                    <span className="text-xs text-zinc-500 font-mono py-1">Settled</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP AFFILIATES TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>

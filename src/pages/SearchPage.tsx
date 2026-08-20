@@ -4,6 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { Product, CategoryType } from '../types';
 import { Search, ShoppingBag, Heart, Star, Sparkles, Filter, ArrowRight, Tag } from 'lucide-react';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
+import { Analytics } from '../services/analyticsService';
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -18,6 +19,9 @@ export const SearchPage: React.FC = () => {
   useEffect(() => {
     const q = searchParams.get('q') || '';
     setQuery(q);
+    if (q.trim()) {
+      Analytics.trackSearch(q, products.length, selectedCategory);
+    }
   }, [searchParams]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {

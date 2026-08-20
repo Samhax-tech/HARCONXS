@@ -201,7 +201,56 @@ export const CoupleWebsitesAdminSection: React.FC<CoupleWebsitesAdminSectionProp
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE PROJECTS CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {projects.map(proj => (
+              <div key={proj.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-zinc-100 text-sm">{proj.coupleNames}</h4>
+                    <span className="text-xs font-mono text-amber-400">/c/{proj.slug}</span>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase ${
+                    proj.status === 'published' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-400'
+                  }`}>
+                    {proj.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 bg-zinc-950/60 p-2.5 rounded-xl text-xs border border-zinc-800">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Template</span>
+                    <span className="text-zinc-300 font-medium">{proj.templateTitle}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Engagement</span>
+                    <span className="font-mono text-zinc-200">{proj.totalVisitors} views • <strong className="text-emerald-400">{proj.rsvpsCount} RSVPs</strong></span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="text-xs font-mono text-zinc-400">
+                    {proj.passcodeProtected ? (
+                      <span className="inline-flex items-center gap-1 text-amber-400">
+                        <Lock className="w-3 h-3" /> Passcode Active
+                      </span>
+                    ) : (
+                      <span>Public Access</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleToggleProjectStatus(proj.id, proj.status)}
+                    className="px-3.5 py-1.5 min-h-[38px] rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-amber-400 cursor-pointer"
+                  >
+                    {proj.status === 'published' ? 'Unpublish' : 'Publish'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP PROJECTS TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>

@@ -4,6 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { Product, CategoryType, ProductBadge } from '../types';
 import { Search, Filter, SlidersHorizontal, Star, Heart, Sparkles, ShoppingBag, ArrowUpDown, LayoutGrid, List, ArrowRight, Tag, RefreshCw } from 'lucide-react';
 import { Breadcrumbs, BreadcrumbItem } from '../components/common/Breadcrumbs';
+import { Analytics } from '../services/analyticsService';
 
 interface ShopPageProps {
   categoryOverride?: CategoryType | 'all';
@@ -52,6 +53,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({ categoryOverride, filterOver
   const [priceRange, setPriceRange] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('featured');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  useEffect(() => {
+    Analytics.trackCategoryView(activeCategory);
+  }, [activeCategory]);
 
   const categories: { id: CategoryType | 'all'; label: string; path: string }[] = [
     { id: 'all', label: 'All Collections', path: '/shop' },

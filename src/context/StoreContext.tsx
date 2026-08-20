@@ -157,6 +157,7 @@ import {
   createPolicyVersionInSupabase,
   approveAndPublishPolicyInSupabase
 } from '../services/supabaseService';
+import { Analytics } from '../services/analyticsService';
 import {
   INITIAL_HOME_PAGE_RECORD,
   INITIAL_HOME_PAGE_SECTIONS
@@ -1225,6 +1226,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const redirectToBillingPortal = (planId?: string) => {
     const url = `${billingPortal.portalUrl}${planId ? `?plan=${planId}&ref=harconxs_shop` : ''}`;
+    Analytics.trackBillingRedirect({
+      serviceName: 'Private Billing Platform',
+      plan: planId || 'standard',
+      billingUrl: billingPortal.portalUrl,
+      source: 'storefront_redirect'
+    });
     window.open(url, '_blank', 'noopener,noreferrer');
     showToast(`Connecting to external billing gateway: ${billingPortal.portalUrl}`);
   };
@@ -1338,6 +1345,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return updatedCart;
     });
 
+    Analytics.trackAddToCart({
+      productId: product.id,
+      productName: product.name,
+      category: product.category,
+      price: customPrice || (selectedVariant ? selectedVariant.price : product.price),
+      quantity,
+      variantId,
+      hasPackaging: Boolean(packaging),
+      isPersonalized: Boolean(personalization)
+    });
     trackAnalyticsEvent('add_to_cart', { productId: product.id, name: product.name, quantity });
     showToast(`Added "${product.name}" to bag.`);
     setIsCartOpen(true);
@@ -1355,6 +1372,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const removeFromCart = async (itemId: string) => {
+    const targetItem = cart.find(i => i.id === itemId);
+    if (targetItem) {
+      Analytics.trackRemoveFromCart({
+        productId: targetItem.product.id,
+        productName: targetItem.product.name,
+        price: targetItem.customPrice || (targetItem.variant ? targetItem.variant.price : targetItem.product.price),
+        quantity: targetItem.quantity
+      });
+    }
+
     let updatedCart: CartItem[] = [];
     setCart(prev => {
       updatedCart = prev.filter(i => i.id !== itemId);
@@ -1961,6 +1988,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         priority: 'high'
       });
 
+      Analytics.trackPurchase({
+        orderNumber: result.order.orderNumber,
+        total: result.order.total,
+        itemsCount: result.order.items.length,
+        paymentMethod: result.order.paymentMethod,
+        currency: 'INR'
+      }, result.order.customerId);
+
       trackAnalyticsEvent('purchase', {
         orderNumber: result.order.orderNumber,
         total: result.order.total,
@@ -2314,6 +2349,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: nowIso,
       updatedAt: nowIso
     };
+
+    Analytics.trackCustomOrderSubmitted({
+      requestNumber,
+      recipient: req.recipient,
+      relationship: req.relationship,
+      occasion: req.occasion,
+      budget: req.budgetRange ? parseFloat(req.budgetRange.replace(/[^0-9.]/g, '')) || undefined : undefined,
+      productType: req.productType
+    }, currentUser?.id);
 
     setCustomOrders(prev => [newCustom, ...prev]);
     upsertCustomOrderInSupabase(newCustom);
@@ -2693,6 +2737,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10).toISOString()
     };
 
+    Analytics.trackCoupleWebsitePurchased({
+      templateId: newProject.templateId,
+      subdomain: newProject.subdomain,
+      websiteTitle: newProject.title
+    }, newProject.ownerId);
+
     setCoupleWebsites(prev => [newProject, ...prev]);
     upsertCoupleWebsiteInSupabase(newProject);
     trackAnalyticsEvent('create_couple_website', { subdomain: newProject.subdomain });
@@ -2916,6 +2966,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    Analytics.trackSupportStarted({
+      category: newTicket.category,
+      subject: newTicket.subject,
+      source: 'support_tickets'
+    });
 
     setTickets(prev => [newTicket, ...prev]);
     upsertSupportTicketInSupabase(newTicket);

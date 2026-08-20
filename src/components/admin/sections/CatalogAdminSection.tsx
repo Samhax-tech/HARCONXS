@@ -698,21 +698,21 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
 
           {/* BULK ACTION BAR */}
           {selectedProductIds.length > 0 && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between animate-fadeIn">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-fadeIn">
               <div className="flex items-center gap-2 text-xs text-amber-300 font-medium">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                 <span><strong>{selectedProductIds.length}</strong> products selected</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button
                   onClick={() => setSelectedProductIds([])}
-                  className="px-3 py-1 rounded-xl bg-zinc-800 text-zinc-300 hover:text-zinc-100 text-xs transition-colors"
+                  className="px-3 py-1.5 min-h-[36px] rounded-xl bg-zinc-800 text-zinc-300 hover:text-zinc-100 text-xs transition-colors cursor-pointer"
                 >
                   Deselect All
                 </button>
                 <button
                   onClick={handleBulkDelete}
-                  className="px-3 py-1 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 min-h-[36px] rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Delete Selected ({selectedProductIds.length})
@@ -721,7 +721,78 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
             </div>
           )}
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE CARDS VIEW (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {filteredProducts.map(product => {
+              const isSelected = selectedProductIds.includes(product.id);
+              return (
+                <div 
+                  key={product.id} 
+                  className={`p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3 ${isSelected ? 'border-amber-500/50 bg-amber-500/5' : ''}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelectProduct(product.id)}
+                        className="w-4 h-4 rounded bg-zinc-950 border-zinc-700 text-amber-400 focus:ring-amber-400 cursor-pointer"
+                      />
+                      <img src={product.imageUrl} alt={product.name} className="w-12 h-12 rounded-xl object-cover border border-zinc-700 shrink-0" />
+                      <div>
+                        <h4 className="font-semibold text-zinc-100 text-sm leading-snug">{product.name}</h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] font-mono text-zinc-400">{product.id}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 border border-zinc-700 text-zinc-300 capitalize">
+                            {product.category}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/80">
+                    <div>
+                      <span className="text-zinc-500 block text-[10px]">Retail Price</span>
+                      <span className="font-mono font-bold text-amber-400 text-sm">₹{product.price.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 block text-[10px]">Stock Status</span>
+                      <span className={`font-mono text-xs font-medium ${(product.stock || 25) < 5 ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {product.stock || 25} in vault
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
+                    <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Active Live
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenEditProduct(product)}
+                        className="px-3 py-1.5 min-h-[38px] rounded-lg text-xs font-semibold bg-zinc-800 text-zinc-200 hover:text-amber-400 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(product.id, product.name)}
+                        className="p-2 min-w-[38px] min-h-[38px] rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer"
+                        title="Delete product"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* DESKTOP TABLE VIEW (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-zinc-300">
                 <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
@@ -793,14 +864,14 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleOpenEditProduct(product)}
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+                              className="p-2 min-w-[36px] min-h-[36px] rounded-lg text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-colors cursor-pointer flex items-center justify-center"
                               title="Edit Product"
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteProduct(product.id, product.name)}
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                              className="p-2 min-w-[36px] min-h-[36px] rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer flex items-center justify-center"
                               title="Delete (Enforces Server RBAC)"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -867,7 +938,39 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE VARIANTS VIEW */}
+          <div className="md:hidden space-y-3">
+            {variantsList.map(v => (
+              <div key={v.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-zinc-100 text-sm">{v.title}</h4>
+                    <p className="text-xs text-zinc-400">{v.productName}</p>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">
+                    Active
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 bg-zinc-950/60 p-2.5 rounded-xl text-xs border border-zinc-800">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">SKU</span>
+                    <span className="font-mono text-amber-400 font-medium">{v.sku}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Price</span>
+                    <span className="font-mono text-zinc-200 font-medium">₹{v.price.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Stock</span>
+                    <span className="font-mono text-zinc-300">{v.stock} pcs</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP VARIANTS TABLE */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -915,7 +1018,57 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE INVENTORY VIEW */}
+          <div className="md:hidden space-y-3">
+            {inventoryList.map(item => (
+              <div key={item.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-zinc-100 text-sm">{item.productName}</h4>
+                    <span className="text-xs font-mono text-amber-400">{item.sku}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs uppercase font-mono ${
+                    item.status === 'in_stock' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                    item.status === 'low_stock' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                    'bg-red-500/10 text-red-400 border border-red-500/20'
+                  }`}>
+                    {item.status.replace('_', ' ')}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 bg-zinc-950/60 p-2.5 rounded-xl text-xs border border-zinc-800 text-center">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Total Vault</span>
+                    <span className="font-mono font-bold text-zinc-100 text-sm">{item.currentStock}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Reserved</span>
+                    <span className="font-mono text-zinc-400">{item.reservedStock}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Available</span>
+                    <span className="font-mono font-bold text-emerald-400">{item.availableStock}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs font-mono text-zinc-400">{item.location}</span>
+                  <button
+                    onClick={() => {
+                      setAdjustInvItem(item);
+                      setStockDelta(item.reorderQuantity || 15);
+                    }}
+                    className="px-3.5 py-2 min-h-[38px] rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    + Restock Vault
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP INVENTORY TABLE */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -954,7 +1107,7 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
                           setAdjustInvItem(item);
                           setStockDelta(item.reorderQuantity || 15);
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-xs font-medium transition-colors"
+                        className="px-3 py-1.5 min-h-[36px] rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-xs font-medium transition-colors cursor-pointer"
                       >
                         + Restock
                       </button>

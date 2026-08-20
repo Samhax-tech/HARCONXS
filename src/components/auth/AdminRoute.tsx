@@ -56,7 +56,7 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
                 type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="HARCONXS or admin@hamza.harconxs.com"
+                placeholder="admin@harconxs.com or username"
                 required
                 className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-xs focus:outline-none focus:border-amber-500 transition-colors font-mono"
               />
@@ -68,7 +68,7 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Admin@Hmaza12"
+                placeholder="••••••••••••"
                 required
                 className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-xs focus:outline-none focus:border-amber-500 transition-colors font-mono"
               />

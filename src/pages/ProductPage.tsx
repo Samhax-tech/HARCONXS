@@ -24,6 +24,7 @@ import {
   ArrowRight,
   PackageSearch
 } from 'lucide-react';
+import { Analytics } from '../services/analyticsService';
 
 export const ProductPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -79,6 +80,13 @@ export const ProductPage: React.FC = () => {
       }
       setShowPersonalizer(Boolean(product.isPersonalizable));
       setActiveImageIndex(0);
+      Analytics.trackProductView({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        isPersonalizable: Boolean(product.isPersonalizable)
+      });
     }
   }, [product]);
 

@@ -22,6 +22,7 @@ import {
   Info
 } from 'lucide-react';
 import { ServerPriceBreakdown } from '../../services/supabaseService';
+import { Analytics } from '../../services/analyticsService';
 
 export const CheckoutPage: React.FC = () => {
   const {
@@ -90,6 +91,18 @@ export const CheckoutPage: React.FC = () => {
       }
     }
   }, [currentUser]);
+
+  // Track checkout started on mount
+  useEffect(() => {
+    if (cart.length > 0) {
+      Analytics.trackCheckoutStarted({
+        itemsCount: cart.length,
+        totalValue: cartTotal,
+        hasPersonalizedItems: cart.some(i => Boolean(i.personalization)),
+        currency: 'INR'
+      });
+    }
+  }, []);
 
   // Server quote re-calculation on cart or coupon changes
   useEffect(() => {

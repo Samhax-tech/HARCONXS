@@ -300,14 +300,14 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                 placeholder="Search orders by customer or order #..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-amber-400"
+                className="w-full pl-9 pr-4 py-2 min-h-[40px] rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-amber-400"
               />
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm focus:outline-none focus:border-amber-400"
+                className="w-full sm:w-auto px-3 py-2 min-h-[40px] rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm focus:outline-none focus:border-amber-400"
               >
                 <option value="all">All Fulfillment Statuses</option>
                 <option value="pending">Pending</option>
@@ -319,7 +319,71 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE ORDERS CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {orders
+              .filter(o => !searchQuery || (o.customer?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.id.toLowerCase().includes(searchQuery.toLowerCase()))
+              .filter(o => statusFilter === 'all' || o.status === statusFilter)
+              .map(order => (
+                <div key={order.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-mono font-bold text-amber-400 text-sm">{order.id}</div>
+                      <div className="text-xs text-zinc-400">{new Date(order.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        onNavigateSubSection('order-details');
+                      }}
+                      className="px-3 py-1.5 min-h-[36px] rounded-lg bg-zinc-800 text-amber-400 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Details
+                    </button>
+                  </div>
+
+                  <div className="text-xs space-y-1 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800">
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Client:</span>
+                      <span className="text-zinc-200 font-medium">{order.customer?.name || 'Private Client'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Total:</span>
+                      <span className="font-mono font-bold text-zinc-100">₹{(order.totalAmount || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Items:</span>
+                      <span className="text-zinc-400">{order.items?.length || 1} line item(s)</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-zinc-400 font-mono">Fulfillment:</span>
+                    <select
+                      value={order.status}
+                      onChange={(e) => handleUpdateStatus(order.id, e.target.value as Order['status'])}
+                      className={`text-xs px-2.5 py-1.5 min-h-[38px] rounded-lg font-medium border bg-zinc-950 focus:outline-none ${
+                        order.status === 'delivered' ? 'text-emerald-400 border-emerald-500/30' :
+                        order.status === 'shipped' ? 'text-blue-400 border-blue-500/30' :
+                        order.status === 'processing' ? 'text-amber-400 border-amber-500/30' :
+                        order.status === 'cancelled' ? 'text-red-400 border-red-500/30' :
+                        'text-zinc-300 border-zinc-700'
+                      }`}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="processing">Processing</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* DESKTOP ORDERS TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -382,7 +446,7 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                             setSelectedOrder(order);
                             onNavigateSubSection('order-details');
                           }}
-                          className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-400/10 transition-colors"
+                          className="p-2 min-w-[36px] min-h-[36px] rounded-lg text-amber-400 hover:bg-amber-400/10 transition-colors flex items-center justify-center cursor-pointer"
                           title="View Order Details"
                         >
                           <Eye className="w-4 h-4" />

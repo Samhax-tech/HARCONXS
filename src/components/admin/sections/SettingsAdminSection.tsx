@@ -403,7 +403,41 @@ export const SettingsAdminSection: React.FC<SettingsAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE STAFF CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {staffMembers.map(staff => (
+              <div key={staff.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <img src={staff.avatarUrl} alt={staff.name} className="w-10 h-10 rounded-full object-cover border border-zinc-700" />
+                    <div>
+                      <h4 className="font-semibold text-zinc-100 text-sm">{staff.name}</h4>
+                      <p className="text-xs text-zinc-400 font-mono">{staff.email}</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-mono uppercase">
+                    {staff.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 bg-zinc-950/60 p-2.5 rounded-xl text-xs border border-zinc-800">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Assigned Role</span>
+                    <span className="font-mono text-amber-400 font-bold text-[11px]">{staff.role.replace('_', ' ')}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">2FA Status</span>
+                    <span className={`font-mono ${staff.twoFactorEnabled ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                      {staff.twoFactorEnabled ? '2FA Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP STAFF TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>

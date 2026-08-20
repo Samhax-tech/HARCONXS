@@ -11,13 +11,15 @@ import { AiChatAssistant } from '../chat/AiChatAssistant';
 import { PopupBanner } from './PopupBanner';
 import { AdminLoginModal } from '../auth/AdminLoginModal';
 import { AuthModal } from '../auth/AuthModal';
+import { Analytics } from '../../services/analyticsService';
 
 export const RootLayout: React.FC = () => {
   const { pathname } = useLocation();
 
-  // Scroll to top on route navigation
+  // Scroll to top and track page view on route navigation
   useEffect(() => {
     window.scrollTo(0, 0);
+    Analytics.trackPageView(pathname);
   }, [pathname]);
 
   return (

@@ -206,12 +206,61 @@ export const CustomOrdersAdminSection: React.FC<CustomOrdersAdminSectionProps> =
                 placeholder="Search bespoke commissions..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-amber-400"
+                className="w-full pl-9 pr-4 py-2 min-h-[40px] rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-amber-400"
               />
             </div>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE CUSTOM ORDERS CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {customOrders
+              .filter(co => !searchQuery || (co.customer?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || co.id.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map(order => (
+                <div key={order.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-mono font-bold text-amber-400 text-sm">{order.id}</div>
+                      <div className="text-xs text-zinc-300 font-medium">{order.customer?.name || 'Patron'}</div>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-zinc-100 bg-zinc-800 px-2.5 py-1 rounded-lg">
+                      ₹{(order.estimatedBudget || 25000).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="text-xs space-y-1 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800">
+                    <div className="text-zinc-300 font-medium">{order.metal || '18K Sovereign Gold'}</div>
+                    <div className="text-zinc-400 text-[11px]">{order.engraving ? `Engraving: "${order.engraving}"` : 'No Engraving'}</div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <select
+                      value={order.status}
+                      onChange={(e) => handleUpdateCustomStatus(order.id, e.target.value as CustomOrder['status'])}
+                      className="text-xs px-2.5 py-1.5 min-h-[38px] rounded-lg font-medium border bg-zinc-950 border-amber-400/30 text-amber-400 focus:outline-none"
+                    >
+                      <option value="pending">1. Pending Review</option>
+                      <option value="quote_sent">2. Quote Dispatched</option>
+                      <option value="in_production">3. In Atelier Casting</option>
+                      <option value="completed">4. Polished & Inspected</option>
+                      <option value="rejected">Declined</option>
+                    </select>
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        onNavigateSubSection('custom-order-chat');
+                      }}
+                      className="px-3.5 py-1.5 min-h-[38px] rounded-lg bg-zinc-800 text-amber-400 hover:bg-zinc-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Artisan Chat
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* DESKTOP CUSTOM ORDERS TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -259,7 +308,7 @@ export const CustomOrdersAdminSection: React.FC<CustomOrdersAdminSectionProps> =
                             setSelectedOrder(order);
                             onNavigateSubSection('custom-order-chat');
                           }}
-                          className="px-3 py-1.5 rounded-lg bg-zinc-800 text-amber-400 hover:bg-zinc-700 text-xs font-medium"
+                          className="px-3 py-1.5 min-h-[36px] rounded-lg bg-zinc-800 text-amber-400 hover:bg-zinc-700 text-xs font-medium cursor-pointer"
                         >
                           Artisan Chat
                         </button>

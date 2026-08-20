@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ApiChatResponse, ApiChatAction } from '../../types';
 import { handleApiV1Request } from '../../services/apiCoreService';
+import { Analytics } from '../../services/analyticsService';
 
 interface ChatMessage {
   id: string;
@@ -90,6 +91,8 @@ export const AiChatAssistant: React.FC = () => {
 
     const query = userText.trim();
     const userMsgId = `usr_${Date.now()}`;
+
+    Analytics.trackChatStarted({ initialTopic: query, source: 'ai_concierge' });
 
     setMessages(prev => [
       ...prev,

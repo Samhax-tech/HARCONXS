@@ -360,14 +360,14 @@ export const CustomersAdminSection: React.FC<CustomersAdminSectionProps> = ({
                 placeholder="Search customers by name, phone or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-amber-400"
+                className="w-full pl-9 pr-4 py-2 min-h-[40px] rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-amber-400"
               />
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <select
                 value={tierFilter}
                 onChange={(e) => setTierFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm focus:outline-none focus:border-amber-400"
+                className="w-full sm:w-auto px-3 py-2 min-h-[40px] rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm focus:outline-none focus:border-amber-400"
               >
                 <option value="all">All Tiers</option>
                 <option value="royal_sovereign">Royal Sovereign</option>
@@ -377,7 +377,68 @@ export const CustomersAdminSection: React.FC<CustomersAdminSectionProps> = ({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE CUSTOMERS CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {customersList
+              .filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase()))
+              .filter(c => tierFilter === 'all' || c.tier === tierFilter)
+              .map(cust => (
+                <div key={cust.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-semibold text-zinc-100 text-sm">{cust.name}</h4>
+                      <p className="text-xs text-zinc-400">{cust.email}</p>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase flex items-center gap-1 ${
+                      cust.tier === 'royal_sovereign' ? 'bg-amber-400/10 text-amber-400 border border-amber-400/30' :
+                      cust.tier === 'vip' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30' :
+                      'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {cust.tier === 'royal_sovereign' && <Crown className="w-2.5 h-2.5" />}
+                      {cust.tier.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 bg-zinc-950/60 p-2.5 rounded-xl text-xs border border-zinc-800 text-center">
+                    <div>
+                      <span className="text-zinc-500 block text-[10px]">Orders</span>
+                      <span className="font-mono font-bold text-zinc-100">{cust.totalOrders}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 block text-[10px]">Spent</span>
+                      <span className="font-mono font-bold text-zinc-100 text-xs">₹{cust.totalSpent.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 block text-[10px]">Rewards</span>
+                      <span className="font-mono font-bold text-amber-400 text-xs">{cust.rewardPoints} pts</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex flex-wrap gap-1">
+                      {cust.tags.slice(0, 2).map((t, idx) => (
+                        <span key={idx} className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedCustomer(cust);
+                        onNavigateSubSection('customer-details');
+                      }}
+                      className="px-3.5 py-1.5 min-h-[36px] rounded-lg bg-zinc-800 text-amber-400 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Client Profile
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* DESKTOP CUSTOMERS TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -428,7 +489,7 @@ export const CustomersAdminSection: React.FC<CustomersAdminSectionProps> = ({
                             setSelectedCustomer(cust);
                             onNavigateSubSection('customer-details');
                           }}
-                          className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-400/10 transition-colors"
+                          className="p-2 min-w-[36px] min-h-[36px] rounded-lg text-amber-400 hover:bg-amber-400/10 transition-colors flex items-center justify-center cursor-pointer"
                         >
                           <Eye className="w-4 h-4" />
                         </button>

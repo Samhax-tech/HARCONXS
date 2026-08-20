@@ -80,6 +80,7 @@ export const AdminDashboard: React.FC = () => {
   const [mainSection, setMainSection] = useState<MainAdminSection>('dashboard');
   const [subSection, setSubSection] = useState<string>('overview');
   const [adminSearch, setAdminSearch] = useState('');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   // Current authenticated staff member
   const currentSession = getAdminSession();
@@ -88,16 +89,16 @@ export const AdminDashboard: React.FC = () => {
   if (!isAdminAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center space-y-6 shadow-2xl">
+        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-2xl">
           <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
             <Lock className="w-8 h-8" />
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-xl font-serif font-bold text-zinc-100">
+            <h2 className="text-xl sm:text-2xl font-serif font-bold text-zinc-100">
               Admin Access Protected
             </h2>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-400 leading-relaxed">
               This area is restricted to HARCONXS authorized atelier administrators. Please authenticate with Supabase Auth credentials to access the ecommerce administrative suite.
             </p>
           </div>
@@ -105,7 +106,7 @@ export const AdminDashboard: React.FC = () => {
           <button
             id="admin-unlock-console-btn"
             onClick={() => setIsAdminLoginModalOpen(true)}
-            className="w-full py-3.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-400/10 flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="w-full min-h-[48px] py-3.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-amber-400/10 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <KeyRound className="w-4 h-4" />
             <span>Unlock Admin Atelier Console</span>
@@ -123,13 +124,235 @@ export const AdminDashboard: React.FC = () => {
   const navigateToSection = (main: MainAdminSection, sub: string) => {
     setMainSection(main);
     setSubSection(sub);
+    setIsMobileNavOpen(false);
   };
 
   return (
     <div className="bg-zinc-950 min-h-screen text-zinc-100 flex flex-col md:flex-row pb-20">
       
-      {/* SIDEBAR NAVIGATION */}
-      <aside className="w-full md:w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col justify-between shrink-0">
+      {/* MOBILE TOP BAR (Only visible on < md viewports) */}
+      <div className="md:hidden bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between sticky top-16 z-30">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-amber-400 text-zinc-950 flex items-center justify-center font-serif font-bold text-xs">
+            HX
+          </div>
+          <div>
+            <div className="font-serif font-bold text-xs text-zinc-100 capitalize">
+              {mainSection.replace('-', ' ')}
+            </div>
+            <div className="text-[10px] font-mono text-amber-400">Atelier Console</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/edit-page')}
+            className="px-2.5 py-1.5 min-h-[36px] rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+          >
+            <Sparkles className="w-3 h-3 text-amber-400" />
+            <span>Editor</span>
+          </button>
+          <button
+            onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+            className="px-3 py-1.5 min-h-[36px] rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+          >
+            <Layers className="w-3.5 h-3.5 text-amber-400" />
+            <span>Menu</span>
+          </button>
+        </div>
+      </div>
+
+      {/* MOBILE NAVIGATION DRAWER OVERLAY */}
+      {isMobileNavOpen && (
+        <div 
+          className="md:hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setIsMobileNavOpen(false)}
+        >
+          <div 
+            className="w-4/5 max-w-sm h-full bg-zinc-900 border-r border-zinc-800 p-4 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-left duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-400 text-zinc-950 flex items-center justify-center font-serif font-bold text-xs">
+                    HX
+                  </div>
+                  <span className="font-serif font-bold text-sm text-zinc-100">HARCONXS Admin</span>
+                </div>
+                <button
+                  onClick={() => setIsMobileNavOpen(false)}
+                  className="p-2 text-zinc-400 hover:text-white rounded-lg"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Navigation Items in mobile drawer */}
+              <nav className="space-y-1 text-xs">
+                <button
+                  onClick={() => navigateToSection('dashboard', 'overview')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'dashboard' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>Dashboard Overview</span>
+                </button>
+
+                <div className="pt-2 pb-1 px-3 text-[10px] font-mono uppercase text-zinc-500 tracking-wider">
+                  Commerce & Atelier
+                </div>
+
+                <button
+                  onClick={() => navigateToSection('catalog', 'products')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'catalog' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Catalog & Inventory</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToSection('orders', 'orders')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'orders' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Orders & Logistics ({orders.length})</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToSection('customers', 'customers')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'customers' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Customers & CRM</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToSection('custom-orders', 'custom')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'custom-orders' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Custom Orders & Quotes</span>
+                </button>
+
+                <div className="pt-2 pb-1 px-3 text-[10px] font-mono uppercase text-zinc-500 tracking-wider">
+                  Digital Verticals
+                </div>
+
+                <button
+                  onClick={() => navigateToSection('couple-websites', 'couple-templates')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'couple-websites' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Heart className="w-4 h-4 text-rose-400" />
+                  <span>Couple Websites</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToSection('bot-panels', 'bot-plans')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'bot-panels' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Bot className="w-4 h-4" />
+                  <span>Bot Panels & Services</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToSection('private-api', 'api-clients')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'private-api' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Terminal className="w-4 h-4" />
+                  <span>Private API Platform</span>
+                </button>
+
+                <div className="pt-2 pb-1 px-3 text-[10px] font-mono uppercase text-zinc-500 tracking-wider">
+                  Growth & Experience
+                </div>
+
+                <button
+                  onClick={() => navigateToSection('marketing', 'coupons')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'marketing' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Tag className="w-4 h-4" />
+                  <span>Marketing & Loyalty</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToSection('content', 'pages')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'content' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Content, CMS & SEO</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToSection('analytics', 'analytics-sales')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'analytics' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Analytics & Funnels</span>
+                </button>
+
+                <div className="pt-2 pb-1 px-3 text-[10px] font-mono uppercase text-zinc-500 tracking-wider">
+                  Administration & Security
+                </div>
+
+                <button
+                  onClick={() => navigateToSection('settings', 'settings-general')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'settings' ? 'bg-amber-400 text-zinc-950 font-bold' : 'text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Settings & Staff RBAC</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToSection('sql-editor', 'sql-console')}
+                  className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer ${
+                    mainSection === 'sql-editor' ? 'bg-emerald-500 text-zinc-950 font-bold' : 'text-emerald-400 hover:bg-emerald-500/10'
+                  }`}
+                >
+                  <Database className="w-4 h-4" />
+                  <span>Supabase SQL Studio</span>
+                </button>
+              </nav>
+            </div>
+
+            <div className="pt-4 border-t border-zinc-800 flex items-center justify-between">
+              <span className="text-xs text-zinc-400 font-mono truncate">{currentSession?.name || 'Hamza Shahid'}</span>
+              <button
+                onClick={adminLogout}
+                className="px-3 py-1.5 min-h-[38px] text-xs text-rose-400 bg-rose-500/10 rounded-lg font-bold"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DESKTOP SIDEBAR NAVIGATION (Hidden on < md viewports) */}
+      <aside className="hidden md:flex w-64 bg-zinc-900 border-r border-zinc-800 flex-col justify-between shrink-0">
         <div>
           {/* Brand Header */}
           <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
@@ -363,45 +586,45 @@ export const AdminDashboard: React.FC = () => {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 p-6 sm:p-8 overflow-y-auto">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
         
         {/* TOP SEARCH & BREADCRUMB BAR */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1 font-mono">
+            <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1 font-mono flex-wrap">
               <span>ADMIN</span>
-              <ChevronRight className="w-3 h-3" />
-              <span className="text-zinc-300 uppercase">{mainSection}</span>
+              <ChevronRight className="w-3 h-3 shrink-0" />
+              <span className="text-zinc-300 uppercase truncate max-w-[120px] sm:max-w-none">{mainSection}</span>
               {subSection && (
                 <>
-                  <ChevronRight className="w-3 h-3" />
-                  <span className="text-amber-400 uppercase">{subSection}</span>
+                  <ChevronRight className="w-3 h-3 shrink-0" />
+                  <span className="text-amber-400 uppercase truncate max-w-[140px] sm:max-w-none">{subSection}</span>
                 </>
               )}
             </div>
-            <h1 className="text-2xl font-serif font-bold text-zinc-100 capitalize">
+            <h1 className="text-xl sm:text-2xl font-serif font-bold text-zinc-100 capitalize">
               {mainSection.replace('-', ' ')}
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="relative w-full sm:w-72">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-72">
               <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={adminSearch}
                 onChange={(e) => setAdminSearch(e.target.value)}
-                placeholder="Search anything across admin..."
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 pl-10 pr-4 text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-400"
+                placeholder="Search across atelier admin..."
+                className="w-full min-h-[40px] bg-zinc-900 border border-zinc-800 rounded-xl py-2 pl-10 pr-4 text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-400"
               />
             </div>
 
             <button
               onClick={() => navigate('/edit-page')}
-              className="px-3.5 py-2 rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-400/20 cursor-pointer shrink-0"
+              className="px-3.5 py-2 min-h-[40px] rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-400/20 cursor-pointer shrink-0"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Visual Editor
+              <span className="hidden sm:inline">Visual Editor</span>
             </button>
           </div>
         </div>

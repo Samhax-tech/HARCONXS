@@ -3,6 +3,7 @@ import { useStore } from '../../context/StoreContext';
 import { BotPanelService } from '../../types';
 import { PrivateBillingModal } from './PrivateBillingModal';
 import { Bot, Send, Shield, MessageSquare, Check, Sparkles, Zap, Terminal, ExternalLink } from 'lucide-react';
+import { Analytics } from '../../services/analyticsService';
 
 export const BotPanelsPage: React.FC = () => {
   const { botPanelServices, formatPrice, setCurrentView } = useStore();
@@ -15,6 +16,17 @@ export const BotPanelsPage: React.FC = () => {
   const [testBroadcastText, setTestBroadcastText] = useState('🚨 Special Flash Release: Coordinates matching titanium set is live!');
   const [broadcastOutput, setBroadcastOutput] = useState<string | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+
+  // Track bot panel view
+  React.useEffect(() => {
+    if (selectedService) {
+      Analytics.trackBotPanelViewed({
+        botId: selectedService.id,
+        botName: selectedService.name,
+        plan: selectedPlanId
+      });
+    }
+  }, [selectedService]);
 
   const handleSelectService = (service: BotPanelService) => {
     setSelectedService(service);

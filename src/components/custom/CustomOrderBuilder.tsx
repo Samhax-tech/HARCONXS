@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import {
-  CustomOrderRelationship,
-  CustomOrderOccasion,
-  CustomOrderPersonalText
-} from '../../types';
+import { CustomOrderRelationship, CustomOrderOccasion, CustomOrderPersonalText } from '../../types';
+import { Analytics } from '../../services/analyticsService';
 import {
   Sparkles,
   Heart,
@@ -230,6 +227,14 @@ export const CustomOrderBuilder: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<CuratedCustomProduct>(CURATED_CUSTOM_PRODUCTS[0]);
   const [customProductTitle, setCustomProductTitle] = useState<string>('');
   const [budgetRange, setBudgetRange] = useState<string>('$150 - $300');
+
+  React.useEffect(() => {
+    Analytics.trackCustomOrderStarted({
+      recipient,
+      relationship,
+      occasion
+    });
+  }, []);
 
   // Customization & Style
   const [selectedDesignStyle, setSelectedDesignStyle] = useState<string>(DESIGN_STYLES[0].name);

@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { verifyServerSidePermission } from './adminAuthService';
 import {
   Product,
   ProductVariant,
@@ -1246,15 +1247,42 @@ export async function upsertCustomOrderInSupabase(customOrder: CustomOrder): Pro
 
 /**
  * Uploads a customer or artisan file to Supabase Storage ('custom-order-files' bucket)
- * strictly enforcing organized pathing without local storage bloat.
+ * with strict MIME-type validation, size limits (25MB max), and path sanitization.
  */
 export async function uploadCustomOrderFileToSupabase(
   file: File,
   customOrderId?: string
 ): Promise<{ success: boolean; url: string; fileName: string; fileSize?: number; error?: string }> {
   try {
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const folder = customOrderId ? `orders/${customOrderId}` : 'drafts';
+    if (!file) {
+      return { success: false, url: '', fileName: '', error: 'No file was provided for upload.' };
+    }
+
+    // 1. File Size Restriction (Maximum 25MB)
+    const MAX_FILE_SIZE = 25 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        url: '',
+        fileName: file.name,
+        error: `File size exceeds the 25MB limit (provided: ${(file.size / (1024 * 1024)).toFixed(1)}MB).`
+      };
+    }
+
+    // 2. Prohibit dangerous executable/script extensions
+    const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
+    const dangerousExtensions = ['exe', 'sh', 'bat', 'cmd', 'js', 'mjs', 'ts', 'php', 'phtml', 'py', 'html', 'htm', 'vbs', 'jar', 'cgi', 'pl'];
+    if (dangerousExtensions.includes(rawExt)) {
+      return {
+        success: false,
+        url: '',
+        fileName: file.name,
+        error: `Security Alert: File type ".${rawExt}" is prohibited. Please upload images (PNG, JPG, WEBP), PDFs, vector CAD files (DXF, DWG, STEP), or text briefs.`
+      };
+    }
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.\./g, '_');
+    const folder = customOrderId ? `orders/${customOrderId.replace(/[^a-zA-Z0-9_-]/g, '')}` : 'drafts';
     const filePath = `${folder}/${Date.now()}_${safeName}`;
 
     if (isSupabaseConfigured) {
@@ -1304,7 +1332,7 @@ export async function uploadCustomOrderFileToSupabase(
     return {
       success: false,
       url: '',
-      fileName: file.name,
+      fileName: file?.name || 'file',
       error: err?.message || 'Storage upload failed.'
     };
   }
@@ -2552,12 +2580,36 @@ export async function executeSqlConsoleQuery(
 ): Promise<{ success: boolean; rows?: any[]; rowCount?: number; executionTimeMs?: number; error?: string; message?: string }> {
   const startTime = Date.now();
   try {
+    // 0. Authorization Gate: Only authenticated administrators with system access can execute queries
+    const authCheck = await verifyServerSidePermission('system:sql_editor');
+    if (!authCheck.allowed) {
+      return {
+        success: false,
+        error: `Access Denied: ${authCheck.error || 'Administrative privileges required to access the SQL Engine.'}`,
+        executionTimeMs: Date.now() - startTime
+      };
+    }
+
     const cleanSql = sqlQuery.trim();
     if (!cleanSql) {
       return { success: false, error: 'SQL query cannot be empty.' };
     }
 
     const lowerSql = cleanSql.toLowerCase();
+
+    // Block dangerous destructive statements on production metadata/auth
+    if (
+      lowerSql.includes('drop database') ||
+      lowerSql.includes('drop schema') ||
+      lowerSql.includes('truncate auth.users') ||
+      lowerSql.includes('drop table auth.')
+    ) {
+      return {
+        success: false,
+        error: 'Security Guard: Destructive database or auth schema deletion commands are blocked.',
+        executionTimeMs: Date.now() - startTime
+      };
+    }
 
     // 1. SELECT * FROM pages
     if (lowerSql.startsWith('select') && lowerSql.includes('from pages')) {

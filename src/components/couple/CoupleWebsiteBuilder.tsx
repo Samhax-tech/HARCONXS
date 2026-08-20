@@ -32,6 +32,7 @@ import {
   Lock
 } from 'lucide-react';
 import { CoupleWebsiteLiveView } from './CoupleWebsiteLiveView';
+import { Analytics } from '../../services/analyticsService';
 
 const SOUNDTRACK_OPTIONS = [
   { id: 'piano-soft', name: 'Romantic Acoustic Piano', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=romantic-piano-112199.mp3' },
@@ -134,12 +135,28 @@ export const CoupleWebsiteBuilder: React.FC = () => {
   const [isAddingMemory, setIsAddingMemory] = useState(false);
 
   // Live simulator state
+  const [timeElapsed, setTimeElapsed] = useState({
+    years: 0,
+    months: 0,
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0
+  });
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [previewTemplateDemo, setPreviewTemplateDemo] = useState<CoupleWebsiteTemplate | null>(null);
 
-  // Live Timer for Simulator
-  const [timeElapsed, setTimeElapsed] = useState({ years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 });
+  useEffect(() => {
+    if (selectedTemplate) {
+      Analytics.trackCoupleTemplateViewed({
+        templateId: selectedTemplate.id,
+        templateName: selectedTemplate.name,
+        category: selectedTemplate.category,
+        price: selectedTemplate.price
+      });
+    }
+  }, [selectedTemplate]);
 
   useEffect(() => {
     const calculateTime = () => {

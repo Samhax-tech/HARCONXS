@@ -189,7 +189,50 @@ export const BotPanelsAdminSection: React.FC<BotPanelsAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE BOT SERVICES CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {services.map(srv => (
+              <div key={srv.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-zinc-100 text-sm">{srv.name}</h4>
+                    <span className="text-xs font-mono text-amber-400">{srv.botUsername}</span>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase ${
+                    srv.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-400'
+                  }`}>
+                    {srv.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 bg-zinc-950/60 p-2.5 rounded-xl text-xs border border-zinc-800">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Latency & Node</span>
+                    <span className="font-mono text-emerald-400 font-medium">{srv.webhookLatencyMs}ms • {srv.clusterNode}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Today Commands</span>
+                    <span className="font-mono text-zinc-100 font-bold">{srv.todayCommands.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs font-mono text-zinc-400">{srv.uptime} uptime</span>
+                  <button
+                    onClick={() => handleToggleBot(srv.id, srv.status)}
+                    className={`px-4 py-1.5 min-h-[38px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      srv.status === 'active' ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    }`}
+                  >
+                    {srv.status === 'active' ? 'Pause Daemon' : 'Start Daemon'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP BOT SERVICES TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
