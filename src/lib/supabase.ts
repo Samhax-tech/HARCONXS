@@ -16,15 +16,13 @@ const getEnvVar = (key: string, defaultValue = ''): string => {
 };
 
 // Environment variables or default Supabase project configuration
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', 'https://v6ky2ym2gn3s6b7y2opdtl.supabase.co');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InY2a3kyeW0yZ24zczZiN3kyb3BkdGwiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY5MjIwMDAwMCwiZXhwIjoxOTk5OTk5OTk5fQ.placeholder_key');
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 export const isSupabaseConfigured = Boolean(
-  getEnvVar('VITE_SUPABASE_URL') && 
-  getEnvVar('VITE_SUPABASE_ANON_KEY') &&
-  !getEnvVar('VITE_SUPABASE_URL').includes('placeholder')
+  supabaseUrl &&
+  supabaseAnonKey
 );
-
 // Create Supabase client instance with auto-refresh and session persistence
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
