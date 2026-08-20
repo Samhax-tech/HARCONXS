@@ -2615,4 +2615,44 @@ export const INITIAL_FAQ_ITEMS: FaqItem[] = [
   }
 ];
 
+export const INITIAL_PAYMENT_METHODS_CONFIG: import('../types').PaymentMethodsConfig = {
+  // Cash on Delivery
+  codEnabled: true,
+  codMaxLimit: 15000,
+  codFee: 0,
+  codOtpRequired: true,
+  codRestrictedCategories: ['digital', 'digital-services', 'websites', 'bots'],
+
+  // UPI Payments
+  upiEnabled: true,
+  upiVpa: 'harconxs@icici',
+  upiMerchantName: 'HARCONXS Sovereign Atelier',
+  upiDynamicQr: true,
+  upiAutoVerify: true,
+
+  // Credit / Debit Cards
+  cardsEnabled: true,
+  cardProvider: 'razorpay',
+  razorpayKeyId: 'rzp_live_sovereign_018249',
+  razorpayKeySecret: 'sk_rzp_live_secret_vault_9921',
+  stripePublishableKey: 'pk_live_51MkJ8290184918293',
+  stripeSecretKey: 'sk_live_51MkJ82901849182939921',
+  cardsInternational: true,
+  cardsEmiAvailable: true,
+  cards3DSecure: true,
+
+  // Netbanking & Wallets
+  netbankingEnabled: true,
+  walletsEnabled: true,
+
+  // Luxury Crypto / Web3
+  cryptoEnabled: false,
+  cryptoWalletAddress: '0x71C...HarconxsTreasury',
+
+  // General Gateway Environment
+  testMode: false,
+  updatedAt: new Date().toISOString(),
+  updatedBy: 'HARCONXS Super Administrator'
+};
+
 

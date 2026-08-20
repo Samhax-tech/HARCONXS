@@ -39,7 +39,8 @@ import {
   PageRecord,
   PageRevision,
   PageSection,
-  PageSectionType
+  PageSectionType,
+  PaymentMethodsConfig
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -62,7 +63,8 @@ import {
   INITIAL_EMAIL_NOTIFICATIONS,
   INITIAL_NOTIFICATIONS,
   INITIAL_BILLING_INVOICES,
-  INITIAL_THEME_CONFIG
+  INITIAL_THEME_CONFIG,
+  INITIAL_PAYMENT_METHODS_CONFIG
 } from '../data/initialData';
 import {
   triggerNotification,
@@ -462,6 +464,10 @@ interface StoreContextType {
   deletePageSectionItem: (sectionId: string) => Promise<boolean>;
   updateActivePageRecord: (updater: (prev: PageRecord) => PageRecord) => void;
   refetchPageConfig: (slugOrId?: string) => Promise<void>;
+
+  // Payment Gateways & Settlement Configuration
+  paymentSettings: PaymentMethodsConfig;
+  updatePaymentSettings: (config: Partial<PaymentMethodsConfig>) => Promise<boolean>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -658,6 +664,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // YouTube Videos & Social Links
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideoItem[]>(INITIAL_YOUTUBE_VIDEOS);
   const [socialLinks] = useState<SocialLinksConfig>(INITIAL_SOCIAL_LINKS);
+
+  // Payment Gateways & Methods Config
+  const [paymentSettings, setPaymentSettings] = useState<PaymentMethodsConfig>(() => {
+    try {
+      const saved = localStorage.getItem('hx_payment_methods_config');
+      if (saved) {
+        return { ...INITIAL_PAYMENT_METHODS_CONFIG, ...JSON.parse(saved) };
+      }
+    } catch {}
+    return INITIAL_PAYMENT_METHODS_CONFIG;
+  });
+
+  const updatePaymentSettings = async (partialConfig: Partial<PaymentMethodsConfig>): Promise<boolean> => {
+    try {
+      const merged: PaymentMethodsConfig = {
+        ...paymentSettings,
+        ...partialConfig,
+        updatedAt: new Date().toISOString()
+      };
+      setPaymentSettings(merged);
+      localStorage.setItem('hx_payment_methods_config', JSON.stringify(merged));
+
+      // Attempt to sync to Supabase settings table if accessible
+      if (isSupabaseConfigured) {
+        try {
+          await supabase.from('settings').upsert({
+            key: 'payment_methods_config',
+            value: merged,
+            updated_at: new Date().toISOString()
+          });
+        } catch {}
+      }
+
+      showToast('Payment gateways & settlement configuration saved.');
+      return true;
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update payment settings.');
+      return false;
+    }
+  };
 
   // Modals & UI
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -3511,7 +3557,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         restorePageRevisionSnapshot,
         deletePageSectionItem,
         updateActivePageRecord,
-        refetchPageConfig
+        refetchPageConfig,
+        paymentSettings,
+        updatePaymentSettings
       }}
     >
       {children}

@@ -18,7 +18,12 @@ import {
   RefreshCw,
   Eye,
   Sliders,
-  DollarSign
+  DollarSign,
+  UploadCloud,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  X,
+  Check
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import { Product, CategoryType, ProductVariant, InventoryItem, CategoryItem } from '../../../types';
@@ -1350,21 +1355,138 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
                   />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-zinc-300 mb-1">Main Cover Image URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://images.unsplash.com/..."
-                    value={productForm.imageUrl || ''}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, imageUrl: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
-                  />
-                  {productForm.imageUrl && (
-                    <div className="mt-2 flex items-center gap-3">
-                      <img src={productForm.imageUrl} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-zinc-700" />
-                      <span className="text-xs text-zinc-500">Asset preview loaded</span>
+                <div className="sm:col-span-2 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-zinc-300">
+                      Product Media & Cover Image
+                    </label>
+                    <span className="text-[11px] text-zinc-500">Supports Direct Upload, Image URL, or Atelier Presets</span>
+                  </div>
+
+                  {/* Media input tabs & uploader */}
+                  <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-4">
+                    {/* Drag-and-Drop / File Upload Zone */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* 1. Direct File Upload */}
+                      <label className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-zinc-800 hover:border-amber-400/50 bg-zinc-900/50 hover:bg-amber-400/5 cursor-pointer transition-all group">
+                        <UploadCloud className="w-8 h-8 text-zinc-500 group-hover:text-amber-400 mb-2 transition-colors" />
+                        <span className="text-xs font-semibold text-zinc-200 group-hover:text-amber-300">
+                          Upload Image File
+                        </span>
+                        <span className="text-[11px] text-zinc-500 mt-1 text-center">
+                          PNG, JPG, WEBP up to 10MB
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const base64 = event.target?.result as string;
+                                if (base64) {
+                                  setProductForm(prev => ({
+                                    ...prev,
+                                    imageUrl: base64,
+                                    images: [base64, ...(prev.images || []).filter(img => img !== base64)]
+                                  }));
+                                  showToast('Product image uploaded successfully.');
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+
+                      {/* 2. Direct Image URL input */}
+                      <div className="flex flex-col justify-between space-y-2 p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/80">
+                        <div>
+                          <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5 mb-1.5">
+                            <LinkIcon className="w-3.5 h-3.5 text-amber-400" />
+                            Or Enter External Image URL
+                          </span>
+                          <input
+                            type="url"
+                            placeholder="https://images.unsplash.com/..."
+                            value={productForm.imageUrl || ''}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:border-amber-400 font-mono"
+                          />
+                        </div>
+                        <p className="text-[10px] text-zinc-500">
+                          CDN link, Unsplash, Cloudinary, or Supabase Storage public URL.
+                        </p>
+                      </div>
                     </div>
-                  )}
+
+                    {/* Curated Luxury Preset Quick Select */}
+                    <div>
+                      <span className="text-[11px] font-semibold text-zinc-400 block mb-2">
+                        Quick Atelier Preset Assets:
+                      </span>
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                        {[
+                          { name: 'Platinum Ring', url: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80' },
+                          { name: 'Rose Gold Band', url: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80' },
+                          { name: 'Silver Pendants', url: 'https://images.unsplash.com/photo-1611591475841-e40889c20a1f?w=800&auto=format&fit=crop&q=80' },
+                          { name: 'Velvet Keepsake', url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80' },
+                          { name: 'Crystal Rose', url: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&auto=format&fit=crop&q=80' },
+                          { name: 'Luxury Diamond', url: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&auto=format&fit=crop&q=80' }
+                        ].map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setProductForm(prev => ({
+                                ...prev,
+                                imageUrl: preset.url,
+                                images: [preset.url, ...(prev.images || []).filter(img => img !== preset.url)]
+                              }));
+                              showToast(`Applied "${preset.name}" preset`);
+                            }}
+                            className={`group relative rounded-lg overflow-hidden border aspect-square ${productForm.imageUrl === preset.url ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-zinc-800 hover:border-zinc-600'}`}
+                          >
+                            <img src={preset.url} alt={preset.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            {productForm.imageUrl === preset.url && (
+                              <div className="absolute inset-0 bg-amber-400/20 flex items-center justify-center">
+                                <Check className="w-4 h-4 text-amber-300 font-bold bg-zinc-950/80 rounded-full p-0.5" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Active Preview Thumbnail & Clear */}
+                    {productForm.imageUrl && (
+                      <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800/80 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={productForm.imageUrl}
+                            alt="Cover Preview"
+                            className="w-14 h-14 object-cover rounded-lg border border-amber-400/30 shadow-md"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-zinc-100 block">Active Cover Image Loaded</span>
+                            <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Ready for storefront rendering
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setProductForm(prev => ({ ...prev, imageUrl: '' }))}
+                          className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-rose-950/40 hover:text-rose-400 text-zinc-400 text-xs transition-colors flex items-center gap-1"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Clear</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="sm:col-span-2">

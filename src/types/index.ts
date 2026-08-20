@@ -478,6 +478,8 @@ export interface CoupleWebsiteProject {
   musicTitle?: string;
   videoUrl?: string;
   secretMessage?: string;
+  passcode?: string;
+  passwordProtected?: boolean;
   photos: string[];
   memories: CoupleMemoryItem[];
   guestbook: CoupleGuestbookEntry[];
@@ -1496,6 +1498,46 @@ export interface AuditLogRecord {
   ipAddress: string;
   userAgent?: string;
   createdAt: string;
+}
+
+export interface PaymentMethodsConfig {
+  // Cash on Delivery
+  codEnabled: boolean;
+  codMaxLimit: number;
+  codFee: number;
+  codOtpRequired: boolean;
+  codRestrictedCategories: string[];
+
+  // UPI Payments
+  upiEnabled: boolean;
+  upiVpa: string;
+  upiMerchantName: string;
+  upiDynamicQr: boolean;
+  upiAutoVerify: boolean;
+
+  // Credit / Debit Cards
+  cardsEnabled: boolean;
+  cardProvider: 'razorpay' | 'stripe' | 'payu' | 'custom';
+  razorpayKeyId: string;
+  razorpayKeySecret: string;
+  stripePublishableKey: string;
+  stripeSecretKey: string;
+  cardsInternational: boolean;
+  cardsEmiAvailable: boolean;
+  cards3DSecure: boolean;
+
+  // Netbanking & Wallets
+  netbankingEnabled: boolean;
+  walletsEnabled: boolean;
+  
+  // Luxury Crypto / Web3
+  cryptoEnabled: boolean;
+  cryptoWalletAddress: string;
+
+  // General Gateway Environment
+  testMode: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 

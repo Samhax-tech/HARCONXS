@@ -61,6 +61,7 @@ export const VisualPageEditor: React.FC = () => {
     createPageRevisionSnapshot,
     restorePageRevisionSnapshot,
     deletePageSectionItem,
+    refetchPageConfig,
     isAdminAuthenticated,
     setIsAdminLoginModalOpen,
     setCurrentView,
@@ -114,6 +115,12 @@ export const VisualPageEditor: React.FC = () => {
       setSelectedSectionId(activePageRecord.sections[0].id);
     }
   }, [activePageRecord.sections, selectedSectionId]);
+
+  // Refetch page config when selected page key changes
+  useEffect(() => {
+    refetchPageConfig(selectedPageKey);
+    setSelectedSectionId(null);
+  }, [selectedPageKey]);
 
   // Load revisions on mount
   useEffect(() => {

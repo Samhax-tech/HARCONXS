@@ -548,6 +548,7 @@ ON CONFLICT (id) DO NOTHING;
 CREATE TABLE IF NOT EXISTS public.api_keys (
     id TEXT PRIMARY KEY,
     client_id TEXT NOT NULL REFERENCES public.api_clients(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     client_name TEXT NOT NULL,
     name TEXT NOT NULL,
     key_prefix TEXT NOT NULL, -- e.g. hx_live_tg_8f93... (first 14 chars for safe identification)
@@ -814,7 +815,9 @@ CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON public.support_tickets(
 
 CREATE INDEX IF NOT EXISTS idx_couple_websites_subdomain ON public.couple_websites(subdomain);
 CREATE INDEX IF NOT EXISTS idx_couple_websites_customer_id ON public.couple_websites(customer_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_client_id ON public.api_keys(client_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON public.api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON public.api_keys(key_hash);
 CREATE INDEX IF NOT EXISTS idx_email_logs_recipient ON public.email_logs(recipient_email);
 CREATE INDEX IF NOT EXISTS idx_email_logs_order_number ON public.email_logs(order_number);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_name ON public.analytics_events(event_name);
@@ -917,8 +920,8 @@ CREATE POLICY "Users: Manage Own Couple Websites" ON public.couple_websites FOR 
     WITH CHECK (customer_id = auth.uid()::text);
 
 CREATE POLICY "Users: Manage Own API Keys" ON public.api_keys FOR ALL 
-    USING (user_id = auth.uid())
-    WITH CHECK (user_id = auth.uid());
+    USING (user_id = auth.uid() OR public.is_admin(auth.uid()))
+    WITH CHECK (user_id = auth.uid() OR public.is_admin(auth.uid()));
 
 CREATE POLICY "Users: View Own Email Logs" ON public.email_logs FOR SELECT 
     USING (recipient_email = auth.jwt() ->> 'email');

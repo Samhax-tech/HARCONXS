@@ -18,7 +18,11 @@ import {
   MessageCircle,
   QrCode,
   Eye,
-  X
+  X,
+  Lock,
+  Unlock,
+  Key,
+  Play
 } from 'lucide-react';
 
 interface CoupleWebsiteLiveViewProps {
@@ -52,6 +56,9 @@ export const CoupleWebsiteLiveView: React.FC<CoupleWebsiteLiveViewProps> = ({
 
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasEnteredSanctuary, setHasEnteredSanctuary] = useState(false);
+  const [enteredPasscode, setEnteredPasscode] = useState('');
+  const [passcodeError, setPasscodeError] = useState(false);
   const [guestAuthor, setGuestAuthor] = useState('');
   const [guestMessage, setGuestMessage] = useState('');
   const [isSubmittingGuestbook, setIsSubmittingGuestbook] = useState(false);
@@ -61,6 +68,24 @@ export const CoupleWebsiteLiveView: React.FC<CoupleWebsiteLiveViewProps> = ({
   const [heartsCount, setHeartsCount] = useState(project?.heartsGiven || 12);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleEnterSanctuary = () => {
+    // If project has passcode protection, verify it
+    if (project?.passcode && project.passcode.trim() !== '') {
+      if (enteredPasscode.trim() !== project.passcode.trim()) {
+        setPasscodeError(true);
+        showToast('Incorrect Sanctuary Passcode. Please check with the couple.');
+        return;
+      }
+    }
+    setHasEnteredSanctuary(true);
+    if (audioRef.current && project.musicTrack) {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {
+        setIsPlaying(false);
+      });
+    }
+    showToast(`✨ Welcome to the Sanctuary of ${project.partner1Name} & ${project.partner2Name}`);
+  };
 
   // Live Timer
   const [elapsed, setElapsed] = useState({
@@ -148,7 +173,7 @@ export const CoupleWebsiteLiveView: React.FC<CoupleWebsiteLiveViewProps> = ({
     : 'font-serif';
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-rose-500 selection:text-white">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-rose-500 selection:text-white relative">
       {/* Background Audio */}
       {project.musicTrack && (
         <audio
@@ -157,6 +182,85 @@ export const CoupleWebsiteLiveView: React.FC<CoupleWebsiteLiveViewProps> = ({
           loop
           preload="auto"
         />
+      )}
+
+      {/* SANCTUARY ENTRANCE PORTAL & CEREMONY OVERLAY */}
+      {!hasEnteredSanctuary && (
+        <div id="sanctuary-entrance-portal" className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-2xl flex items-center justify-center p-4">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-zinc-900/90 border border-rose-500/30 text-center space-y-6 shadow-2xl shadow-rose-950/50 relative overflow-hidden">
+            {/* Ambient Background Aura */}
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-rose-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-400 mx-auto flex items-center justify-center shadow-lg shadow-rose-500/20">
+              <Heart className="w-8 h-8 fill-rose-500 text-rose-500 animate-pulse" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="px-3.5 py-1 rounded-full bg-rose-500/10 text-rose-300 text-[11px] font-mono font-bold uppercase tracking-widest border border-rose-500/20">
+                Eternal Couple Sanctuary
+              </span>
+              <h2 className={`text-3xl sm:text-4xl font-bold text-white tracking-tight ${fontClass}`}>
+                {project.partner1Name} <span className="text-rose-400 font-light">&</span> {project.partner2Name}
+              </h2>
+              <p className="text-xs text-zinc-400 font-light leading-relaxed">
+                "{project.heroTagline || 'Where love and precious memories are preserved for eternity.'}"
+              </p>
+            </div>
+
+            {/* If passcode protected, show password input */}
+            {project.passcode && (
+              <div className="space-y-2 text-left pt-2">
+                <label className="block text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  Sanctuary Key / Passcode
+                </label>
+                <input
+                  type="password"
+                  value={enteredPasscode}
+                  onChange={(e) => {
+                    setEnteredPasscode(e.target.value);
+                    setPasscodeError(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleEnterSanctuary();
+                  }}
+                  placeholder="Enter secret love key..."
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border text-zinc-100 text-xs focus:outline-none ${passcodeError ? 'border-rose-500' : 'border-zinc-700 focus:border-rose-400'}`}
+                />
+                {passcodeError && (
+                  <p className="text-[11px] text-rose-400 font-medium">
+                    Incorrect key. Please request access from the couple.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="pt-2 space-y-3">
+              <button
+                id="enter-sanctuary-btn"
+                onClick={handleEnterSanctuary}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-bold text-sm shadow-xl shadow-rose-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer group"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300 group-hover:rotate-12 transition-transform" />
+                <span>Enter Sanctuary</span>
+              </button>
+
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="w-full py-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs transition-colors cursor-pointer"
+                >
+                  Return to Studio
+                </button>
+              )}
+            </div>
+
+            <p className="text-[10px] text-zinc-500">
+              🎵 Entering will initiate soundtrack &amp; relationship memory timeline
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Floating Top Control Bar */}

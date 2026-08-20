@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
   CreditCard, 
@@ -50,7 +50,7 @@ export const SettingsAdminSection: React.FC<SettingsAdminSectionProps> = ({
   subSection,
   onNavigateSubSection
 }) => {
-  const { showToast } = useStore();
+  const { showToast, paymentSettings, updatePaymentSettings } = useStore();
 
   // General Store Settings
   const [generalSettings, setGeneralSettings] = useState({
@@ -62,15 +62,28 @@ export const SettingsAdminSection: React.FC<SettingsAdminSectionProps> = ({
     orderPrefix: 'HX-'
   });
 
-  // Payment Gateways
-  const [paymentsConfig, setPaymentsConfig] = useState({
-    razorpayEnabled: true,
-    razorpayKeyId: 'rzp_live_sovereign_018249',
-    stripeEnabled: true,
-    stripePublishableKey: 'pk_live_51MkJ829018491',
-    codEnabled: true,
-    codMaxThreshold: 10000
-  });
+  // Payment Gateways & Methods Draft State
+  const [localPayments, setLocalPayments] = useState(paymentSettings);
+  const [isSavingPayments, setIsSavingPayments] = useState(false);
+
+  // Sync if store updates
+  useEffect(() => {
+    setLocalPayments(paymentSettings);
+  }, [paymentSettings]);
+
+  const handleSavePayments = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingPayments(true);
+    try {
+      await enforceServerSidePermission('settings:payments', 'payment_gateways', 'global');
+      await updatePaymentSettings(localPayments);
+      showToast('Payment methods & gateway credentials successfully applied.');
+    } catch (err: any) {
+      showToast(err.message || 'Permission Denied: Unable to update payment settings.');
+    } finally {
+      setIsSavingPayments(false);
+    }
+  };
 
   // Tax & GST Slabs
   const [taxSlabs, setTaxSlabs] = useState([
@@ -328,36 +341,349 @@ export const SettingsAdminSection: React.FC<SettingsAdminSectionProps> = ({
         </form>
       )}
 
-      {/* 2. PAYMENTS GATEWAYS */}
+      {/* 2. PAYMENTS GATEWAYS & SETTLEMENT SUITE */}
       {subSection === 'settings-payments' && (
-        <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
-          <h4 className="font-serif font-bold text-zinc-100 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-amber-400" />
-            Payment Gateways & Settlement
-          </h4>
-
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-zinc-100 text-sm">Razorpay Payment Gateway (UPI, Netbanking, Cards)</div>
-                <div className="text-xs text-zinc-400 font-mono">Key ID: {paymentsConfig.razorpayKeyId}</div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                ACTIVE
-              </span>
+        <form onSubmit={handleSavePayments} className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+            <div>
+              <h4 className="font-serif font-bold text-lg text-zinc-100 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-amber-400" />
+                Payment Gateways & Settlement Methods
+              </h4>
+              <p className="text-xs text-zinc-400 mt-1">
+                Configure Cash on Delivery (COD), UPI Instant QR, Credit/Debit Cards, NetBanking, and Crypto settlements.
+              </p>
             </div>
-
-            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between">
-              <div>
-                <div className="font-bold text-zinc-100 text-sm">Stripe Sovereign Elements (International Cards)</div>
-                <div className="text-xs text-zinc-400 font-mono">Public: {paymentsConfig.stripePublishableKey}</div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                ACTIVE
-              </span>
+            
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-zinc-300 font-mono cursor-pointer bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800">
+                <input
+                  type="checkbox"
+                  checked={localPayments.testMode}
+                  onChange={(e) => setLocalPayments(prev => ({ ...prev, testMode: e.target.checked }))}
+                  className="rounded bg-zinc-900 border-zinc-700 text-amber-400"
+                />
+                <span>Sandbox / Test Mode</span>
+              </label>
+              <button
+                type="submit"
+                disabled={isSavingPayments}
+                className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-400/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span>{isSavingPayments ? 'Saving...' : 'Save Configuration'}</span>
+              </button>
             </div>
           </div>
-        </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 1. CASH ON DELIVERY (COD) */}
+            <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm">
+                    COD
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-zinc-100 text-sm">Cash on Delivery (COD)</h5>
+                    <p className="text-xs text-zinc-400">Collect cash or card on door delivery via logistics carriers.</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={localPayments.codEnabled}
+                    onChange={(e) => setLocalPayments(prev => ({ ...prev, codEnabled: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {localPayments.codEnabled && (
+                <div className="pt-2 border-t border-zinc-800/80 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Max Order Threshold (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={localPayments.codMaxLimit || 15000}
+                        onChange={(e) => setLocalPayments(prev => ({ ...prev, codMaxLimit: Number(e.target.value) }))}
+                        className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs font-mono focus:border-amber-400"
+                        placeholder="15000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Extra Handling Surcharge (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={localPayments.codFee || 0}
+                        onChange={(e) => setLocalPayments(prev => ({ ...prev, codFee: Number(e.target.value) }))}
+                        className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs font-mono focus:border-amber-400"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
+                    <div>
+                      <span className="text-xs text-zinc-200 font-medium block">Phone OTP Verification</span>
+                      <span className="text-[11px] text-zinc-500">Require automated SMS OTP before confirming COD dispatch</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={localPayments.codOtpRequired}
+                      onChange={(e) => setLocalPayments(prev => ({ ...prev, codOtpRequired: e.target.checked }))}
+                      className="rounded bg-zinc-900 border-zinc-700 text-amber-400 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. UPI INSTANT PAYMENTS */}
+            <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-sm">
+                    UPI
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-zinc-100 text-sm">Unified Payments Interface (UPI)</h5>
+                    <p className="text-xs text-zinc-400">Google Pay, PhonePe, Paytm, BHIM & Dynamic QR codes.</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={localPayments.upiEnabled}
+                    onChange={(e) => setLocalPayments(prev => ({ ...prev, upiEnabled: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+
+              {localPayments.upiEnabled && (
+                <div className="pt-2 border-t border-zinc-800/80 space-y-3">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Merchant UPI VPA (Virtual Payment Address)</label>
+                    <input
+                      type="text"
+                      value={localPayments.upiVpa || ''}
+                      onChange={(e) => setLocalPayments(prev => ({ ...prev, upiVpa: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-mono focus:border-amber-400"
+                      placeholder="harconxs@icici"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Merchant Display Name</label>
+                    <input
+                      type="text"
+                      value={localPayments.upiMerchantName || ''}
+                      onChange={(e) => setLocalPayments(prev => ({ ...prev, upiMerchantName: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:border-amber-400"
+                      placeholder="HARCONXS Sovereign Atelier"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
+                    <div>
+                      <span className="text-xs text-zinc-200 font-medium block">Dynamic Checkout QR</span>
+                      <span className="text-[11px] text-zinc-500">Generate realtime NPCI QR code encoded with order amount</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={localPayments.upiDynamicQr}
+                      onChange={(e) => setLocalPayments(prev => ({ ...prev, upiDynamicQr: e.target.checked }))}
+                      className="rounded bg-zinc-900 border-zinc-700 text-amber-400 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. CREDIT & DEBIT CARDS */}
+            <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-zinc-100 text-sm">Credit & Debit Cards</h5>
+                    <p className="text-xs text-zinc-400">Visa, MasterCard, Rupay, Amex, Diner's Club with 3DS2.</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={localPayments.cardsEnabled}
+                    onChange={(e) => setLocalPayments(prev => ({ ...prev, cardsEnabled: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+                </label>
+              </div>
+
+              {localPayments.cardsEnabled && (
+                <div className="pt-2 border-t border-zinc-800/80 space-y-3">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Primary Payment Processor</label>
+                    <select
+                      value={localPayments.cardProvider || 'razorpay'}
+                      onChange={(e) => setLocalPayments(prev => ({ ...prev, cardProvider: e.target.value as any }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:border-amber-400 cursor-pointer"
+                    >
+                      <option value="razorpay">Razorpay Standard Elements (Domestic + International)</option>
+                      <option value="stripe">Stripe Payments (Global Multicurrency)</option>
+                      <option value="payu">PayU Sovereign Enterprise</option>
+                    </select>
+                  </div>
+
+                  {localPayments.cardProvider === 'razorpay' ? (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Razorpay Key ID</label>
+                        <input
+                          type="text"
+                          value={localPayments.razorpayKeyId || ''}
+                          onChange={(e) => setLocalPayments(prev => ({ ...prev, razorpayKeyId: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs font-mono focus:border-amber-400"
+                          placeholder="rzp_live_..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Razorpay Key Secret</label>
+                        <input
+                          type="password"
+                          value={localPayments.razorpayKeySecret || ''}
+                          onChange={(e) => setLocalPayments(prev => ({ ...prev, razorpayKeySecret: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs font-mono focus:border-amber-400"
+                          placeholder="••••••••••••••••"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Stripe Publishable Key</label>
+                        <input
+                          type="text"
+                          value={localPayments.stripePublishableKey || ''}
+                          onChange={(e) => setLocalPayments(prev => ({ ...prev, stripePublishableKey: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs font-mono focus:border-amber-400"
+                          placeholder="pk_live_..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Stripe Secret Key</label>
+                        <input
+                          type="password"
+                          value={localPayments.stripeSecretKey || ''}
+                          onChange={(e) => setLocalPayments(prev => ({ ...prev, stripeSecretKey: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs font-mono focus:border-amber-400"
+                          placeholder="sk_live_..."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-4 pt-1">
+                    <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={localPayments.cardsInternational}
+                        onChange={(e) => setLocalPayments(prev => ({ ...prev, cardsInternational: e.target.checked }))}
+                        className="rounded bg-zinc-900 border-zinc-700 text-amber-400"
+                      />
+                      <span>International Cards</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={localPayments.cardsEmiAvailable}
+                        onChange={(e) => setLocalPayments(prev => ({ ...prev, cardsEmiAvailable: e.target.checked }))}
+                        className="rounded bg-zinc-900 border-zinc-700 text-amber-400"
+                      />
+                      <span>Zero-Cost EMI Plans</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. NETBANKING & WALLETS & CRYPTO */}
+            <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm">
+                    NET
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-zinc-100 text-sm">NetBanking & Wallets & Crypto</h5>
+                    <p className="text-xs text-zinc-400">Direct Bank transfers across 50+ Indian banks, Wallets & Web3.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2 border-t border-zinc-800/80">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
+                  <div>
+                    <span className="text-xs text-zinc-200 font-medium block">NetBanking (HDFC, ICICI, SBI, Axis)</span>
+                    <span className="text-[11px] text-zinc-500">Direct bank login and instant IMPS settlement</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={localPayments.netbankingEnabled}
+                    onChange={(e) => setLocalPayments(prev => ({ ...prev, netbankingEnabled: e.target.checked }))}
+                    className="rounded bg-zinc-900 border-zinc-700 text-amber-400 cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
+                  <div>
+                    <span className="text-xs text-zinc-200 font-medium block">Digital Wallets (Amazon Pay, Paytm, Mobikwik)</span>
+                    <span className="text-[11px] text-zinc-500">1-click wallet balance settlement</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={localPayments.walletsEnabled}
+                    onChange={(e) => setLocalPayments(prev => ({ ...prev, walletsEnabled: e.target.checked }))}
+                    className="rounded bg-zinc-900 border-zinc-700 text-amber-400 cursor-pointer"
+                  />
+                </div>
+
+                <div className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-zinc-200 font-medium block">Crypto Luxury Treasury (USDT / BTC / ETH)</span>
+                      <span className="text-[11px] text-zinc-500">Accept stablecoin payments for high-ticket atelier orders</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={localPayments.cryptoEnabled}
+                      onChange={(e) => setLocalPayments(prev => ({ ...prev, cryptoEnabled: e.target.checked }))}
+                      className="rounded bg-zinc-900 border-zinc-700 text-amber-400 cursor-pointer"
+                    />
+                  </div>
+                  {localPayments.cryptoEnabled && (
+                    <input
+                      type="text"
+                      value={localPayments.cryptoWalletAddress || ''}
+                      onChange={(e) => setLocalPayments(prev => ({ ...prev, cryptoWalletAddress: e.target.value }))}
+                      className="w-full px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 text-xs font-mono focus:border-amber-400"
+                      placeholder="0x... USDT (ERC20 / TRC20) Wallet Address"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
       )}
 
       {/* 3. TAX & GST */}
