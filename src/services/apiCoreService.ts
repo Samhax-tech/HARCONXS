@@ -1767,7 +1767,7 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
     'Cache-Control': 'no-store, private'
   };
 
-  const normalizedPath = options.path.replace(/^\/api\/v1/, '').replace(/\/$/, '') || '/';
+  const normalizedPath = options.path.replace(/^\/api\/v1/, '').replace(/^\/v1/, '').replace(/\/$/, '') || '/';
   const method = options.method.toUpperCase();
   const authHeader = options.headers?.['authorization'] || options.headers?.['x-harconxs-api-key'] || options.query?.['api_key'];
 

@@ -111,6 +111,7 @@ export interface Product {
   dimensions?: string;
   downloadUrl?: string;
   featured?: boolean;
+  isFeatured?: boolean;
   createdAt: string;
 
   // Convenience aliases
@@ -226,6 +227,7 @@ export interface Order {
     state: string;
     zip: string;
     country: string;
+    phone?: string;
   };
   trackingNumber?: string;
   carrier?: string;
@@ -459,11 +461,15 @@ export interface CoupleWebsiteProject {
   templateName?: string;
   partner1Name: string;
   partner2Name: string;
+  partner1?: string;
+  partner2?: string;
   partner1Photo?: string;
   partner2Photo?: string;
   anniversaryDate: string;
   ourStoryTitle: string;
   ourStoryText: string;
+  story?: string;
+  welcomeMessage?: string;
   heroTagline: string;
   primaryColor: string;
   secondaryColor?: string;

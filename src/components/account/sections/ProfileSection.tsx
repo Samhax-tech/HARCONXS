@@ -20,6 +20,7 @@ import {
 
 interface ProfileSectionProps {
   onNavigateTab: (tab: string) => void;
+  onViewOrder?: (orderId: string) => void;
 }
 
 export const ProfileSection: React.FC<ProfileSectionProps> = ({ onNavigateTab }) => {

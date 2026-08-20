@@ -185,6 +185,7 @@ export interface UserProfile {
   email: string;
   phone: string;
   loyaltyPoints: number;
+  loyaltyTier?: string;
   storeCredit: number;
   isAffiliate: boolean;
   affiliateCode: string;

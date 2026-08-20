@@ -54,7 +54,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
   const handleReorder = () => {
     order.items.forEach(item => {
       if (item.product) {
-        addToCart(item.product, item.quantity, item.variant, item.packaging, item.personalization);
+        addToCart(item.product, item.quantity, item.variant?.id, item.packaging, item.personalization);
       }
     });
     showToast(`Added items from ${order.orderNumber} to your bag.`);

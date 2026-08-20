@@ -81,7 +81,9 @@ export const CoupleWebsitesSection: React.FC = () => {
                 {/* Meta Top Bar */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <h3 className="text-base font-serif font-bold text-zinc-100">{project.partner1} & {project.partner2}</h3>
+                    <h3 className="text-base font-serif font-bold text-zinc-100">
+                      {project.partner1Name || project.partner1 || 'Partner 1'} & {project.partner2Name || project.partner2 || 'Partner 2'}
+                    </h3>
                     <span className="text-xs text-zinc-400 font-mono flex items-center gap-1 mt-0.5">
                       <Globe className="w-3.5 h-3.5 text-zinc-500" />
                       {project.subdomain}.harconxsshop.com
@@ -108,7 +110,7 @@ export const CoupleWebsitesSection: React.FC = () => {
                     </p>
                   )}
                   <p className="text-zinc-400 line-clamp-2 italic">
-                    "{project.story || project.welcomeMessage || 'Together forever in love.'}"
+                    "{project.ourStoryText || project.story || project.welcomeMessage || 'Together forever in love.'}"
                   </p>
                 </div>
 

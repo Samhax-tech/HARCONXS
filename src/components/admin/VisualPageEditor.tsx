@@ -74,11 +74,13 @@ export const VisualPageEditor: React.FC = () => {
     fontFamily: 'serif' as 'serif' | 'sans' | 'mono',
     primaryColor: '#f59e0b',
     accentColor: '#fbbf24',
+    announcementText: 'Complimentary Insured Air Express on Heirloom Commissions',
+    announcementDiscountCode: 'WELCOME15',
     footerTagline: 'Haute Horlogerie & Precious Metals Sovereign Atelier',
     supportEmail: 'concierge@harconxs.com',
     supportPhone: '+91 (0) 80 4920 1800'
   });
-  const saveThemeConfig = async () => {
+  const saveThemeConfig = async (_config?: any) => {
     showToast('Brand and theme preferences saved.');
   };
 

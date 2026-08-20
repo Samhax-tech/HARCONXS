@@ -210,10 +210,10 @@ export const CustomersAdminSection: React.FC<CustomersAdminSectionProps> = ({
     try {
       await enforceServerSidePermission('reviews:moderate', 'review', id);
       if (action === 'approve') {
-        approveReview(id);
+        await moderateReview(id, 'approve');
         showToast('Review approved and published to store.');
       } else {
-        rejectReview(id);
+        await moderateReview(id, 'reject');
         showToast('Review flagged as rejected.');
       }
     } catch (err: any) {

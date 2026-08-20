@@ -250,7 +250,7 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    {((p as any).isBestSeller || p.isFeatured) && (
+                    {((p as any).isBestSeller || (p as any).isFeatured || p.featured) && (
                       <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-amber-500 text-zinc-950 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-md">
                         <Flame className="w-3 h-3" /> Best Seller
                       </span>

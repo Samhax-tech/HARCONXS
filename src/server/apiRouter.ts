@@ -195,9 +195,9 @@ apiRouter.get(['/feeds/google-merchant.tsv', '/api/v1/feeds/google-merchant.tsv'
 });
 
 /**
- * Universal Handler for all `/api/v1/*` routes
+ * Universal Handler for all `/api/v1/*` and `/v1/*` routes
  */
-apiRouter.all('/v1/*', async (req: Request, res: Response) => {
+apiRouter.all(['/api/v1/*', '/v1/*'], async (req: Request, res: Response) => {
   try {
     const rawHeaders: Record<string, string> = {};
     for (const [key, value] of Object.entries(req.headers)) {
