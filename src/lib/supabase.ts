@@ -253,50 +253,99 @@ export async function supabaseVerifyAdminRole(userId: string, email?: string): P
  * Uses Supabase Auth as the ONLY identity source.
  * Customer login or wrong credentials NEVER produces success.
  */
-export async function supabaseAdminSignIn(
-  email: string,
+export const supabaseAdminSignIn = async (
+  identifier: string,
   password: string
-): Promise<{ success: boolean; message: string; role?: string; user?: any }> {
+): Promise<{ success: boolean; user?: SupabaseUser; error?: string }> => {
   try {
-    const cleanEmail = (email || '').trim();
-    const cleanPwd = (password || '').trim();
+    const cleanIdentifier = identifier.trim();
+    const cleanPwd = password.trim();
 
-    if (!cleanEmail || !cleanPwd) {
-      return { success: false, message: 'Please enter both administrator email and password.' };
-    }
-
-    // Attempt standard Supabase Auth signInWithPassword
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: cleanPwd
-    });
-
-    if (error || !data.user) {
+    if (!cleanIdentifier || !cleanPwd) {
       return {
         success: false,
-        message: error?.message || 'Invalid administrative credentials. Please verify your email and password.'
+        error: 'Email/username and password are required'
       };
     }
 
-    const { isAdmin, role } = await supabaseVerifyAdminRole(data.user.id, data.user.email);
-    if (!isAdmin) {
-      // User authenticated but lacks administrative privileges
+    let loginEmail = cleanIdentifier;
+
+    // If the user entered a username instead of an email,
+    // resolve the username to the account email.
+    if (!cleanIdentifier.includes('@')) {
+      const { data: admin, error: lookupError } = await supabase
+        .from('super_admins')
+        .select('email, is_active')
+        .eq('username', cleanIdentifier)
+        .maybeSingle();
+
+      if (lookupError) {
+        console.error('Admin username lookup failed:', lookupError);
+
+        return {
+          success: false,
+          error: 'Unable to verify administrator account'
+        };
+      }
+
+      if (!admin || !admin.is_active) {
+        return {
+          success: false,
+          error: 'Administrator account not found or inactive'
+        };
+      }
+
+      loginEmail = admin.email;
+    }
+
+    // Authenticate through Supabase Auth.
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: cleanPwd
+    });
+
+    if (error) {
+      console.error('Admin authentication failed:', error);
+
       return {
         success: false,
-        message: 'Access Denied: Your account does not have administrator privileges.'
+        error: error.message
+      };
+    }
+
+    if (!data.user) {
+      return {
+        success: false,
+        error: 'Authentication failed'
+      };
+    }
+
+    // Verify administrator role.
+    const verification = await supabaseVerifyAdminRole(data.user);
+
+    if (!verification.isAdmin) {
+      await supabase.auth.signOut();
+
+      return {
+        success: false,
+        error: 'This account does not have administrator access'
       };
     }
 
     return {
       success: true,
-      message: 'Supabase Auth administrative session verified successfully.',
-      role,
       user: data.user
     };
-  } catch (err: any) {
-    return { success: false, message: err?.message || 'Admin authentication failed.' };
+
+  } catch (error: any) {
+    console.error('Admin login error:', error);
+
+    return {
+      success: false,
+      error: error?.message || 'Administrator login failed'
+    };
   }
-}
+};
 
 /**
  * Supabase Auth: Sign out admin session
