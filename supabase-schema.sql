@@ -654,7 +654,50 @@ CREATE TABLE IF NOT EXISTS public.policy_versions (
 );
 
 -- ==============================================================================
--- 17. ANALYTICS, AUDIT LOGS & ADMIN ACTIVITY
+-- 17. KNOWLEDGE BASE, CATEGORIES & FAQ MATRIX
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.knowledge_categories (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    description TEXT,
+    icon TEXT DEFAULT 'HelpCircle',
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.knowledge_articles (
+    id TEXT PRIMARY KEY,
+    category_id TEXT NOT NULL REFERENCES public.knowledge_categories(id) ON DELETE CASCADE,
+    category_name TEXT,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT,
+    content TEXT NOT NULL,
+    tags TEXT[] DEFAULT '{}',
+    views INTEGER DEFAULT 0,
+    helpful_votes INTEGER DEFAULT 0,
+    is_featured BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.faq_items (
+    id TEXT PRIMARY KEY,
+    category_id TEXT NOT NULL REFERENCES public.knowledge_categories(id) ON DELETE CASCADE,
+    category_name TEXT,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    tags TEXT[] DEFAULT '{}',
+    order_index INTEGER DEFAULT 0,
+    is_featured BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 18. ANALYTICS, AUDIT LOGS & ADMIN ACTIVITY
 -- ==============================================================================
 
 CREATE TABLE IF NOT EXISTS public.analytics_events (
@@ -721,6 +764,10 @@ CREATE INDEX IF NOT EXISTS idx_email_logs_order_number ON public.email_logs(orde
 CREATE INDEX IF NOT EXISTS idx_analytics_events_name ON public.analytics_events(event_name);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON public.audit_logs(resource_type, resource_id);
 
+CREATE INDEX IF NOT EXISTS idx_knowledge_articles_category ON public.knowledge_articles(category_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_articles_slug ON public.knowledge_articles(slug);
+CREATE INDEX IF NOT EXISTS idx_faq_items_category ON public.faq_items(category_id);
+
 -- ==============================================================================
 -- 20. ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
@@ -750,8 +797,11 @@ ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.policies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.knowledge_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.knowledge_articles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.faq_items ENABLE ROW LEVEL SECURITY;
 
--- PUBLIC READ PERMISSIONS (Catalog, Templates, Policies, Active Packaging)
+-- PUBLIC READ PERMISSIONS (Catalog, Templates, Policies, Active Packaging, Knowledge Base)
 CREATE POLICY "Public Read: Products" ON public.products FOR SELECT USING (is_active = true);
 CREATE POLICY "Public Read: Variants" ON public.product_variants FOR SELECT USING (true);
 CREATE POLICY "Public Read: Categories" ON public.categories FOR SELECT USING (is_active = true);
@@ -763,6 +813,9 @@ CREATE POLICY "Public Read: Policies" ON public.policies FOR SELECT USING (true)
 CREATE POLICY "Public Read: Active Coupons" ON public.coupons FOR SELECT USING (active = true);
 CREATE POLICY "Public Read: Active Couple Websites" ON public.couple_websites FOR SELECT USING (status = 'active');
 CREATE POLICY "Public Read: Site Settings" ON public.site_settings FOR SELECT USING (true);
+CREATE POLICY "Public Read: Knowledge Categories" ON public.knowledge_categories FOR SELECT USING (true);
+CREATE POLICY "Public Read: Knowledge Articles" ON public.knowledge_articles FOR SELECT USING (true);
+CREATE POLICY "Public Read: FAQ Items" ON public.faq_items FOR SELECT USING (true);
 
 -- USER RESTRICTED PERMISSIONS (Profiles, Carts, Orders, Custom Orders, Tickets, API Keys)
 CREATE POLICY "Users: Manage Own Profile" ON public.profiles FOR ALL 
@@ -821,3 +874,30 @@ INSERT INTO public.policies (id, title, slug, version, content) VALUES
 ('pol-refund', 'Refund & Returns Policy', 'refund', '2.4', 'Personalized laser-engraved items are created uniquely for you. Replacements are guaranteed if transit damage occurs.'),
 ('pol-shipping', 'Shipping & Delivery Policy', 'shipping', '2.4', 'Orders ship via priority logistics partners (BlueDart Express, Delhivery) across India within 2-4 business days.')
 ON CONFLICT (id) DO NOTHING;
+
+-- SEED KNOWLEDGE CATEGORIES
+INSERT INTO public.knowledge_categories (id, name, slug, description, icon, display_order) VALUES
+('kc-shipping', 'Shipping & Delivery', 'shipping-delivery', 'Dispatch timelines, domestic & worldwide courier partners, real-time live tracking, and tamper-proof insured packaging.', 'Truck', 1),
+('kc-returns', 'Returns & Refunds', 'returns-refunds', '30-day money-back guarantee, non-customized product returns, damaged in transit replacements, and refund methods.', 'RotateCcw', 2),
+('kc-custom', 'Custom & Personalized Orders', 'custom-orders', 'Laser engraving specs, 3D brief submission, custom quotation #CO workflows, design approvals, and master jewelers.', 'Sparkles', 3),
+('kc-couple-sites', 'Couple Websites & Sanctuaries', 'couple-websites', 'Subdomains, anniversary live countdown timers, multimedia galleries, background audio tracks, guestbook moderation, and custom domains.', 'Heart', 4),
+('kc-bots', 'Bot Panels & Digital Infrastructure', 'bot-panels', 'Telegram VIP gateways, Discord bot moderation dashboards, WhatsApp CRM automation, API rate limits, and private billing portals.', 'Bot', 5),
+('kc-payments', 'Payments & Store Credit', 'payments-billing', 'UPI, Credit/Debit cards, NetBanking, Razorpay PG, Cashfree, GST invoices, discount promo codes, and loyalty reward redemption.', 'CreditCard', 6)
+ON CONFLICT (id) DO NOTHING;
+
+-- SEED KNOWLEDGE ARTICLES
+INSERT INTO public.knowledge_articles (id, category_id, category_name, slug, title, summary, content, tags, views, helpful_votes, is_featured) VALUES
+('ka-1', 'kc-shipping', 'Shipping & Delivery', 'delivery-times-and-rates', 'Standard and Express Delivery Timelines', 'Standard delivery takes 3-5 business days across domestic metros. Express courier arrives in 1-2 business days with full GPS tracking.', 'All HARCONXS orders are securely packed and dispatched from our primary fulfillment centers within 24 to 48 hours. Metro Cities: 2 to 4 business days. Express Guaranteed: 24 to 48 hours. Free shipping on orders over ₹1,500 ($50 USD).', ARRAY['shipping', 'delivery', 'tracking', 'express', 'free shipping'], 3420, 288, true),
+('ka-2', 'kc-returns', 'Returns & Refunds', 'returns-and-refund-policy', '30-Day Return Window and Damaged Replacement Guarantee', 'Non-customized physical products are eligible for a 30-day hassle-free return. Personalized laser-engraved items are protected with a free replacement if defective or damaged.', 'Physical ready-made items can be returned within 30 days. Custom personalized creations damaged in transit or with transcription flaws receive a free immediate replacement or store credit.', ARRAY['returns', 'refunds', 'replacement', 'warranty', 'money back'], 2910, 215, true),
+('ka-3', 'kc-custom', 'Custom & Personalized Orders', 'custom-brief-workflow', 'Submitting a Bespoke Brief (#CO) and 3D CAD Approval', 'Learn how to submit custom requests, receive fixed quotes, review 3D renders, and work with master jewelers.', 'Submit your vision with reference photos and vector specifications. Our atelier calculates a fixed quote (#CO) with a 3D proof within 24 hours. Once approved, fabrication commences.', ARRAY['custom', 'bespoke', 'brief', '3D proof', 'quote'], 1840, 162, true)
+ON CONFLICT (id) DO NOTHING;
+
+-- SEED FAQ ITEMS
+INSERT INTO public.faq_items (id, category_id, category_name, question, answer, tags, order_index, is_featured) VALUES
+('faq-1', 'kc-custom', 'Custom & Personalized Orders', 'How long does custom laser engraving take?', 'Custom laser engraving undergoes precision vector calibration within 24 to 48 business hours before packaging and dispatch.', ARRAY['engraving', 'custom', 'production time'], 1, true),
+('faq-2', 'kc-shipping', 'Shipping & Delivery', 'What is the shipping timeframe and cost?', 'Standard shipping is free on orders above ₹1,500 ($50 USD). Priority couriers (BlueDart Express, Delhivery) deliver in 2-4 business days.', ARRAY['shipping', 'rates', 'free delivery'], 2, true),
+('faq-3', 'kc-returns', 'Returns & Refunds', 'What is your policy on personalized item returns?', 'Because personalized pieces are crafted uniquely to your specifications, they cannot be returned for remorse. However, if transit damage or engraving transcription defects occur, we craft and ship a free replacement immediately.', ARRAY['returns', 'refunds', 'damage guarantee'], 3, true),
+('faq-4', 'kc-couple-sites', 'Couple Websites & Sanctuaries', 'How do Couple Sanctuaries and subdomains work?', 'Upon selecting a template, your personalized sanctuary is provisioned on a dedicated subdomain (e.g. alex-and-sarah.harconxsshop.com) with live anniversary counters, photo galleries, background music, and a private customer dashboard.', ARRAY['couple website', 'sanctuary', 'subdomain', 'anniversary'], 4, true),
+('faq-5', 'kc-bots', 'Bot Panels & Digital Infrastructure', 'What bot panel services and API access are provided?', 'We provide turnkey bot panel platforms for Telegram VIP access, Discord server moderation, WhatsApp business CRM, and RESTful API developer tokens with sub-50ms latency.', ARRAY['bot panels', 'telegram', 'discord', 'api'], 5, true)
+ON CONFLICT (id) DO NOTHING;
+
