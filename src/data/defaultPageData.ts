@@ -2,86 +2,55 @@ import { PageRecord, PageSection, PageSectionType } from '../types';
 
 export const INITIAL_HOME_PAGE_SECTIONS: PageSection[] = [
   {
-    id: 'sec_announcement_bar',
-    pageId: 'page_home',
-    sectionType: 'announcement_bar',
-    sortOrder: 0,
-    isHidden: false,
-    settings: {
-      paddingTop: 'none',
-      paddingBottom: 'none',
-      backgroundColor: '#09090b',
-      textColor: '#f59e0b',
-      animation: 'fade',
-      containerWidth: 'full'
-    },
-    content: {
-      message: 'Exclusive Atelier Drop: Complimentary Handcrafted Velvet Gift Packaging & Insured Shipping on orders over ₹2,499.',
-      highlightTag: 'LIMITED TIME',
-      couponCode: 'ATELIER2026',
-      badgeText: 'BESPOKE LUXURY',
-      linkText: 'Explore Collection',
-      linkUrl: '#featured',
-      showCountdown: true,
-      countdownTarget: '2026-12-31T23:59:59',
-      marqueeSpeed: 'normal'
-    }
-  },
-  {
     id: 'sec_hero',
     pageId: 'page_home',
     sectionType: 'hero',
     sortOrder: 1,
     isHidden: false,
     settings: {
-      paddingTop: 'lg',
-      paddingBottom: 'xl',
+      paddingTop: 'md',
+      paddingBottom: 'lg',
       backgroundColor: '#09090b',
-      backgroundGradient: 'radial-gradient(ellipse at 50% 30%, rgba(245, 158, 11, 0.15), rgba(9, 9, 11, 0.95))',
-      textColor: '#f4f4f5',
       containerWidth: 'wide'
     },
     content: {
-      eyebrow: 'Artisanal Craftsmanship & Digital Sanctuary',
-      title: 'Bespoke Luxury Crafted For Eternal Memories',
-      subtitle: 'Immerse in handcrafted heirloom jewelry, personalized keepsake sanctuaries, custom couple subdomains, and ultra-low latency bot panels.',
-      primaryBtnText: 'Explore Atelier Products',
-      primaryBtnLink: '#catalog',
-      secondaryBtnText: 'Custom Atelier Order',
-      secondaryBtnLink: '#custom-atelier',
+      eyebrow: 'Haute Joaillerie & Bespoke Keepsakes',
+      title: 'Artisanal Craftsmanship For Life’s Cherished Milestones',
+      subtitle: 'Discover handcrafted coordinates jewelry, laser-engraved acrylic keepsakes, and private interactive couple websites designed to immortalize your memories.',
+      primaryBtnText: 'Explore Catalog',
+      primaryBtnLink: '/shop',
+      secondaryBtnText: 'Custom Commission',
+      secondaryBtnLink: '/custom-products',
       bannerImage: 'https://images.unsplash.com/photo-1539185441755-769473a23570?w=1600&auto=format&fit=crop&q=85',
-      overlayOpacity: 0.65,
-      alignment: 'center',
+      badgeText: 'Curated 2026 Collection',
       stats: [
-        { label: 'Artisan Sanctuaries Created', value: '2,400+' },
-        { label: 'Average Patron Rating', value: '4.9★' },
-        { label: 'Laser Engraving Turnaround', value: '24-48h' },
-        { label: 'Insured Delivery Coverage', value: 'Pan-India' }
+        { label: 'Heirloom Gifts Crafted', value: '10,000+' },
+        { label: 'Patron Rating', value: '4.9★' },
+        { label: 'Turnaround Time', value: '24-48h' },
+        { label: 'Insured Delivery', value: 'Pan-India' }
       ]
     }
   },
   {
-    id: 'sec_banners',
+    id: 'sec_featured_products',
     pageId: 'page_home',
-    sectionType: 'banners',
+    sectionType: 'featured_products',
     sortOrder: 2,
     isHidden: false,
     settings: {
-      paddingTop: 'md',
-      paddingBottom: 'md',
-      backgroundColor: '#121215',
+      paddingTop: 'lg',
+      paddingBottom: 'lg',
+      backgroundColor: '#09090b',
       containerWidth: 'wide'
     },
     content: {
-      badge: 'Season Premiere',
-      title: 'The Royal Sovereign Collection',
-      subtitle: 'Hand-forged Damascus steel & laser engraved tungsten bands made to immortalize your bond.',
-      couponCode: 'ROYAL20',
-      discountAmount: '20% OFF',
-      imageUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=1200&auto=format&fit=crop&q=80',
-      ctaText: 'Claim Atelier Privilege',
-      ctaLink: '#catalog',
-      style: 'card'
+      badge: 'Atelier Spotlight',
+      title: 'Featured Masterpieces & Bestsellers',
+      subtitle: 'Handcrafted with hypoallergenic titanium, 18K gold finishes, and museum-grade laser precision.',
+      filterCategory: 'all',
+      itemLimit: 4,
+      viewMode: 'grid',
+      viewAllLink: '/shop'
     }
   },
   {
@@ -93,127 +62,46 @@ export const INITIAL_HOME_PAGE_SECTIONS: PageSection[] = [
     settings: {
       paddingTop: 'lg',
       paddingBottom: 'lg',
-      backgroundColor: '#09090b',
-      containerWidth: 'wide'
-    },
-    content: {
-      title: 'Curated Atelier Departments',
-      subtitle: 'From physical personalized treasures to dedicated digital sanctuaries and automation cloud.',
-      columns: 4,
-      categories: [
-        {
-          id: 'cat_custom',
-          name: 'Custom Gifts & Keepsakes',
-          subtitle: 'Laser engraved wooden plaques, acrylic art & memory boxes',
-          image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80',
-          link: '#catalog'
-        },
-        {
-          id: 'cat_couples',
-          name: 'Couple Websites & Subdomains',
-          subtitle: 'Interactive live anniversary counters, photo walls & music',
-          image: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=600&auto=format&fit=crop&q=80',
-          link: '#couple-sites'
-        },
-        {
-          id: 'cat_digital',
-          name: 'Digital Services & Assets',
-          subtitle: 'High-resolution digital portraits, video montages & invites',
-          image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
-          link: '#catalog'
-        },
-        {
-          id: 'cat_bots',
-          name: 'Bot Panels & Automation Cloud',
-          subtitle: 'Telegram VIP gateways, Discord bot moderation & API engines',
-          image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80',
-          link: '#bot-panels'
-        }
-      ]
-    }
-  },
-  {
-    id: 'sec_featured_products',
-    pageId: 'page_home',
-    sectionType: 'featured_products',
-    sortOrder: 4,
-    isHidden: false,
-    settings: {
-      paddingTop: 'lg',
-      paddingBottom: 'lg',
       backgroundColor: '#0c0c0e',
       containerWidth: 'wide'
     },
     content: {
-      badge: 'Curator Choice',
-      title: 'Featured Masterpieces',
-      subtitle: 'Most cherished physical and digital crafts from our master artisans.',
-      filterCategory: 'all',
-      itemLimit: 6,
-      viewMode: 'grid'
-    }
-  },
-  {
-    id: 'sec_best_sellers',
-    pageId: 'page_home',
-    sectionType: 'best_sellers',
-    sortOrder: 5,
-    isHidden: false,
-    settings: {
-      paddingTop: 'md',
-      paddingBottom: 'lg',
-      backgroundColor: '#09090b',
-      containerWidth: 'wide'
-    },
-    content: {
-      title: 'Top Rated Best Sellers',
-      subtitle: 'Proven crowd favorites with 5-star verified customer acclaim.',
-      itemLimit: 4,
-      showRanking: true
-    }
-  },
-  {
-    id: 'sec_new_arrivals',
-    pageId: 'page_home',
-    sectionType: 'new_arrivals',
-    sortOrder: 6,
-    isHidden: false,
-    settings: {
-      paddingTop: 'md',
-      paddingBottom: 'lg',
-      backgroundColor: '#0e0e11',
-      containerWidth: 'wide'
-    },
-    content: {
-      title: 'Fresh From The Workshop',
-      subtitle: 'Newly released designs crafted with state-of-the-art precision tools.',
-      itemLimit: 4,
-      tagText: 'NEW DROP'
-    }
-  },
-  {
-    id: 'sec_custom_gifts',
-    pageId: 'page_home',
-    sectionType: 'custom_gifts',
-    sortOrder: 7,
-    isHidden: false,
-    settings: {
-      paddingTop: 'xl',
-      paddingBottom: 'xl',
-      backgroundColor: '#09090b',
-      backgroundGradient: 'linear-gradient(180deg, #09090b 0%, #17171d 100%)',
-      containerWidth: 'wide'
-    },
-    content: {
-      eyebrow: 'Bespoke Commission Studio',
-      title: 'Turn Your Intimate Memories Into Tangible Art',
-      subtitle: 'Upload custom sketches, song wavelengths, Spotify codes, or coordinate engravings. Our artisans hand-inspect every detail before firing high-precision fiber lasers.',
-      primaryBtnText: 'Launch Custom Order Studio',
-      primaryBtnLink: '#custom-atelier',
-      steps: [
-        { step: '01', title: 'Submit Custom Brief', desc: 'Specify dimensions, metal, wood finish, and engrave text.' },
-        { step: '02', title: 'Approve 3D Render', desc: 'Receive high-res 3D proof on your patron dashboard in under 6 hours.' },
-        { step: '03', title: 'Artisan Laser Engrave', desc: 'Precision crafted in our master atelier and shipped in velvet gift box.' }
+      badge: 'Curated Collections',
+      title: 'Engineered For Every Meaningful Connection',
+      subtitle: 'Explore our specialized departments from fine jewelry to private digital portals.',
+      categories: [
+        {
+          id: 'cat_couples',
+          name: 'Couples & Matching',
+          subtitle: 'Coordinates bracelets, acrylic song plaques & anniversary boxes',
+          image: 'https://images.unsplash.com/photo-1611591475841-e40889c20a1f?w=800&auto=format&fit=crop&q=80',
+          link: '/shop/couples',
+          itemCount: '24 Pieces'
+        },
+        {
+          id: 'cat_men',
+          name: "Men's Collection",
+          subtitle: 'Minimalist automatic watches, leather EDC & titanium cuff links',
+          image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80',
+          link: '/shop/men',
+          itemCount: '18 Pieces'
+        },
+        {
+          id: 'cat_women',
+          name: "Women's Atelier",
+          subtitle: '18K opal pendants, diamond huggies & luxury velvet pouches',
+          image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80',
+          link: '/shop/women',
+          itemCount: '20 Pieces'
+        },
+        {
+          id: 'cat_unisex',
+          name: 'Unisex & Modular Carry',
+          subtitle: 'Tactile brass keyrings, minimalist wallets & waterproof slings',
+          image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=80',
+          link: '/shop/unisex',
+          itemCount: '15 Pieces'
+        }
       ]
     }
   },
@@ -221,35 +109,7 @@ export const INITIAL_HOME_PAGE_SECTIONS: PageSection[] = [
     id: 'sec_couple_websites',
     pageId: 'page_home',
     sectionType: 'couple_websites',
-    sortOrder: 8,
-    isHidden: false,
-    settings: {
-      paddingTop: 'xl',
-      paddingBottom: 'xl',
-      backgroundColor: '#0c0a09',
-      containerWidth: 'wide'
-    },
-    content: {
-      eyebrow: 'Digital Love Sanctuary',
-      title: 'Your Dedicated Couple Website & Custom Subdomain',
-      subtitle: 'Celebrate your relationship journey with a private, permanent digital sanctuary featuring live second-by-second anniversary clocks, photo vaults, ambient soundtrack player, and guestbook.',
-      subdomainExample: 'alex-and-maya.harconxs.com',
-      ctaText: 'Build Your Love Sanctuary',
-      ctaLink: '#couple-sites',
-      features: [
-        'Live Second Counter & Milestone Predictor',
-        'Interactive Memory Wall & Timeline Slideshow',
-        'Background Romantic Ambient Soundtrack Player',
-        'Digital Love Notes & Guestbook with Moderation',
-        'Passcode Protection & Private Share Links'
-      ]
-    }
-  },
-  {
-    id: 'sec_bot_panels',
-    pageId: 'page_home',
-    sectionType: 'bot_panels',
-    sortOrder: 9,
+    sortOrder: 4,
     isHidden: false,
     settings: {
       paddingTop: 'xl',
@@ -258,66 +118,63 @@ export const INITIAL_HOME_PAGE_SECTIONS: PageSection[] = [
       containerWidth: 'wide'
     },
     content: {
-      eyebrow: 'Enterprise Automation Cloud',
-      title: 'High-Frequency Bot Panels & Realtime Gateways',
-      subtitle: 'Deploy hardened Telegram VIP channel paywalls, Discord community moderation engines, and WhatsApp CRM bot flows backed by 99.99% uptime SLAs and Supabase infrastructure.',
-      ctaText: 'Explore Bot Cloud Services',
-      ctaLink: '#bot-panels',
-      metrics: [
-        { label: 'Uptime SLA', value: '99.99%' },
-        { label: 'Webhook Latency', value: '< 38ms' },
-        { label: 'Active Automated Channels', value: '14,200+' }
+      badge: 'Digital Love Sanctuary',
+      title: 'Private Interactive Couple Websites',
+      subtitle: 'Celebrate your relationship journey with a dedicated subdomain, live second-by-second anniversary clock, ambient soundtrack playback, and encrypted photo vault.',
+      subdomainExample: 'alex-and-maya.harconxs.com',
+      ctaText: 'Build Your Sanctuary',
+      ctaLink: '/couple-websites',
+      features: [
+        'Live Second-by-Second Anniversary Clock & Milestones',
+        'Interactive Memory Wall & High-Definition Photo Vault',
+        'Ambient Romantic Song Player with Spotify Sync',
+        'Passcode Protection & Private Visitor Guestbook',
+        'Instant Subdomain Deployment with Lifetime Cloud Hosting'
       ]
     }
   },
   {
-    id: 'sec_testimonials',
+    id: 'sec_custom_gifts',
     pageId: 'page_home',
-    sectionType: 'testimonials',
-    sortOrder: 10,
+    sectionType: 'custom_gifts',
+    sortOrder: 5,
     isHidden: false,
     settings: {
-      paddingTop: 'lg',
-      paddingBottom: 'lg',
-      backgroundColor: '#121215',
+      paddingTop: 'xl',
+      paddingBottom: 'xl',
+      backgroundColor: '#0c0c0e',
       containerWidth: 'wide'
     },
     content: {
-      title: 'Echoes From Our Patrons',
-      subtitle: 'Read genuine notes from individuals who trusted HARCONXS for life milestones.',
-      testimonials: [
+      badge: 'Bespoke Studio',
+      title: 'Turn Your Special Memories Into Tangible Art',
+      subtitle: 'Upload custom sketches, song wavelengths, coordinates, or personalized dedications. Our master artisans hand-inspect every commission before laser etching.',
+      ctaText: 'Start Custom Commission',
+      ctaLink: '/custom-products',
+      steps: [
         {
-          author: 'Vikram & Ananya S.',
-          location: 'Mumbai, MH',
-          product: 'Eternal Couple Website & Subdomain',
-          quote: 'Our anniversary subdomain brought tears to my wife’s eyes. The music player and live second counter made our dinner unforgettable.',
-          rating: 5,
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'
+          step: '01',
+          title: 'Submit Design Brief',
+          desc: 'Choose your metal, solid wood base, custom engraving text, or upload artwork.'
         },
         {
-          author: 'Kabir Mehta',
-          location: 'Bengaluru, KA',
-          product: 'Laser Engraved Obsidian Keepsake',
-          quote: 'The craftsmanship is staggering. The wood grain and fiber-laser engraving were flawlessly sharp. Shipped in premium velvet within 48h.',
-          rating: 5,
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80'
+          step: '02',
+          title: 'Approve 3D Render',
+          desc: 'Receive a high-resolution 3D proof in under 6 hours on your dashboard.'
         },
         {
-          author: 'Siddharth Rao',
-          location: 'Hyderabad, TS',
-          product: 'Telegram VIP Bot Panel Cloud',
-          quote: 'Zero downtime and instant UPI webhook verification for all my 5,000+ members. The best automation gateway in India hands down.',
-          rating: 5,
-          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80'
+          step: '03',
+          title: 'Artisan Laser Fabrication',
+          desc: 'Precision crafted in our master studio and delivered in a signature velvet box.'
         }
       ]
     }
   },
   {
-    id: 'sec_reviews',
+    id: 'sec_support',
     pageId: 'page_home',
-    sectionType: 'reviews',
-    sortOrder: 11,
+    sectionType: 'support',
+    sortOrder: 6,
     isHidden: false,
     settings: {
       paddingTop: 'lg',
@@ -326,45 +183,63 @@ export const INITIAL_HOME_PAGE_SECTIONS: PageSection[] = [
       containerWidth: 'wide'
     },
     content: {
-      title: 'Verified Customer Reviews',
-      subtitle: 'Transparent evaluations collected after confirmed parcel delivery.',
-      averageRating: 4.9,
-      totalReviewsCount: 1284,
-      showPhotoFilter: true,
-      displayMode: 'cards'
+      badge: 'Client Care & Concierge',
+      title: 'Here For You Every Step of the Way',
+      subtitle: 'Track your live order milestones, explore frequently asked questions, or connect with our dedicated concierge team.',
+      trackingPlaceholder: 'Enter your Order ID (e.g. HX-8291) or Phone...',
+      faqItems: [
+        {
+          question: 'How fast is turnaround for personalized & custom items?',
+          answer: 'Digital 3D proofs are delivered within 6 hours. Once approved, laser fabrication takes 24 to 48 hours, followed by 3-5 days insured express delivery.'
+        },
+        {
+          question: 'How do Couple Website subdomains work?',
+          answer: 'You choose a unique name (e.g. yournames.harconxs.com). Your private website is generated in 60 seconds with instant SSL, music player, and memory gallery.'
+        },
+        {
+          question: 'What is your transit and damage policy?',
+          answer: 'All shipments are 100% insured with express carriers. If any parcel is damaged in transit, we dispatch a priority replacement immediately at zero cost.'
+        },
+        {
+          question: 'What payment options are supported?',
+          answer: 'We support all major payment options: UPI (Google Pay, PhonePe, Paytm), Credit & Debit Cards, Net Banking, and Cash on Delivery on eligible physical items.'
+        }
+      ]
     }
   },
   {
-    id: 'sec_faq',
+    id: 'sec_trust_benefits',
     pageId: 'page_home',
-    sectionType: 'faq',
-    sortOrder: 12,
+    sectionType: 'trust_benefits',
+    sortOrder: 7,
     isHidden: false,
     settings: {
-      paddingTop: 'lg',
+      paddingTop: 'md',
       paddingBottom: 'lg',
-      backgroundColor: '#0d0d10',
-      containerWidth: 'normal'
+      backgroundColor: '#09090b',
+      containerWidth: 'wide'
     },
     content: {
-      title: 'Frequently Asked Questions',
-      subtitle: 'Everything you need to know about bespoke customization, delivery timelines, and digital subdomain setups.',
-      items: [
+      pillars: [
         {
-          question: 'How fast is the turnaround for custom laser-engraved items?',
-          answer: 'All bespoke orders are rendered into a 3D proof within 6 hours. Once you approve the digital proof, laser engraving takes 24 to 48 hours, followed by insured express courier transit (3-5 business days across India).'
+          icon: 'Award',
+          title: 'Master Craftsmanship',
+          desc: 'Laser-calibrated precision with surgical titanium, sterling silver & 18K gold.'
         },
         {
-          question: 'How does the Couple Website subdomain work?',
-          answer: 'You choose a unique subdomain like "alex-and-maya.harconxs.com". Your website is provisioned in under 60 seconds with instant SSL, passcode encryption, ambient soundtrack playback, and lifetime hosting.'
+          icon: 'Truck',
+          title: 'Pan-India Insured Transit',
+          desc: 'Express dispatch via BlueDart & Delhivery with real-time GPS tracking.'
         },
         {
-          question: 'What payment methods do you accept?',
-          answer: 'We support all major payment options via Razorpay & Cashfree: UPI (Google Pay, PhonePe, Paytm, BHIM), Credit/Debit cards (Visa, Mastercard, RuPay), Net Banking across 50+ banks, and Cash on Delivery for eligible items.'
+          icon: 'Gift',
+          title: 'Signature Gift Packaging',
+          desc: 'Complimentary archival velvet gift boxes, wax seal & satin ribbon.'
         },
         {
-          question: 'What if my package is damaged during shipping?',
-          answer: 'Every HARCONXS parcel is covered under 100% insured courier coverage. If damaged upon receipt, simply send a photo on our 24/7 concierge or chat for an instant priority remake and reshipment free of charge.'
+          icon: 'ShieldCheck',
+          title: 'Encrypted & Secure',
+          desc: '256-bit SSL encrypted checkout with 100% buyer protection guarantee.'
         }
       ]
     }
@@ -373,76 +248,22 @@ export const INITIAL_HOME_PAGE_SECTIONS: PageSection[] = [
     id: 'sec_cta',
     pageId: 'page_home',
     sectionType: 'cta',
-    sortOrder: 13,
+    sortOrder: 8,
     isHidden: false,
     settings: {
       paddingTop: 'xl',
       paddingBottom: 'xl',
-      backgroundColor: '#17171d',
-      backgroundGradient: 'radial-gradient(ellipse at center, rgba(245, 158, 11, 0.25), rgba(9, 9, 11, 0.95))',
+      backgroundColor: '#121215',
       containerWidth: 'wide'
     },
     content: {
-      badge: 'Private Concierge Access',
-      title: 'Create Something Truly Extraordinary Today',
-      subtitle: 'Whether preserving a golden milestone or powering thousands of automated transactions, HARCONXS delivers unmatched sophistication.',
-      primaryBtnText: 'Start Custom Commission',
-      primaryBtnLink: '#custom-atelier',
-      secondaryBtnText: 'Contact 24/7 Concierge',
-      secondaryBtnLink: '#chat-concierge',
-      trustBullets: [
-        '100% Insured Delivery',
-        '30-Day Satisfaction Guarantee',
-        '24/7 Dedicated Artisan Support'
-      ]
-    }
-  },
-  {
-    id: 'sec_newsletter',
-    pageId: 'page_home',
-    sectionType: 'newsletter',
-    sortOrder: 14,
-    isHidden: false,
-    settings: {
-      paddingTop: 'lg',
-      paddingBottom: 'lg',
-      backgroundColor: '#09090b',
-      containerWidth: 'normal'
-    },
-    content: {
-      title: 'Join The HARCONXS Atelier Circle',
-      subtitle: 'Receive exclusive early-access drops, private bespoke discounts, and secret collection previews directly in your inbox.',
-      incentiveText: 'Get ₹500 off your first bespoke order with code ATELIER500 upon subscription.',
-      inputPlaceholder: 'Enter your patron email address...',
-      buttonText: 'Subscribe to Atelier Circle',
-      disclaimer: 'We respect your privacy. Unsubscribe anytime with 1-click.'
-    }
-  },
-  {
-    id: 'sec_footer',
-    pageId: 'page_home',
-    sectionType: 'footer',
-    sortOrder: 15,
-    isHidden: false,
-    settings: {
-      paddingTop: 'xl',
-      paddingBottom: 'lg',
-      backgroundColor: '#050507',
-      containerWidth: 'wide'
-    },
-    content: {
-      brandName: 'HARCONXS',
-      tagline: 'Artisanal atelier, bespoke digital sanctuaries, and enterprise automation infrastructure.',
-      supportEmail: 'concierge@harconxs.com',
-      supportPhone: '+91 (080) 4892-3000',
-      address: 'HARCONXS Atelier Studios, Indiranagar, Bengaluru, KA 560038',
-      socials: {
-        instagram: 'https://instagram.com/harconxs',
-        youtube: 'https://youtube.com/@harconxs',
-        telegram: 'https://t.me/harconxs_official',
-        discord: 'https://discord.gg/harconxs'
-      },
-      copyright: '© 2026 HARCONXS. All rights reserved. Registered Artisan Atelier & Digital Infrastructure.'
+      badge: 'Private Concierge Available',
+      title: 'Celebrate Your Cherished Moments With HARCONXS',
+      subtitle: 'From engraved keepsake jewelry to lifetime interactive couple memory websites, create an unforgettable tribute today.',
+      primaryBtnText: 'Shop All Collections',
+      primaryBtnLink: '/shop',
+      secondaryBtnText: 'Start Custom Commission',
+      secondaryBtnLink: '/custom-products'
     }
   }
 ];
@@ -475,112 +296,346 @@ export const SECTION_METADATA_DEFINITIONS: Record<PageSectionType, {
     category: 'header',
     description: 'Top persistent promotional banner with marquee text, coupon tags & countdown timer.',
     iconName: 'Megaphone',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[0].content
+    defaultContent: {
+      message: 'Exclusive Atelier Drop: Complimentary Handcrafted Velvet Gift Packaging & Insured Shipping on orders over ₹2,499.',
+      highlightTag: 'LIMITED TIME',
+      couponCode: 'WELCOME15',
+      linkText: 'Explore Collection',
+      linkUrl: '/shop'
+    }
   },
   hero: {
     label: 'Hero Showcase',
     category: 'hero',
     description: 'High-impact display header with luxury background, dual CTAs, and feature stat pills.',
     iconName: 'Sparkles',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[1].content
+    defaultContent: {
+      eyebrow: 'Haute Joaillerie & Bespoke Keepsakes',
+      title: 'Artisanal Craftsmanship For Life’s Cherished Milestones',
+      subtitle: 'Discover handcrafted coordinates jewelry, laser-engraved acrylic keepsakes, and private interactive couple websites designed to immortalize your memories.',
+      primaryBtnText: 'Explore Catalog',
+      primaryBtnLink: '/shop',
+      secondaryBtnText: 'Custom Commission',
+      secondaryBtnLink: '/custom-products',
+      bannerImage: 'https://images.unsplash.com/photo-1539185441755-769473a23570?w=1600&auto=format&fit=crop&q=85',
+      badgeText: 'Curated 2026 Collection',
+      stats: [
+        { label: 'Heirloom Gifts Crafted', value: '10,000+' },
+        { label: 'Patron Rating', value: '4.9★' },
+        { label: 'Turnaround Time', value: '24-48h' },
+        { label: 'Insured Delivery', value: 'Pan-India' }
+      ]
+    }
   },
   banners: {
     label: 'Promotional Banners',
     category: 'ecommerce',
     description: 'Highlight discounts, flash drops, and collection premiere deals.',
     iconName: 'Tag',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[2].content
+    defaultContent: {
+      badge: 'Season Premiere',
+      title: 'The Royal Sovereign Collection',
+      subtitle: 'Hand-forged Damascus steel & laser engraved tungsten bands made to immortalize your bond.',
+      couponCode: 'ROYAL20',
+      discountAmount: '20% OFF',
+      imageUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=1200&auto=format&fit=crop&q=80',
+      ctaText: 'Claim Atelier Privilege',
+      ctaLink: '/shop',
+      style: 'card'
+    }
   },
   categories: {
     label: 'Category Grid',
     category: 'ecommerce',
-    description: 'Interactive visual grid linking to custom gifts, couple sites, digital, and bots.',
+    description: 'Interactive visual grid linking to custom gifts, couple sites, and jewelry.',
     iconName: 'LayoutGrid',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[3].content
+    defaultContent: {
+      badge: 'Curated Collections',
+      title: 'Engineered For Every Meaningful Connection',
+      subtitle: 'Explore our specialized departments from fine jewelry to private digital portals.',
+      categories: [
+        {
+          id: 'cat_couples',
+          name: 'Couples & Matching',
+          subtitle: 'Coordinates bracelets, acrylic song plaques & anniversary boxes',
+          image: 'https://images.unsplash.com/photo-1611591475841-e40889c20a1f?w=800&auto=format&fit=crop&q=80',
+          link: '/shop/couples',
+          itemCount: '24 Pieces'
+        },
+        {
+          id: 'cat_men',
+          name: "Men's Collection",
+          subtitle: 'Minimalist automatic watches, leather EDC & titanium cuff links',
+          image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80',
+          link: '/shop/men',
+          itemCount: '18 Pieces'
+        },
+        {
+          id: 'cat_women',
+          name: "Women's Atelier",
+          subtitle: '18K opal pendants, diamond huggies & luxury velvet pouches',
+          image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80',
+          link: '/shop/women',
+          itemCount: '20 Pieces'
+        },
+        {
+          id: 'cat_unisex',
+          name: 'Unisex & Modular Carry',
+          subtitle: 'Tactile brass keyrings, minimalist wallets & waterproof slings',
+          image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=80',
+          link: '/shop/unisex',
+          itemCount: '15 Pieces'
+        }
+      ]
+    }
   },
   featured_products: {
     label: 'Featured Products',
     category: 'ecommerce',
     description: 'Dynamic product grid filtered by category or top curator picks.',
     iconName: 'ShoppingBag',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[4].content
+    defaultContent: {
+      badge: 'Atelier Spotlight',
+      title: 'Featured Masterpieces & Bestsellers',
+      subtitle: 'Handcrafted with hypoallergenic titanium, 18K gold finishes, and museum-grade laser precision.',
+      filterCategory: 'all',
+      itemLimit: 4,
+      viewMode: 'grid',
+      viewAllLink: '/shop'
+    }
   },
   best_sellers: {
     label: 'Best Sellers',
     category: 'ecommerce',
     description: 'Ranked top selling products with badge tags.',
     iconName: 'Award',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[5].content
+    defaultContent: {
+      title: 'Top Rated Best Sellers',
+      subtitle: 'Proven crowd favorites with 5-star verified customer acclaim.',
+      itemLimit: 4,
+      showRanking: true
+    }
   },
   new_arrivals: {
     label: 'New Arrivals',
     category: 'ecommerce',
     description: 'Latest collection drops and fresh workshop releases.',
     iconName: 'Flame',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[6].content
+    defaultContent: {
+      title: 'Fresh From The Workshop',
+      subtitle: 'Newly released designs crafted with state-of-the-art precision tools.',
+      itemLimit: 4,
+      tagText: 'NEW DROP'
+    }
   },
   custom_gifts: {
     label: 'Custom Gifts Atelier',
     category: 'bespoke',
     description: 'Interactive custom ordering workflow with 3-step proofing roadmap.',
     iconName: 'Gift',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[7].content
+    defaultContent: {
+      badge: 'Bespoke Studio',
+      title: 'Turn Your Special Memories Into Tangible Art',
+      subtitle: 'Upload custom sketches, song wavelengths, coordinates, or personalized dedications. Our master artisans hand-inspect every commission before laser etching.',
+      ctaText: 'Start Custom Commission',
+      ctaLink: '/custom-products',
+      steps: [
+        {
+          step: '01',
+          title: 'Submit Design Brief',
+          desc: 'Choose your metal, solid wood base, custom engraving text, or upload artwork.'
+        },
+        {
+          step: '02',
+          title: 'Approve 3D Render',
+          desc: 'Receive a high-resolution 3D proof in under 6 hours on your dashboard.'
+        },
+        {
+          step: '03',
+          title: 'Artisan Laser Fabrication',
+          desc: 'Precision crafted in our master studio and delivered in a signature velvet box.'
+        }
+      ]
+    }
   },
   couple_websites: {
     label: 'Couple Websites & Subdomains',
     category: 'bespoke',
     description: 'Interactive feature spotlight for custom romantic subdomains and anniversaries.',
     iconName: 'Heart',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[8].content
+    defaultContent: {
+      badge: 'Digital Love Sanctuary',
+      title: 'Private Interactive Couple Websites',
+      subtitle: 'Celebrate your relationship journey with a dedicated subdomain, live second-by-second anniversary clock, ambient soundtrack playback, and encrypted photo vault.',
+      subdomainExample: 'alex-and-maya.harconxs.com',
+      ctaText: 'Build Your Sanctuary',
+      ctaLink: '/couple-websites',
+      features: [
+        'Live Second-by-Second Anniversary Clock & Milestones',
+        'Interactive Memory Wall & High-Definition Photo Vault',
+        'Ambient Romantic Song Player with Spotify Sync',
+        'Passcode Protection & Private Visitor Guestbook',
+        'Instant Subdomain Deployment with Lifetime Cloud Hosting'
+      ]
+    }
   },
   bot_panels: {
     label: 'Bot Panels & Automation',
     category: 'bespoke',
-    description: 'High-frequency webhook gateways, Telegram channels & Discord automation showcase.',
+    description: 'Digital automation panels and workflows.',
     iconName: 'Cpu',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[9].content
+    defaultContent: {
+      title: 'Digital Systems',
+      subtitle: 'Dedicated systems and workflows.'
+    }
   },
   testimonials: {
     label: 'Patron Testimonials',
     category: 'social',
     description: 'Verified patron quotes with avatar pictures and product context.',
     iconName: 'Quote',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[10].content
+    defaultContent: {
+      title: 'Echoes From Our Patrons',
+      subtitle: 'Read genuine notes from individuals who trusted HARCONXS for life milestones.',
+      testimonials: [
+        {
+          author: 'Vikram & Ananya S.',
+          location: 'Mumbai, MH',
+          product: 'Eternal Couple Website & Subdomain',
+          quote: 'Our anniversary subdomain brought tears to my wife’s eyes. The music player and live second counter made our dinner unforgettable.',
+          rating: 5
+        },
+        {
+          author: 'Kabir Mehta',
+          location: 'Bengaluru, KA',
+          product: 'Laser Engraved Obsidian Keepsake',
+          quote: 'The craftsmanship is staggering. The wood grain and fiber-laser engraving were flawlessly sharp. Shipped in premium velvet within 48h.',
+          rating: 5
+        }
+      ]
+    }
   },
   reviews: {
     label: 'Customer Reviews Rating',
     category: 'social',
     description: 'Aggregated review score, star breakdown, and verified purchase cards.',
     iconName: 'Star',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[11].content
+    defaultContent: {
+      title: 'Verified Customer Reviews',
+      subtitle: 'Transparent evaluations collected after confirmed parcel delivery.',
+      averageRating: 4.9,
+      totalReviewsCount: 1284
+    }
   },
   faq: {
     label: 'FAQ Accordion',
     category: 'social',
     description: 'Searchable question and answer accordion for delivery, bespoke, and returns.',
     iconName: 'HelpCircle',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[12].content
+    defaultContent: {
+      title: 'Frequently Asked Questions',
+      subtitle: 'Everything you need to know about bespoke customization, delivery timelines, and digital subdomain setups.',
+      items: [
+        {
+          question: 'How fast is the turnaround for custom laser-engraved items?',
+          answer: 'All bespoke orders are rendered into a 3D proof within 6 hours. Once you approve the digital proof, laser engraving takes 24 to 48 hours, followed by insured express courier transit (3-5 business days across India).'
+        },
+        {
+          question: 'How does the Couple Website subdomain work?',
+          answer: 'You choose a unique subdomain like "alex-and-maya.harconxs.com". Your website is provisioned in under 60 seconds with instant SSL, passcode encryption, ambient soundtrack playback, and lifetime hosting.'
+        }
+      ]
+    }
+  },
+  support: {
+    label: 'Client Care & Support',
+    category: 'social',
+    description: 'Order tracking, direct concierge support, and FAQ solutions.',
+    iconName: 'HelpCircle',
+    defaultContent: {
+      badge: 'Client Care & Concierge',
+      title: 'Here For You Every Step of the Way',
+      subtitle: 'Track your live order milestones, explore frequently asked questions, or connect with our dedicated concierge team.',
+      trackingPlaceholder: 'Enter your Order ID (e.g. HX-8291) or Phone...',
+      faqItems: [
+        {
+          question: 'How fast is turnaround for personalized & custom items?',
+          answer: 'Digital 3D proofs are delivered within 6 hours. Once approved, laser fabrication takes 24 to 48 hours, followed by 3-5 days insured express delivery.'
+        },
+        {
+          question: 'How do Couple Website subdomains work?',
+          answer: 'You choose a unique name (e.g. yournames.harconxs.com). Your private website is generated in 60 seconds with instant SSL, music player, and memory gallery.'
+        }
+      ]
+    }
+  },
+  trust_benefits: {
+    label: 'Trust & Value Pillars',
+    category: 'social',
+    description: 'Key guarantees including 100% insured transit, laser craftsmanship, and signature packaging.',
+    iconName: 'ShieldCheck',
+    defaultContent: {
+      pillars: [
+        {
+          icon: 'Award',
+          title: 'Master Craftsmanship',
+          desc: 'Laser-calibrated precision with surgical titanium, sterling silver & 18K gold.'
+        },
+        {
+          icon: 'Truck',
+          title: 'Pan-India Insured Transit',
+          desc: 'Express dispatch via BlueDart & Delhivery with real-time GPS tracking.'
+        },
+        {
+          icon: 'Gift',
+          title: 'Signature Gift Packaging',
+          desc: 'Complimentary archival velvet gift boxes, wax seal & satin ribbon.'
+        },
+        {
+          icon: 'ShieldCheck',
+          title: 'Encrypted & Secure',
+          desc: '256-bit SSL encrypted checkout with 100% buyer protection guarantee.'
+        }
+      ]
+    }
   },
   cta: {
     label: 'Call To Action (CTA)',
     category: 'hero',
     description: 'Conversion-focused section with trust badges and direct concierge buttons.',
     iconName: 'ArrowRightCircle',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[13].content
+    defaultContent: {
+      badge: 'Private Concierge Available',
+      title: 'Celebrate Your Cherished Moments With HARCONXS',
+      subtitle: 'From engraved keepsake jewelry to lifetime interactive couple memory websites, create an unforgettable tribute today.',
+      primaryBtnText: 'Shop All Collections',
+      primaryBtnLink: '/shop',
+      secondaryBtnText: 'Start Custom Commission',
+      secondaryBtnLink: '/custom-products'
+    }
   },
   newsletter: {
     label: 'Newsletter Atelier Circle',
     category: 'social',
     description: 'Email capture form with discount code incentive and spam disclaimer.',
     iconName: 'Mail',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[14].content
+    defaultContent: {
+      title: 'Join The HARCONXS Atelier Circle',
+      subtitle: 'Receive exclusive early-access drops, private bespoke discounts, and secret collection previews directly in your inbox.',
+      inputPlaceholder: 'Enter your patron email address...',
+      buttonText: 'Subscribe to Atelier Circle'
+    }
   },
   footer: {
     label: 'Site Footer',
     category: 'footer',
     description: 'Brand summary, navigation columns, payment security badges, and copyright.',
     iconName: 'ShieldCheck',
-    defaultContent: INITIAL_HOME_PAGE_SECTIONS[15].content
+    defaultContent: {
+      brandName: 'HARCONXS',
+      tagline: 'Artisanal atelier and bespoke digital sanctuaries.',
+      supportEmail: 'concierge@harconxs.com'
+    }
   }
 };
 

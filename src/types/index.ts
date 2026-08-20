@@ -1120,6 +1120,8 @@ export type PageSectionType =
   | 'custom_gifts'
   | 'couple_websites'
   | 'bot_panels'
+  | 'support'
+  | 'trust_benefits'
   | 'testimonials'
   | 'reviews'
   | 'faq'

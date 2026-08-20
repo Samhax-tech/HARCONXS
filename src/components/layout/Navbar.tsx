@@ -88,9 +88,6 @@ export const Navbar: React.FC = () => {
           <NavLink to="/couple-websites" className={navLinkClass}>
             Couple Websites
           </NavLink>
-          <NavLink to="/bot-panels" className={navLinkClass}>
-            Bot Panels
-          </NavLink>
           <NavLink to="/about" className={navLinkClass}>
             About Us
           </NavLink>
@@ -356,13 +353,6 @@ export const Navbar: React.FC = () => {
               className="text-left px-3 py-2 text-sm text-rose-300 hover:bg-zinc-900 rounded-md"
             >
               Couple Website Builder
-            </Link>
-            <Link
-              to="/bot-panels"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 rounded-md"
-            >
-              Bot Panels & APIs
             </Link>
             <Link
               to="/about"

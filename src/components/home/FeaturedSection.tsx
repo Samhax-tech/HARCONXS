@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { Product } from '../../types';
-import { Star, Heart, Sparkles, ArrowRight, ShoppingBag, CheckCircle2, Quote } from 'lucide-react';
+import { Star, Heart, Sparkles, ArrowRight, ShoppingBag } from 'lucide-react';
 
-export const FeaturedSection: React.FC = () => {
+interface FeaturedSectionProps {
+  content?: {
+    badge?: string;
+    title?: string;
+    subtitle?: string;
+    filterCategory?: string;
+    itemLimit?: number;
+    viewAllLink?: string;
+  };
+}
+
+export const FeaturedSection: React.FC<FeaturedSectionProps> = ({ content }) => {
   const {
     products,
     formatPrice,
@@ -15,7 +26,14 @@ export const FeaturedSection: React.FC = () => {
     setSelectedCategory
   } = useStore();
 
-  const featuredProducts = products.filter(p => p.featured || p.badges.includes('Best Seller')).slice(0, 4);
+  const [activeTab, setActiveTab] = useState<'all' | 'couples' | 'men' | 'women'>('all');
+
+  const limit = content?.itemLimit || 4;
+
+  const filteredProducts = products.filter(p => {
+    if (activeTab === 'all') return true;
+    return p.category === activeTab;
+  }).slice(0, limit);
 
   const handleProductClick = (product: Product) => {
     setSelectedProductId(product.id);
@@ -23,42 +41,86 @@ export const FeaturedSection: React.FC = () => {
   };
 
   return (
-    <section className="py-14 bg-zinc-950 border-b border-zinc-800 space-y-16">
-      
-      {/* 1. BEST SELLERS SPOTLIGHT */}
+    <section id="sec-featured-products" className="py-16 sm:py-24 bg-zinc-950 border-b border-zinc-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+        
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12 gap-4">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-rose-400">Atelier Spotlight</span>
-            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-zinc-100 mt-1">
-              Best Sellers & Trending Creations
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-400 font-mono">
+              {content?.badge || 'Atelier Spotlight'}
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-serif font-bold text-zinc-100 mt-1">
+              {content?.title || 'Featured Masterpieces & Bestsellers'}
             </h2>
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl font-sans">
+              {content?.subtitle || 'Handcrafted with hypoallergenic titanium, 18K gold finishes, and museum-grade laser precision.'}
+            </p>
           </div>
-          <button
-            onClick={() => { setSelectedCategory('all'); setCurrentView('catalog'); }}
-            className="text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
-          >
-            <span>Browse all products</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+
+          {/* Quick Filter Tabs */}
+          <div className="flex items-center gap-1.5 p-1 bg-zinc-900 border border-zinc-800 rounded-xl overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === 'all'
+                  ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              All Pieces
+            </button>
+            <button
+              onClick={() => setActiveTab('couples')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === 'couples'
+                  ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Couples
+            </button>
+            <button
+              onClick={() => setActiveTab('men')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === 'men'
+                  ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Men's
+            </button>
+            <button
+              onClick={() => setActiveTab('women')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === 'women'
+                  ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Women's
+            </button>
+          </div>
         </div>
 
         {/* Product Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProducts.map((product) => {
+          {filteredProducts.map((product) => {
             const inWishlist = isInWishlist(product.id);
 
             return (
               <div
                 key={product.id}
-                className="group bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-3.5 flex flex-col transition-all shadow-md"
+                className="group bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 flex flex-col transition-all shadow-md"
               >
-                {/* Image Box */}
-                <div className="relative aspect-square rounded-xl overflow-hidden bg-zinc-950 mb-3 cursor-pointer">
+                {/* 1:1 Square Image Box */}
+                <div 
+                  onClick={() => handleProductClick(product)}
+                  className="relative aspect-square rounded-xl overflow-hidden bg-zinc-950 mb-3.5 cursor-pointer"
+                >
                   <img
                     src={product.images[0]}
                     alt={product.name}
-                    onClick={() => handleProductClick(product)}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
 
@@ -91,7 +153,7 @@ export const FeaturedSection: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Info */}
+                {/* Info Container */}
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-1.5 text-amber-400 text-xs mb-1">
@@ -125,9 +187,9 @@ export const FeaturedSection: React.FC = () => {
                     {product.isPersonalizable ? (
                       <button
                         onClick={() => handleProductClick(product)}
-                        className="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-700/60 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                       >
-                        <Sparkles className="w-3 h-3" />
+                        <Sparkles className="w-3 h-3 text-amber-400" />
                         <span>Personalize</span>
                       </button>
                     ) : (
@@ -145,119 +207,22 @@ export const FeaturedSection: React.FC = () => {
             );
           })}
         </div>
-      </div>
 
-      {/* 2. "CREATE SOMETHING SPECIAL" INTERACTIVE BANNER */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative rounded-3xl overflow-hidden border border-zinc-800 bg-gradient-to-r from-zinc-900 via-zinc-950 to-zinc-900 p-8 sm:p-12 shadow-2xl">
-          
-          <div className="relative z-10 max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-800/60 text-amber-300 text-xs font-medium">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Bespoke Commission & Quotation Engine</span>
-            </div>
-
-            <h2 className="text-2xl sm:text-4xl font-serif font-bold text-zinc-100 leading-tight">
-              Have an idea you don't see anywhere else? We build it.
-            </h2>
-
-            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed font-sans">
-              From custom engineered titanium jewelry, music boxes, holographic portraits, to bespoke Discord bot dashboards and wedding portals. Submit your brief, budget & reference files for a rapid atelier quote within 12 hours.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                onClick={() => setCurrentView('custom-builder')}
-                className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-lg"
-              >
-                <span>Launch Custom Order Wizard</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => setCurrentView('custom-portal')}
-                className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer"
-              >
-                View Active Custom Requests (#CO)
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. REVIEWS & SOCIAL VERIFIED PROOF */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-xl mx-auto mb-10">
-          <span className="text-xs font-semibold uppercase tracking-wider text-amber-400">Verified Testimonials</span>
-          <h2 className="text-2xl font-serif font-bold text-zinc-100 mt-1">Loved by Couples & Builders Worldwide</h2>
+        {/* Bottom Link to Full Catalog */}
+        <div className="mt-10 text-center">
+          <button
+            onClick={() => {
+              setSelectedCategory('all');
+              setCurrentView('catalog');
+            }}
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-5 py-2.5 rounded-xl transition-colors cursor-pointer"
+          >
+            <span>View All Atelier Collections</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-1 text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-              ))}
-            </div>
-            <p className="text-xs text-zinc-300 leading-relaxed italic">
-              "The coordinates matching titanium bracelets are gorgeous. The laser depth is so clean and the Midnight Velvet packaging made the anniversary reveal unforgettable!"
-            </p>
-            <div className="pt-2 border-t border-zinc-800 flex items-center justify-between text-xs">
-              <div>
-                <p className="font-semibold text-zinc-200">Sarah & Hamza M.</p>
-                <p className="text-zinc-500 text-[11px]">San Francisco, CA</p>
-              </div>
-              <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-medium">
-                <CheckCircle2 className="w-3 h-3" />
-                Verified Order
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-1 text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-              ))}
-            </div>
-            <p className="text-xs text-zinc-300 leading-relaxed italic">
-              "Built our couple website in under 5 minutes. The relationship countdown and Spotify sync made my girlfriend cry happy tears. Highly recommend!"
-            </p>
-            <div className="pt-2 border-t border-zinc-800 flex items-center justify-between text-xs">
-              <div>
-                <p className="font-semibold text-zinc-200">Liam & Maya K.</p>
-                <p className="text-zinc-500 text-[11px]">London, UK</p>
-              </div>
-              <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-medium">
-                <CheckCircle2 className="w-3 h-3" />
-                Couple Sanctuary
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-1 text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-              ))}
-            </div>
-            <p className="text-xs text-zinc-300 leading-relaxed italic">
-              "Their Telegram bot management panel transformed our VIP trading channel. Automated invite link expirations and webhooks run without a glitch."
-            </p>
-            <div className="pt-2 border-t border-zinc-800 flex items-center justify-between text-xs">
-              <div>
-                <p className="font-semibold text-zinc-200">Marcus T.</p>
-                <p className="text-zinc-500 text-[11px]">Berlin, Germany</p>
-              </div>
-              <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-medium">
-                <CheckCircle2 className="w-3 h-3" />
-                Cloud Panel Pro
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
-
     </section>
   );
 };

@@ -221,11 +221,6 @@ export const Footer: React.FC = () => {
               </Link>
             </li>
             <li>
-              <Link to="/bot-panels" className="hover:text-zinc-100 transition-colors">
-                Bot Dashboards & Panels
-              </Link>
-            </li>
-            <li>
               <Link to="/about" className="text-zinc-300 hover:text-white transition-colors flex items-center gap-1">
                 <span>About Us & Story</span>
                 <Youtube className="w-3 h-3 text-red-500" />
