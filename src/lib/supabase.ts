@@ -33,7 +33,7 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
     detectSessionInUrl: true,
   },
   global: {
-    fetch: (...args) => globalThis.fetch(...args),
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init),
   },
   db: {
     schema: 'public',

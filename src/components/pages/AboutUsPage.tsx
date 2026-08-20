@@ -96,7 +96,7 @@ export const AboutUsPage: React.FC = () => {
             </div>
 
             {/* Floating India Hub Badge */}
-            <div className="absolute -bottom-4 -right-4 bg-zinc-900/95 border border-zinc-700/80 p-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs text-zinc-200 backdrop-blur-md">
+            <div className="absolute -bottom-4 right-2 sm:-right-4 bg-zinc-900/95 border border-zinc-700/80 p-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs text-zinc-200 backdrop-blur-md">
               <span className="text-lg">🇮🇳</span>
               <div>
                 <p className="font-bold text-white text-[11px]">Bangalore & Mumbai</p>

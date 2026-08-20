@@ -438,7 +438,7 @@ export const CustomersAdminSection: React.FC<CustomersAdminSectionProps> = ({
           </div>
 
           {/* DESKTOP CUSTOMERS TABLE (>= md screens) */}
-          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-x-auto">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>

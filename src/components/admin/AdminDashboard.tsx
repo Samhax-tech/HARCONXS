@@ -128,7 +128,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="bg-zinc-950 min-h-screen text-zinc-100 flex flex-col md:flex-row pb-20">
+    <div className="bg-zinc-950 min-h-screen text-zinc-100 flex flex-col md:flex-row pb-20 w-full max-w-full overflow-x-clip">
       
       {/* MOBILE TOP BAR (Only visible on < md viewports) */}
       <div className="md:hidden bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between sticky top-16 z-30">
@@ -586,7 +586,7 @@ export const AdminDashboard: React.FC = () => {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 max-w-full overflow-y-auto overflow-x-hidden">
         
         {/* TOP SEARCH & BREADCRUMB BAR */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">

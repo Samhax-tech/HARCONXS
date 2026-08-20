@@ -30,8 +30,8 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
     };
 
     return (
-      <div className="bg-zinc-950 min-h-[85vh] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 space-y-6 shadow-2xl">
+      <div className="bg-zinc-950 min-h-[85vh] flex items-center justify-center p-4 w-full max-w-full overflow-hidden">
+        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl min-w-0">
           <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
             <Shield className="w-8 h-8" />
           </div>

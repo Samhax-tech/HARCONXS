@@ -292,7 +292,9 @@ interface StoreContextType {
 
   // Store Theme Branding, Drafts, Publishing & Snapshots (Supabase Backed)
   themeConfig: ThemeConfig;
+  setThemeConfig: React.Dispatch<React.SetStateAction<ThemeConfig>>;
   themeDraft: ThemeConfig;
+  setThemeDraft: React.Dispatch<React.SetStateAction<ThemeConfig>>;
   themeRevisions: ThemeRevision[];
   isLoadingTheme: boolean;
   updateThemeDraft: (cfg: Partial<ThemeConfig>) => void;
@@ -3569,7 +3571,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         themeMode,
         toggleThemeMode,
         themeConfig,
+        setThemeConfig,
         themeDraft,
+        setThemeDraft,
         themeRevisions,
         isLoadingTheme,
         updateThemeDraft,

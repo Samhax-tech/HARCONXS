@@ -68,6 +68,8 @@ export const VisualPageEditor: React.FC = () => {
     showToast,
     products,
     formatPrice,
+    themeConfig,
+    setThemeConfig,
     themeDraft,
     updateThemeDraft,
     saveThemeDraft,

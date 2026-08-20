@@ -97,7 +97,7 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* ZONE 3: ACTIONS */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Quick Search Ctrl+K trigger */}
           <button
             onClick={() => setIsCommandPaletteOpen(true)}
@@ -119,7 +119,7 @@ export const Navbar: React.FC = () => {
           </button>
 
           {/* Strict Currency Display (INR ₹) */}
-          <div className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-amber-400 select-none">
+          <div className="hidden xs:flex sm:flex items-center gap-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-amber-400 select-none">
             <span className="font-bold">₹ INR</span>
           </div>
 
@@ -127,7 +127,7 @@ export const Navbar: React.FC = () => {
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setIsNotificationTrayOpen(!isNotificationTrayOpen)}
-              className="relative p-2 text-zinc-300 hover:text-amber-400 transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
+              className="relative p-1.5 sm:p-2 text-zinc-300 hover:text-amber-400 transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
               title="Notifications"
               aria-label="Notifications"
             >
@@ -141,7 +141,7 @@ export const Navbar: React.FC = () => {
 
             {/* Dropdown Quick Tray */}
             {isNotificationTrayOpen && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-32px)] max-w-sm sm:w-96 rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
                 {/* Header */}
                 <div className="p-3.5 bg-zinc-900/90 border-b border-zinc-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -225,13 +225,13 @@ export const Navbar: React.FC = () => {
           {/* Wishlist */}
           <Link
             to="/account/wishlist"
-            className="relative p-2 text-zinc-300 hover:text-rose-400 transition-colors rounded-lg hover:bg-zinc-900"
+            className="relative p-1.5 sm:p-2 text-zinc-300 hover:text-rose-400 transition-colors rounded-lg hover:bg-zinc-900"
             title="Saved Wishlist"
             aria-label="Wishlist"
           >
             <Heart className="w-5 h-5" />
             {wishlist.length > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-rose-600 text-[10px] font-bold text-white rounded-full flex items-center justify-center">
+              <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-4 h-4 bg-rose-600 text-[10px] font-bold text-white rounded-full flex items-center justify-center">
                 {wishlist.length}
               </span>
             )}
@@ -240,13 +240,13 @@ export const Navbar: React.FC = () => {
           {/* Cart Drawer Trigger / Link */}
           <button
             onClick={() => setIsCartOpen(true)}
-            className="relative p-2 text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
+            className="relative p-1.5 sm:p-2 text-zinc-300 hover:text-white transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
             title="Shopping Bag"
             aria-label="Bag"
           >
             <ShoppingBag className="w-5 h-5" />
             {cartCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-amber-500 text-[10px] font-bold text-zinc-950 rounded-full flex items-center justify-center animate-pulse">
+              <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-4 h-4 bg-amber-500 text-[10px] font-bold text-zinc-950 rounded-full flex items-center justify-center animate-pulse">
                 {cartCount}
               </span>
             )}
@@ -267,7 +267,7 @@ export const Navbar: React.FC = () => {
           ) : (
             <Link
               to="/login"
-              className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 rounded-xl text-xs text-zinc-200 font-semibold transition-all"
+              className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 rounded-xl text-xs text-zinc-200 font-semibold transition-all"
             >
               <LogIn className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden sm:inline">Sign In</span>

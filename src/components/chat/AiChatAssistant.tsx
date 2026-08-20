@@ -278,7 +278,7 @@ export const AiChatAssistant: React.FC = () => {
 
       {/* Floating Chat Modal */}
       {isOpen && (
-        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-32px)] sm:w-[440px] bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[600px] max-h-[85vh]">
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 left-4 sm:left-auto sm:w-[440px] max-w-[calc(100vw-32px)] sm:max-w-md bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[600px] max-h-[85vh]">
           
           {/* Header */}
           <div className="p-4 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md flex items-center justify-between">

@@ -23,11 +23,11 @@ export const RootLayout: React.FC = () => {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950">
+    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100 font-sans selection:bg-amber-400 selection:text-zinc-950 w-full max-w-full overflow-x-clip">
       <AnnouncementBar />
       <Navbar />
 
-      <main className="flex-1">
+      <main className="flex-1 w-full max-w-full min-w-0">
         <Outlet />
       </main>
 
