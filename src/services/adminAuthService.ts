@@ -456,7 +456,7 @@ export async function recordAuditTrail(
  */
 export function getAdminSession(): StaffMember | null {
   try {
-    const raw = sessionStorage.getItem('harconxs_admin_session');
+    const raw = sessionStorage.getItem('hx_admin_session');
     if (raw) {
       return JSON.parse(raw);
     }

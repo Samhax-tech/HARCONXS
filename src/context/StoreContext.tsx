@@ -1020,12 +1020,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: false, message: 'Please provide your email or phone number.' };
     }
 
+    let authenticatedUserId = `usr-${Date.now()}`;
+    let authenticatedUserName = cleanId.includes('@') ? cleanId.split('@')[0] : 'Harconxs Customer';
+    let authenticatedUserEmail = cleanId.includes('@') ? cleanId : `${cleanId}@harconxs-client.in`;
+
     if (cleanId.includes('@')) {
       const { user, error } = await supabaseSignIn(cleanId, password);
       if (error) {
         return { success: false, message: error.message || 'Login failed. Please check your credentials.' };
       }
       if (user) {
+        authenticatedUserId = user.id;
+        authenticatedUserName = user.user_metadata?.full_name || cleanId.split('@')[0];
+        authenticatedUserEmail = user.email || cleanId;
         const { isAdmin } = await supabaseVerifyAdminRole(user.id, user.email);
         if (isAdmin) {
           setIsAdminAuthenticated(true);
@@ -1034,9 +1041,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const newUser: UserProfile = {
-      id: `usr-${Date.now()}`,
-      name: cleanId.includes('@') ? cleanId.split('@')[0] : 'Harconxs Customer',
-      email: cleanId.includes('@') ? cleanId : `${cleanId}@harconxs-client.in`,
+      id: authenticatedUserId,
+      name: authenticatedUserName,
+      email: authenticatedUserEmail,
       phone: cleanId.includes('@') ? '+91 98765 43210' : cleanId,
       loyaltyPoints: 100,
       storeCredit: 0,
@@ -1045,7 +1052,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       affiliateCommissionEarned: 0,
       addresses: [
         {
-          fullName: cleanId.includes('@') ? cleanId.split('@')[0] : 'Harconxs Customer',
+          fullName: authenticatedUserName,
           street: '12th Cross, Indiranagar',
           city: 'Bangalore',
           state: 'Karnataka',
