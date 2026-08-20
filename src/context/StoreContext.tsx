@@ -155,6 +155,11 @@ import {
   deleteThemeRevisionFromSupabase,
   recordAuditLog,
   trackAnalyticsEvent,
+  fetchAllPagesFromSupabase,
+  createPageInSupabase,
+  updatePageMetadataInSupabase,
+  duplicatePageInSupabase,
+  deletePageFromSupabase,
   fetchPageWithSectionsFromSupabase,
   savePageDraftInSupabase,
   publishPageInSupabase,
@@ -169,7 +174,8 @@ import {
 import { Analytics } from '../services/analyticsService';
 import {
   INITIAL_HOME_PAGE_RECORD,
-  INITIAL_HOME_PAGE_SECTIONS
+  INITIAL_HOME_PAGE_SECTIONS,
+  INITIAL_PAGES_LIST
 } from '../data/defaultPageData';
 import { normalizeThemeConfig } from '../utils/themeUtils';
 
@@ -475,7 +481,14 @@ interface StoreContextType {
   showToast: (msg: string) => void;
 
   // Private Website Editor State & Methods (Supabase Backed)
+  allPages: PageRecord[];
+  fetchAllPagesList: () => Promise<PageRecord[]>;
+  createPage: (pageData: Partial<PageRecord>) => Promise<{ success: boolean; page?: PageRecord; message: string }>;
+  updatePageMetadata: (pageId: string, updates: Partial<PageRecord>) => Promise<{ success: boolean; message: string }>;
+  duplicatePage: (sourcePageId: string, newTitle: string, newSlug: string) => Promise<{ success: boolean; newPage?: PageRecord; message: string }>;
+  deletePage: (pageId: string) => Promise<{ success: boolean; message: string }>;
   activePageRecord: PageRecord;
+  setActivePageRecord: React.Dispatch<React.SetStateAction<PageRecord>>;
   pageRevisions: PageRevision[];
   isLoadingPageConfig: boolean;
   savePageDraft: (page: PageRecord) => Promise<{ success: boolean; message: string }>;
@@ -532,6 +545,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [wishlistError, setWishlistError] = useState<string | null>(null);
 
   // Private Website Visual Editor State (Supabase Backed)
+  const [allPages, setAllPages] = useState<PageRecord[]>(INITIAL_PAGES_LIST);
   const [activePageRecord, setActivePageRecord] = useState<PageRecord>(INITIAL_HOME_PAGE_RECORD);
   const [pageRevisions, setPageRevisions] = useState<PageRevision[]>([]);
   const [isLoadingPageConfig, setIsLoadingPageConfig] = useState<boolean>(false);
@@ -3377,6 +3391,129 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Private Website Visual Editor Methods (Supabase Persisted)
+  const fetchAllPagesList = async (): Promise<PageRecord[]> => {
+    try {
+      const dbPages = await fetchAllPagesFromSupabase();
+      if (dbPages && dbPages.length > 0) {
+        setAllPages(dbPages);
+        return dbPages;
+      }
+      return allPages;
+    } catch {
+      return allPages;
+    }
+  };
+
+  const createPage = async (pageData: Partial<PageRecord>): Promise<{ success: boolean; page?: PageRecord; message: string }> => {
+    setIsLoadingPageConfig(true);
+    try {
+      const pageId = `page_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const slug = pageData.slug || `page-${Date.now().toString(36)}`;
+      const newPage: PageRecord = {
+        id: pageId,
+        slug,
+        title: pageData.title || 'Untitled Page',
+        status: pageData.status || 'draft',
+        meta: pageData.meta || { description: '', keywords: '', ogImage: '' },
+        sections: pageData.sections || [
+          {
+            id: `sec_${Date.now()}_hero`,
+            pageId,
+            sectionType: 'hero',
+            sortOrder: 0,
+            isHidden: false,
+            settings: { paddingTop: 'lg', paddingBottom: 'lg', backgroundColor: '#09090b', containerWidth: 'wide' },
+            content: {
+              eyebrow: 'New Collection',
+              title: pageData.title || 'Exclusive Atelier Preview',
+              subtitle: 'Handcrafted luxury pieces designed for eternal memories.',
+              primaryBtnText: 'Explore Catalog',
+              primaryBtnLink: '/shop'
+            }
+          }
+        ],
+        publishedAt: pageData.status === 'published' ? new Date().toISOString() : null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const res = await createPageInSupabase(newPage);
+      if (res.success && res.page) {
+        setAllPages(prev => [...prev.filter(p => p.id !== res.page!.id), res.page!]);
+        setActivePageRecord(res.page);
+        recordAuditLog(currentUser?.email || 'admin', 'create_page', 'page', res.page.id);
+        showToast(`Page "${newPage.title}" created successfully.`);
+        return { success: true, page: res.page, message: 'Page created successfully.' };
+      }
+      return { success: false, message: res.message || 'Failed to create page.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Error creating page.' };
+    } finally {
+      setIsLoadingPageConfig(false);
+    }
+  };
+
+  const updatePageMetadata = async (pageId: string, updates: Partial<PageRecord>): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await updatePageMetadataInSupabase(pageId, updates);
+      if (res.success) {
+        setAllPages(prev => prev.map(p => p.id === pageId ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p));
+        if (activePageRecord.id === pageId) {
+          setActivePageRecord(prev => ({ ...prev, ...updates, updatedAt: new Date().toISOString() }));
+        }
+        showToast('Page settings updated.');
+        return { success: true, message: 'Page updated.' };
+      }
+      return { success: false, message: res.message };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to update page metadata.' };
+    }
+  };
+
+  const duplicatePage = async (sourcePageId: string, newTitle: string, newSlug: string): Promise<{ success: boolean; newPage?: PageRecord; message: string }> => {
+    setIsLoadingPageConfig(true);
+    try {
+      const res = await duplicatePageInSupabase(sourcePageId, newTitle, newSlug);
+      if (res.success && res.newPage) {
+        setAllPages(prev => [...prev, res.newPage!]);
+        setActivePageRecord(res.newPage);
+        recordAuditLog(currentUser?.email || 'admin', 'duplicate_page', 'page', res.newPage.id);
+        showToast(`Page "${newTitle}" duplicated.`);
+        return { success: true, newPage: res.newPage, message: 'Page duplicated.' };
+      }
+      return { success: false, message: res.message };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to duplicate page.' };
+    } finally {
+      setIsLoadingPageConfig(false);
+    }
+  };
+
+  const deletePage = async (pageId: string): Promise<{ success: boolean; message: string }> => {
+    if (pageId === 'page_home' || pageId === 'home') {
+      return { success: false, message: 'The primary Home storefront page cannot be deleted.' };
+    }
+    setIsLoadingPageConfig(true);
+    try {
+      const res = await deletePageFromSupabase(pageId);
+      if (res.success) {
+        setAllPages(prev => prev.filter(p => p.id !== pageId));
+        if (activePageRecord.id === pageId) {
+          // Switch to home page
+          refetchPageConfig('home');
+        }
+        recordAuditLog(currentUser?.email || 'admin', 'delete_page', 'page', pageId);
+        showToast('Page deleted from Supabase.');
+        return { success: true, message: 'Page deleted.' };
+      }
+      return { success: false, message: res.message };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to delete page.' };
+    } finally {
+      setIsLoadingPageConfig(false);
+    }
+  };
+
   const savePageDraft = async (page: PageRecord): Promise<{ success: boolean; message: string }> => {
     setIsLoadingPageConfig(true);
     try {
@@ -3697,7 +3834,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActivePolicySlug,
         toastMessage,
         showToast,
+        allPages,
+        fetchAllPagesList,
+        createPage,
+        updatePageMetadata,
+        duplicatePage,
+        deletePage,
         activePageRecord,
+        setActivePageRecord,
         pageRevisions,
         isLoadingPageConfig,
         savePageDraft,

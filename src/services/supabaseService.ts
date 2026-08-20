@@ -2492,6 +2492,198 @@ export async function upsertFaqItemInSupabase(item: FaqItem): Promise<boolean> {
 // ==============================================================================
 
 /**
+ * Fetch all pages from Supabase
+ */
+export async function fetchAllPagesFromSupabase(): Promise<PageRecord[]> {
+  try {
+    const { data: pageRows, error: pageErr } = await supabase
+      .from('pages')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (pageErr || !pageRows || pageRows.length === 0) {
+      return [];
+    }
+
+    return pageRows.map((row: any) => ({
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      status: row.status || 'draft',
+      meta: typeof row.meta === 'string' ? JSON.parse(row.meta) : (row.meta || {}),
+      sections: [],
+      publishedAt: row.published_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+  } catch (err) {
+    console.error('Error fetching all pages from Supabase:', err);
+    return [];
+  }
+}
+
+/**
+ * Create a new page with optional sections in Supabase
+ */
+export async function createPageInSupabase(page: PageRecord): Promise<{ success: boolean; page?: PageRecord; message: string }> {
+  try {
+    const pagePayload = {
+      id: page.id,
+      slug: page.slug,
+      title: page.title,
+      status: page.status || 'draft',
+      meta: page.meta || {},
+      created_at: page.createdAt || new Date().toISOString(),
+      updated_at: page.updatedAt || new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('pages')
+      .insert(pagePayload)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return { success: false, message: `Failed to create page: ${error?.message || 'Unknown error'}` };
+    }
+
+    if (page.sections && page.sections.length > 0) {
+      const sectionRows = page.sections.map((sec, index) => ({
+        id: sec.id,
+        page_id: page.id,
+        section_type: sec.sectionType,
+        sort_order: index,
+        is_hidden: sec.isHidden || false,
+        settings_json: sec.settings || {},
+        content_json: sec.content || {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+
+      await supabase.from('page_sections').insert(sectionRows);
+    }
+
+    return {
+      success: true,
+      page: {
+        id: data.id,
+        slug: data.slug,
+        title: data.title,
+        status: data.status,
+        meta: typeof data.meta === 'string' ? JSON.parse(data.meta) : (data.meta || {}),
+        sections: page.sections || [],
+        publishedAt: data.published_at,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      },
+      message: 'Page created successfully in Supabase.'
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Error creating page.' };
+  }
+}
+
+/**
+ * Update page metadata in Supabase (rename, slug, SEO meta, status)
+ */
+export async function updatePageMetadataInSupabase(
+  pageId: string,
+  updates: Partial<PageRecord>
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const payload: any = {
+      updated_at: new Date().toISOString()
+    };
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.slug !== undefined) payload.slug = updates.slug;
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.meta !== undefined) payload.meta = updates.meta;
+
+    const { error } = await supabase
+      .from('pages')
+      .update(payload)
+      .eq('id', pageId);
+
+    if (error) {
+      return { success: false, message: `Failed to update page: ${error.message}` };
+    }
+    return { success: true, message: 'Page metadata updated successfully.' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Error updating page.' };
+  }
+}
+
+/**
+ * Duplicate a page and all its sections in Supabase
+ */
+export async function duplicatePageInSupabase(
+  sourcePageId: string,
+  newTitle: string,
+  newSlug: string
+): Promise<{ success: boolean; newPage?: PageRecord; message: string }> {
+  try {
+    // 1. Fetch full source page
+    const sourcePage = await fetchPageWithSectionsFromSupabase(sourcePageId);
+    if (!sourcePage) {
+      return { success: false, message: 'Source page not found.' };
+    }
+
+    const newPageId = `page_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newSections: PageSection[] = sourcePage.sections.map((sec, idx) => ({
+      ...sec,
+      id: `sec_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+      pageId: newPageId
+    }));
+
+    const newPage: PageRecord = {
+      id: newPageId,
+      slug: newSlug,
+      title: newTitle,
+      status: 'draft',
+      meta: { ...sourcePage.meta },
+      sections: newSections,
+      publishedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const createRes = await createPageInSupabase(newPage);
+    if (!createRes.success) {
+      return { success: false, message: createRes.message };
+    }
+
+    return {
+      success: true,
+      newPage,
+      message: `Page "${newTitle}" duplicated successfully.`
+    };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Failed to duplicate page.' };
+  }
+}
+
+/**
+ * Delete a page and all its sections from Supabase
+ */
+export async function deletePageFromSupabase(pageId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    // 1. Delete associated sections
+    await supabase.from('page_sections').delete().eq('page_id', pageId);
+    // 2. Delete associated revisions
+    await supabase.from('page_revisions').delete().eq('page_id', pageId);
+    // 3. Delete page
+    const { error } = await supabase.from('pages').delete().eq('id', pageId);
+
+    if (error) {
+      return { success: false, message: `Failed to delete page: ${error.message}` };
+    }
+    return { success: true, message: 'Page and sections deleted from Supabase.' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Error deleting page.' };
+  }
+}
+
+/**
  * Fetch a page along with all ordered sections from Supabase
  */
 export async function fetchPageWithSectionsFromSupabase(slugOrId: string = 'home'): Promise<PageRecord | null> {

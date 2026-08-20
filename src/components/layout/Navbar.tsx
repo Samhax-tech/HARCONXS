@@ -20,7 +20,8 @@ export const Navbar: React.FC = () => {
     notifications,
     unreadNotificationsCount,
     markNotificationAsRead,
-    markAllNotificationsAsRead
+    markAllNotificationsAsRead,
+    themeConfig
   } = useStore();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -30,6 +31,9 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
+  const siteName = themeConfig?.brand?.siteName || themeConfig?.siteName || 'HARCONXS';
+  const logoUrl = themeConfig?.brand?.logoImageUrl || themeConfig?.logoImageUrl;
+  const isSticky = themeConfig?.header?.headerSticky !== false;
 
   // Close notification popover when clicking outside
   useEffect(() => {
@@ -62,16 +66,20 @@ export const Navbar: React.FC = () => {
     }`;
 
   return (
-    <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800">
+    <header className={`${isSticky ? 'sticky top-0' : 'relative'} z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
         {/* ZONE 1: BRAND TITLE (Single line text element) */}
         <Link
           to="/"
           onClick={() => setIsMobileMenuOpen(false)}
-          className="text-left font-serif text-xl font-bold tracking-wider text-zinc-100 hover:text-white transition-colors uppercase whitespace-nowrap shrink-0"
+          className="text-left font-serif text-xl font-bold tracking-wider text-zinc-100 hover:text-white transition-colors uppercase whitespace-nowrap shrink-0 flex items-center gap-2"
         >
-          HARCONXS
+          {logoUrl ? (
+            <img src={logoUrl} alt={siteName} className="h-8 w-auto max-w-[140px] object-contain" />
+          ) : (
+            <span>{siteName}</span>
+          )}
         </Link>
 
         {/* ZONE 2: 4-6 NAV LINKS (1-2 word labels, single line) */}

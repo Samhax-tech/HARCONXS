@@ -640,3 +640,175 @@ export const SECTION_METADATA_DEFINITIONS: Record<PageSectionType, {
 };
 
 export const SECTION_TYPE_METADATA = SECTION_METADATA_DEFINITIONS;
+
+export const INITIAL_PAGES_LIST: PageRecord[] = [
+  INITIAL_HOME_PAGE_RECORD,
+  {
+    id: 'page_about',
+    slug: 'about',
+    title: 'About HARCONXS Atelier',
+    status: 'published',
+    meta: {
+      description: 'The story behind HARCONXS: Heritage fine jewelry, luxury laser engraving, and forever cloud memory portals.',
+      keywords: 'about harconxs, jewelry atelier, craftsmanship, custom engraving',
+      ogImage: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1200&auto=format&fit=crop&q=80'
+    },
+    sections: [
+      {
+        id: 'sec_about_hero',
+        pageId: 'page_about',
+        sectionType: 'hero',
+        sortOrder: 1,
+        isHidden: false,
+        settings: {
+          paddingTop: 'xl',
+          paddingBottom: 'lg',
+          backgroundColor: '#09090b',
+          containerWidth: 'wide'
+        },
+        content: {
+          eyebrow: 'Our Sovereign Heritage',
+          title: 'Crafting Modern Heirlooms for Forever Bonds',
+          subtitle: 'Founded on the principle of uncompromised precision, HARCONXS blends classical goldsmithing techniques with modern laser metallurgy and private encrypted cloud memory vaults.',
+          primaryBtnText: 'Explore Collections',
+          primaryBtnLink: '/shop',
+          secondaryBtnText: 'Contact Concierge',
+          secondaryBtnLink: '/contact',
+          bannerImage: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=1600&auto=format&fit=crop&q=85'
+        }
+      },
+      {
+        id: 'sec_about_trust',
+        pageId: 'page_about',
+        sectionType: 'trust_benefits',
+        sortOrder: 2,
+        isHidden: false,
+        settings: {
+          paddingTop: 'lg',
+          paddingBottom: 'lg',
+          backgroundColor: '#0c0c0e',
+          containerWidth: 'wide'
+        },
+        content: {
+          pillars: [
+            {
+              icon: 'Award',
+              title: 'Master Goldsmithing',
+              desc: 'Hypoallergenic titanium, 18K solid gold, and surgical steel inspected by certified gemologists.'
+            },
+            {
+              icon: 'Flame',
+              title: 'Micron-Grade Fiber Laser',
+              desc: 'Sub-millimeter laser engraving for coordinates, soundwaves, and intimate handwriting.'
+            },
+            {
+              icon: 'Gift',
+              title: 'Archival Presentation',
+              desc: 'Every piece arrives wrapped in custom velvet cases sealed with stamped metallic wax.'
+            },
+            {
+              icon: 'ShieldCheck',
+              title: 'Encrypted Memory Sanctuaries',
+              desc: 'Private subdomain websites secured with end-to-end authentication and perpetual hosting.'
+            }
+          ]
+        }
+      },
+      {
+        id: 'sec_about_newsletter',
+        pageId: 'page_about',
+        sectionType: 'newsletter',
+        sortOrder: 3,
+        isHidden: false,
+        settings: {
+          paddingTop: 'lg',
+          paddingBottom: 'xl',
+          backgroundColor: '#09090b',
+          containerWidth: 'contained'
+        },
+        content: {
+          title: 'Join the Atelier Private Society',
+          subtitle: 'Receive early private access to archival drops and bespoke seasonal commissions.',
+          inputPlaceholder: 'Enter your email address...',
+          buttonText: 'Join Circle'
+        }
+      }
+    ],
+    publishedAt: '2026-01-01T00:00:00Z',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z'
+  },
+  {
+    id: 'page_contact',
+    slug: 'contact',
+    title: 'Client Care & Concierge',
+    status: 'published',
+    meta: {
+      description: 'Contact HARCONXS concierge for custom inquiries, order tracking, and bespoke consultations.',
+      keywords: 'contact harconxs, customer support, tracking, bespoke help',
+      ogImage: 'https://images.unsplash.com/photo-1534536281715-e28d76689b4d?w=1200&auto=format&fit=crop&q=80'
+    },
+    sections: [
+      {
+        id: 'sec_contact_support',
+        pageId: 'page_contact',
+        sectionType: 'support',
+        sortOrder: 1,
+        isHidden: false,
+        settings: {
+          paddingTop: 'xl',
+          paddingBottom: 'lg',
+          backgroundColor: '#09090b',
+          containerWidth: 'wide'
+        },
+        content: {
+          badge: 'Dedicated Concierge Desk',
+          title: 'Atelier Support & Private Inquiries',
+          subtitle: 'Our bespoke specialists are on standby to assist with size fittings, tracking, and custom design approvals.',
+          trackingPlaceholder: 'Enter your Order ID (e.g. HX-8291)...',
+          faqItems: [
+            {
+              question: 'How do I submit artwork for custom laser etching?',
+              answer: 'You can upload high-res images, vector files, or voice notes during checkout or via the Custom Commission Portal.'
+            },
+            {
+              question: 'What are the delivery timelines across India and internationally?',
+              answer: 'Custom orders ship within 24-48 hours via BlueDart or Delhivery Express (3-5 business days).'
+            }
+          ]
+        }
+      },
+      {
+        id: 'sec_contact_faq',
+        pageId: 'page_contact',
+        sectionType: 'faq',
+        sortOrder: 2,
+        isHidden: false,
+        settings: {
+          paddingTop: 'md',
+          paddingBottom: 'xl',
+          backgroundColor: '#0c0c0e',
+          containerWidth: 'wide'
+        },
+        content: {
+          title: 'Frequently Asked Questions',
+          subtitle: 'Direct answers for shipping, couple website domains, and lifetime warranty.',
+          items: [
+            {
+              question: 'Can I change my engraved text after placing an order?',
+              answer: 'Yes, if you contact the concierge within 4 hours of placing the order before laser fabrication begins.'
+            },
+            {
+              question: 'Are the Couple Websites permanent?',
+              answer: 'Yes, every couple sanctuary is hosted indefinitely with cloud backups and SSL security.'
+            }
+          ]
+        }
+      }
+    ],
+    publishedAt: '2026-01-01T00:00:00Z',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z'
+  }
+];
+

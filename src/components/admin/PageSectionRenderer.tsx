@@ -24,7 +24,12 @@ import {
   Flame,
   Truck,
   RotateCcw,
-  Headphones
+  Headphones,
+  Bot,
+  ExternalLink,
+  Phone,
+  Clock,
+  Award
 } from 'lucide-react';
 
 interface PageSectionRendererProps {
@@ -33,6 +38,7 @@ interface PageSectionRendererProps {
   isLiveStorefront?: boolean;
   onSelectSection?: (section: PageSection) => void;
   isSelected?: boolean;
+  showInspectorOutline?: boolean;
 }
 
 export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
@@ -40,14 +46,16 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
   previewMode = false,
   isLiveStorefront = false,
   onSelectSection,
-  isSelected = false
+  isSelected = false,
+  showInspectorOutline = true
 }) => {
   const { 
     products, 
     formatPrice, 
     setCurrentView, 
     setSelectedProductId, 
-    addToCart 
+    addToCart,
+    botPanelServices 
   } = useStore();
 
   const isVisible = (section as any).is_visible !== false && !section.isHidden && (section as any).is_hidden !== true;
@@ -61,9 +69,9 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
       <div 
         id={`hidden-${section.id}`}
         onClick={() => onSelectSection?.(section)}
-        className="p-3 bg-zinc-900/60 border border-dashed border-zinc-700/60 rounded-xl text-xs text-zinc-500 text-center cursor-pointer hover:border-amber-500/50 transition-colors"
+        className="p-3 my-2 mx-4 bg-zinc-900/60 border border-dashed border-zinc-700/60 rounded-xl text-xs text-zinc-500 text-center cursor-pointer hover:border-amber-500/50 transition-colors"
       >
-        <span className="font-mono text-zinc-400">[{section.sectionType || (section as any).section_type}]</span> {section.name || 'Section'} (Hidden on storefront)
+        <span className="font-mono text-zinc-400">[{section.sectionType || (section as any).section_type}]</span> {section.name || 'Section'} (Hidden from public view)
       </div>
     );
   }
@@ -74,9 +82,38 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
   const bgColor = settings.backgroundColor || (settings as any).bg_color || 'transparent';
   const textColor = settings.textColor || (settings as any).text_color || 'inherit';
 
-  const wrapperClass = `relative transition-all duration-200 ${
-    isSelected ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 rounded-xl' : ''
-  } ${onSelectSection ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-amber-500/40' : ''}`;
+  // Responsive padding calculation
+  const paddingMap: Record<string, string> = {
+    none: 'py-0',
+    sm: 'py-4',
+    md: 'py-8',
+    lg: 'py-12',
+    xl: 'py-16',
+    '2xl': 'py-24'
+  };
+
+  const containerWidthMap: Record<string, string> = {
+    narrow: 'max-w-4xl',
+    contained: 'max-w-6xl',
+    wide: 'max-w-7xl',
+    full: 'w-full'
+  };
+
+  const padClass = paddingMap[settings.paddingTop || ''] || paddingMap[settings.paddingBottom || ''] || 'py-0';
+  const widthClass = containerWidthMap[settings.containerWidth || 'wide'] || 'max-w-7xl';
+
+  // Responsive hide classes
+  const hideMobileClass = settings.hideOnMobile ? 'hidden sm:block' : '';
+  const hideTabletClass = settings.hideOnTablet ? 'sm:hidden md:block' : '';
+  const hideDesktopClass = settings.hideOnDesktop ? 'lg:hidden' : '';
+
+  const wrapperClass = `relative transition-all duration-150 ${hideMobileClass} ${hideTabletClass} ${hideDesktopClass} ${
+    !previewMode && showInspectorOutline && isSelected
+      ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 rounded-lg'
+      : ''
+  } ${
+    !previewMode && onSelectSection ? 'cursor-pointer hover:outline hover:outline-1 hover:outline-amber-500/30' : ''
+  }`;
 
   const renderSectionContent = () => {
     switch (sectionType) {
@@ -85,14 +122,20 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
         return (
           <div 
             id={`section-${section.id}`}
-            style={{ backgroundColor: bgColor !== 'transparent' ? bgColor : '#b45309', color: textColor }}
+            style={{ backgroundColor: bgColor !== 'transparent' ? bgColor : '#b45309', color: textColor !== 'inherit' ? textColor : '#ffffff' }}
             className="py-2.5 px-4 text-center text-xs sm:text-sm font-medium tracking-wide flex items-center justify-center gap-2"
           >
             <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-200" />
-            <span>{content.text || 'Complimentary Worldwide Shipping on Bespoke Commissions over ₹4,999'}</span>
-            {content.link_url && (
-              <span className="underline font-semibold ml-2 cursor-pointer hover:opacity-80">
-                {content.link_text || 'Explore'} →
+            <span>{content.text || content.message || 'Complimentary Velvet Packaging & Insured Shipping on all orders over ₹2,499'}</span>
+            {(content.link_url || content.linkUrl) && (
+              <span 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentView('shop');
+                }}
+                className="underline font-semibold ml-2 cursor-pointer hover:opacity-80 inline-flex items-center gap-0.5"
+              >
+                {content.link_text || content.linkText || 'Explore'} →
               </span>
             )}
           </div>
@@ -120,19 +163,67 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
       case 'custom_gifts':
         return <CustomServicesSection content={content} />;
 
-      // 7. SUPPORT / CLIENT CARE
+      // 7. BOT CLOUD / AUTOMATION SERVICES
+      case 'bot_panels':
+        return (
+          <div 
+            id={`section-${section.id}`}
+            style={{ backgroundColor: bgColor !== 'transparent' ? bgColor : undefined, color: textColor !== 'inherit' ? textColor : undefined }}
+            className={`py-16 px-6 mx-auto ${widthClass} border-b border-zinc-800/80`}
+          >
+            <div className="text-center mb-12 space-y-2">
+              <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-mono font-semibold uppercase tracking-wider border border-cyan-500/20">
+                {content.badge || 'High-Frequency Cloud'}
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-serif font-bold text-zinc-100">
+                {content.title || 'Private Bot Automation & Cloud Panels'}
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-400 max-w-2xl mx-auto">
+                {content.subtitle || 'Deploy dedicated 24/7 autonomous Telegram & Discord bots with instant provisioning.'}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {(botPanelServices || []).slice(0, 3).map((bot) => (
+                <div key={bot.id} className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4 flex flex-col justify-between hover:border-cyan-500/40 transition-colors">
+                  <div className="space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
+                      <Bot className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-bold text-zinc-100 text-base">{bot.name}</h3>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{bot.shortDesc || bot.description}</p>
+                  </div>
+                  <div className="pt-4 border-t border-zinc-800/80 flex items-center justify-between">
+                    <span className="text-sm font-bold text-cyan-400">{formatPrice(bot.plans?.[0]?.price || 499)}</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentView('bot-panels');
+                      }}
+                      className="text-xs font-semibold text-zinc-200 hover:text-cyan-400 flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Deploy</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      // 8. SUPPORT / CLIENT CARE
       case 'support':
         return <SupportSection content={content} />;
 
-      // 8. TRUST / VALUE PILLARS
+      // 9. TRUST / VALUE PILLARS
       case 'trust_benefits':
         return <TrustBenefitsSection content={content} />;
 
-      // 9. CALL TO ACTION (CTA)
+      // 10. CALL TO ACTION (CTA)
       case 'cta':
         return <CtaSection content={content} />;
 
-      // 10. TESTIMONIALS / REVIEWS
+      // 11. TESTIMONIALS / REVIEWS
       case 'testimonials':
       case 'reviews':
         const reviewsList = content.testimonials || content.reviews || [
@@ -144,7 +235,8 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
         return (
           <div 
             id={`section-${section.id}`}
-            className="py-16 px-6 max-w-7xl mx-auto border-b border-zinc-800/80"
+            style={{ backgroundColor: bgColor !== 'transparent' ? bgColor : undefined, color: textColor !== 'inherit' ? textColor : undefined }}
+            className={`py-16 px-6 mx-auto ${widthClass} border-b border-zinc-800/80`}
           >
             <div className="text-center mb-10">
               <span className="text-xs font-semibold uppercase tracking-wider text-amber-400 font-mono">Verified Notes</span>
@@ -184,15 +276,16 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
           </div>
         );
 
-      // 11. FAQ
+      // 12. FAQ
       case 'faq':
         return <SupportSection content={{ title: content.title, subtitle: content.subtitle, faqItems: content.items }} />;
 
-      // 12. NEWSLETTER
+      // 13. NEWSLETTER
       case 'newsletter':
         return (
           <div 
             id={`section-${section.id}`}
+            style={{ backgroundColor: bgColor !== 'transparent' ? bgColor : undefined, color: textColor !== 'inherit' ? textColor : undefined }}
             className="py-16 px-6 max-w-3xl mx-auto text-center space-y-4 border-b border-zinc-800/80"
           >
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mx-auto flex items-center justify-center">
@@ -215,13 +308,13 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
           </div>
         );
 
-      // 13. BANNERS
+      // 14. BANNERS
       case 'banners':
         return (
           <div 
             id={`section-${section.id}`}
-            style={{ backgroundColor: bgColor !== 'transparent' ? bgColor : undefined }}
-            className="py-12 px-6 max-w-7xl mx-auto border-b border-zinc-800/80"
+            style={{ backgroundColor: bgColor !== 'transparent' ? bgColor : undefined, color: textColor !== 'inherit' ? textColor : undefined }}
+            className={`py-12 px-6 mx-auto ${widthClass} border-b border-zinc-800/80`}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {(content.banners || [
@@ -258,6 +351,35 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
           </div>
         );
 
+      // 15. FOOTER
+      case 'footer':
+        return (
+          <footer 
+            id={`section-${section.id}`}
+            style={{ backgroundColor: bgColor !== 'transparent' ? bgColor : '#09090b', color: textColor !== 'inherit' ? textColor : undefined }}
+            className="py-12 px-6 border-t border-zinc-800/80 text-xs text-zinc-400"
+          >
+            <div className={`mx-auto ${widthClass} flex flex-col md:flex-row items-center justify-between gap-6`}>
+              <div className="space-y-1 text-center md:text-left">
+                <span className="font-serif text-lg font-bold text-zinc-100 tracking-wider">
+                  {content.brandName || 'HARCONXS'}
+                </span>
+                <p className="text-xs text-zinc-500">
+                  {content.tagline || 'Artisanal atelier and bespoke digital sanctuaries.'}
+                </p>
+              </div>
+              <div className="flex items-center gap-6 text-zinc-400">
+                <span>© {new Date().getFullYear()} HARCONXS Atelier</span>
+                {content.supportEmail && (
+                  <a href={`mailto:${content.supportEmail}`} className="hover:text-amber-400 transition-colors">
+                    {content.supportEmail}
+                  </a>
+                )}
+              </div>
+            </div>
+          </footer>
+        );
+
       default:
         return null;
     }
@@ -268,12 +390,8 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
       className={wrapperClass}
       onClick={() => onSelectSection?.(section)}
     >
-      {isSelected && (
-        <div className="absolute top-2 right-2 z-20 px-2.5 py-1 rounded bg-amber-500 text-zinc-950 font-bold text-[10px] uppercase tracking-wider shadow-lg flex items-center gap-1">
-          <Sparkles className="w-3 h-3" /> Selected Section
-        </div>
-      )}
       {renderSectionContent()}
     </div>
   );
 };
+

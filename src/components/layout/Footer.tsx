@@ -4,9 +4,16 @@ import { ShieldCheck, Heart, Send, Globe, Award, Sparkles, CheckCircle2, Youtube
 import { useStore } from '../../context/StoreContext';
 
 export const Footer: React.FC = () => {
-  const { socialLinks, showToast } = useStore();
+  const { socialLinks, showToast, themeConfig } = useStore();
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
+
+  const siteName = themeConfig?.brand?.siteName || themeConfig?.siteName || 'HARCONXS';
+  const tagline = themeConfig?.footer?.footerTagline || themeConfig?.footerTagline || themeConfig?.brand?.tagline || 'Premium commerce destination engineered for couples, handcrafted laser engravings, lifetime cloud memory portals, and bespoke digital automation.';
+  const email = themeConfig?.footer?.supportEmail || themeConfig?.supportEmail || 'support@harconxs.com';
+  const phone = themeConfig?.footer?.supportPhone || themeConfig?.supportPhone || '+91 98765 43210';
+  const copyright = `© ${new Date().getFullYear()} ${siteName}. All rights reserved. Crafted with precision for India & Global connoisseurs.`;
+  const showNewsletter = themeConfig?.footer?.showNewsletterBox !== false;
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,11 +79,22 @@ export const Footer: React.FC = () => {
         {/* Brand statement */}
         <div className="lg:col-span-2 space-y-4">
           <Link to="/" className="font-serif text-2xl font-bold tracking-wider text-zinc-100 uppercase inline-block">
-            HARCONXS
+            {siteName}
           </Link>
           <p className="text-xs text-zinc-400 leading-relaxed max-w-sm">
-            Premium commerce destination engineered for couples, handcrafted laser engravings, lifetime cloud memory portals, and bespoke digital automation.
+            {tagline}
           </p>
+
+          <div className="text-xs text-zinc-400 space-y-1">
+            <p className="flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5 text-zinc-400" />
+              <span>{email}</span>
+            </p>
+            <p className="flex items-center gap-2">
+              <MessageCircle className="w-3.5 h-3.5 text-zinc-400" />
+              <span>{phone}</span>
+            </p>
+          </div>
 
           {/* Social Links Icons */}
           <div className="flex items-center gap-3 pt-1">
@@ -290,7 +308,7 @@ export const Footer: React.FC = () => {
 
       {/* Bottom copyright line */}
       <div className="border-t border-zinc-800/70 py-6 px-4 text-center text-xs text-zinc-400">
-        <p>© 2026 HARCONXS SHOP. All rights reserved. Crafted with precision for India & Global connoisseurs.</p>
+        <p>{copyright}</p>
       </div>
     </footer>
   );

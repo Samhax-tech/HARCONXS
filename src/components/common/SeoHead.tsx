@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Product, ProductReview } from '../../types';
+import { useStore } from '../../context/StoreContext';
 import {
   DEFAULT_SITE_URL,
   generateOrganizationSchema,
@@ -24,32 +25,38 @@ export interface SeoHeadProps {
 }
 
 export const SeoHead: React.FC<SeoHeadProps> = ({
-  title = 'HARCONXS | Haute Joaillerie & Atelier Gifting',
-  description = 'Sovereign Haute Joaillerie, 18K/Platinum heirloom commissions, bespoke romantic couple sanctuaries, and luxury artisan gifts.',
+  title,
+  description,
   canonicalUrl,
   ogTitle,
   ogDescription,
-  ogImage = 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1200&auto=format&fit=crop&q=80',
+  ogImage,
   ogType = 'website',
   product,
   reviews = [],
   breadcrumbs,
   noIndex = false
 }) => {
+  const { themeConfig } = useStore();
   const currentUrl = typeof window !== 'undefined' ? window.location.href : DEFAULT_SITE_URL;
   const siteUrl = typeof window !== 'undefined' ? window.location.origin : DEFAULT_SITE_URL;
   const canonical = canonicalUrl || (product ? `${siteUrl}/product/${product.slug}` : currentUrl);
-  
-  const finalTitle = product?.seoTitle || product?.metaTitle || title;
-  const finalDescription = product?.seoDescription || product?.metaDescription || product?.shortDescription || description;
+
+  const fallbackTitle = themeConfig?.seo?.seoTitleTemplate || `${themeConfig?.brand?.siteName || 'HARCONXS'} | Haute Joaillerie & Atelier Gifting`;
+  const fallbackDescription = themeConfig?.seo?.defaultMetaDescription || themeConfig?.brand?.tagline || 'Sovereign Haute Joaillerie, 18K/Platinum heirloom commissions, bespoke romantic couple sanctuaries, and luxury artisan gifts.';
+  const fallbackOgImage = themeConfig?.seo?.ogImageUrl || themeConfig?.brand?.logoImageUrl || 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1200&auto=format&fit=crop&q=80';
+  const siteName = themeConfig?.brand?.siteName || themeConfig?.siteName || 'HARCONXS';
+
+  const finalTitle = product?.seoTitle || product?.metaTitle || title || fallbackTitle;
+  const finalDescription = product?.seoDescription || product?.metaDescription || product?.shortDescription || description || fallbackDescription;
   const finalOgTitle = product?.ogTitle || ogTitle || finalTitle;
   const finalOgDescription = product?.ogDescription || ogDescription || finalDescription;
-  const finalOgImage = product?.ogImage || product?.ogImageUrl || (product?.images && product.images[0]) || ogImage;
+  const finalOgImage = product?.ogImage || product?.ogImageUrl || (product?.images && product.images[0]) || ogImage || fallbackOgImage;
 
   // 1. Update Document Head Tags dynamically
   useEffect(() => {
     // Document Title
-    const brandSuffix = finalTitle.includes('HARCONXS') ? '' : ' | HARCONXS';
+    const brandSuffix = finalTitle.includes(siteName) ? '' : ` | ${siteName}`;
     document.title = `${finalTitle}${brandSuffix}`;
 
     const updateMeta = (name: string, content: string, isProperty = false) => {
@@ -88,7 +95,7 @@ export const SeoHead: React.FC<SeoHeadProps> = ({
     updateMeta('og:image', finalOgImage, true);
     updateMeta('og:url', canonical, true);
     updateMeta('og:type', product ? 'product' : ogType, true);
-    updateMeta('og:site_name', 'HARCONXS', true);
+    updateMeta('og:site_name', siteName, true);
     updateMeta('og:locale', 'en_US', true);
 
     // Twitter Card
@@ -96,8 +103,8 @@ export const SeoHead: React.FC<SeoHeadProps> = ({
     updateMeta('twitter:title', finalOgTitle);
     updateMeta('twitter:description', finalOgDescription);
     updateMeta('twitter:image', finalOgImage);
-    updateMeta('twitter:site', '@harconxs');
-  }, [finalTitle, finalDescription, finalOgTitle, finalOgDescription, finalOgImage, canonical, noIndex, product, ogType]);
+    updateMeta('twitter:site', themeConfig?.seo?.twitterHandle || '@harconxs');
+  }, [finalTitle, finalDescription, finalOgTitle, finalOgDescription, finalOgImage, canonical, noIndex, product, ogType, siteName, themeConfig?.seo?.twitterHandle]);
 
   // 2. Prepare JSON-LD Schemas
   const schemas: any[] = [

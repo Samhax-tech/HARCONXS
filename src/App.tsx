@@ -37,8 +37,11 @@ import { OrderSuccessPage } from './pages/OrderSuccessPage';
 
 // Customer & Admin
 import { AccountPage } from './pages/AccountPage';
-import { AdminPage } from './pages/AdminPage';
-import { EditPageStudio } from './pages/EditPageStudio';
+
+// Code-Split Dynamic Heavy Modules & Dedicated Public Couple Engine
+const CoupleSiteRuntimePage = React.lazy(() => import('./pages/CoupleSiteRuntimePage'));
+const AdminPage = React.lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const EditPageStudio = React.lazy(() => import('./pages/EditPageStudio').then(m => ({ default: m.EditPageStudio })));
 
 export const App: React.FC = () => {
   return (
@@ -52,6 +55,24 @@ export const App: React.FC = () => {
               
               {/* Public Routes */}
               <Route path="/" element={<HomePage />} />
+
+              {/* Lightweight Generic Couple Website Engine Public Runtime */}
+              <Route
+                path="/couple/:slug"
+                element={
+                  <React.Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">Loading Sanctuary...</div>}>
+                    <CoupleSiteRuntimePage />
+                  </React.Suspense>
+                }
+              />
+              <Route
+                path="/couple/:slug/:pageSlug"
+                element={
+                  <React.Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">Loading Sanctuary...</div>}>
+                    <CoupleSiteRuntimePage />
+                  </React.Suspense>
+                }
+              />
               
               {/* Catalog & Filtered Departments */}
               <Route path="/shop" element={<ShopPage />} />
@@ -132,10 +153,10 @@ export const App: React.FC = () => {
               <Route path="/account/invoices" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
 
               {/* Admin Portal & Visual Page Editor (Protected by Supabase Auth + RBAC) */}
-              <Route path="/edit-page" element={<AdminRoute><EditPageStudio /></AdminRoute>} />
-              <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
-              <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
-              <Route path="/hax-portal" element={<AdminRoute><AdminPage /></AdminRoute>} />
+              <Route path="/edit-page" element={<AdminRoute><React.Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">Loading Studio...</div>}><EditPageStudio /></React.Suspense></AdminRoute>} />
+              <Route path="/admin" element={<AdminRoute><React.Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">Loading Portal...</div>}><AdminPage /></React.Suspense></AdminRoute>} />
+              <Route path="/admin/*" element={<AdminRoute><React.Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">Loading Portal...</div>}><AdminPage /></React.Suspense></AdminRoute>} />
+              <Route path="/hax-portal" element={<AdminRoute><React.Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">Loading Portal...</div>}><AdminPage /></React.Suspense></AdminRoute>} />
 
               {/* Catch-all 404 Route */}
               <Route path="*" element={<NotFoundPage />} />

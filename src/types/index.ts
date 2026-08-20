@@ -1269,15 +1269,21 @@ export type PageSectionType =
   | 'footer';
 
 export interface PageSectionSettings {
-  paddingTop?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
-  paddingBottom?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  paddingTop?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  paddingBottom?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   backgroundColor?: string;
   backgroundGradient?: string;
   textColor?: string;
-  containerWidth?: 'narrow' | 'normal' | 'wide' | 'full';
+  containerWidth?: 'narrow' | 'normal' | 'wide' | 'full' | 'contained';
   showDivider?: boolean;
   animation?: 'fade' | 'slide-up' | 'none';
   customCssClass?: string;
+  titleScale?: 'normal' | 'large' | 'display';
+  alignment?: 'left' | 'center' | 'right';
+  fontStyle?: 'serif' | 'sans';
+  hideOnMobile?: boolean;
+  hideOnTablet?: boolean;
+  hideOnDesktop?: boolean;
 }
 
 export interface PageSection<TSettings = PageSectionSettings, TContent = any> {
