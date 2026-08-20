@@ -1065,6 +1065,116 @@ export interface SupabaseConfigStatus {
   };
 }
 
+export interface ThemeBrandSettings {
+  siteName: string;
+  tagline: string;
+  logoImageUrl?: string;
+  faviconUrl?: string;
+  brandStatement: string;
+  copyrightText: string;
+  establishedYear: string;
+  showWordmarkIfNoLogo: boolean;
+}
+
+export interface ThemeTypographySettings {
+  fontFamily: 'serif' | 'sans' | 'mono' | 'display';
+  headingFont: 'Playfair Display' | 'Cinzel' | 'Cormorant' | 'Plus Jakarta Sans' | 'Inter' | 'Space Mono';
+  bodyFont: 'Plus Jakarta Sans' | 'Inter' | 'System Sans' | 'Lora' | 'Space Mono';
+  baseFontSize: '14px' | '15px' | '16px' | '18px';
+  headingLetterSpacing: 'tighter' | 'tight' | 'normal' | 'wide' | 'widest';
+  headingFontWeight: 'medium' | 'semibold' | 'bold' | 'extrabold';
+  bodyLineHeight: 'snug' | 'normal' | 'relaxed' | 'loose';
+}
+
+export interface ThemeColorSettings {
+  primaryColor: string;
+  accentColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  surfaceColor: string;
+  borderColor: string;
+  textColor: string;
+  textMutedColor: string;
+  themeMode: 'dark' | 'light' | 'midnight' | 'obsidian' | 'champagne';
+}
+
+export interface ThemeButtonSettings {
+  buttonRadius: 'none' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  buttonStyle: 'solid' | 'glow' | 'outline' | 'gradient' | 'luxury-pill';
+  buttonShadow: 'none' | 'sm' | 'md' | 'lg' | 'colored';
+  buttonTransform: 'none' | 'uppercase' | 'capitalize';
+  buttonFontWeight: 'medium' | 'semibold' | 'bold';
+  primaryBtnBg?: string;
+  primaryBtnText?: string;
+  secondaryBtnBg?: string;
+  secondaryBtnText?: string;
+}
+
+export interface ThemeCardSettings {
+  cardRadius: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  cardBackground: 'solid' | 'glass' | 'translucent' | 'deep';
+  cardBorder: 'none' | 'subtle' | 'accent' | 'highlight';
+  cardShadow: 'none' | 'sm' | 'md' | 'lg' | 'hover-lift';
+  productImageAspect: 'square' | 'portrait' | 'wide';
+  imageHoverZoom: boolean;
+  showQuickViewBadge: boolean;
+}
+
+export interface ThemeHeaderSettings {
+  headerSticky: boolean;
+  headerBlur: boolean;
+  headerStyle: 'minimal' | 'luxury' | 'bordered' | 'floating';
+  headerHeight: 'compact' | 'normal' | 'tall';
+  showAnnouncementInHeader: boolean;
+  showCurrencySelector: boolean;
+  showSearchIcon: boolean;
+  headerBgColor?: string;
+}
+
+export interface ThemeFooterSettings {
+  footerTagline: string;
+  footerStyle: 'classic' | 'modern' | 'minimal' | 'atelier-columns';
+  showPaymentBadges: boolean;
+  showSocialLinks: boolean;
+  showNewsletterBox: boolean;
+  supportEmail: string;
+  supportPhone: string;
+  footerBgColor?: string;
+}
+
+export interface ThemeAnnouncementSettings {
+  announcementEnabled: boolean;
+  announcementText: string;
+  announcementDiscountCode: string;
+  announcementBgColor: string;
+  announcementTextColor: string;
+  announcementLinkUrl: string;
+  announcementLinkText: string;
+  announcementSticky: boolean;
+  freeShippingThreshold: number;
+}
+
+export interface ThemeLayoutSettings {
+  containerMaxWidth: 'max-w-5xl' | 'max-w-6xl' | 'max-w-7xl' | 'max-w-screen-2xl' | 'max-w-full';
+  sectionSpacing: 'compact' | 'normal' | 'spacious' | 'airy';
+  gridGap: 'sm' | 'md' | 'lg' | 'xl';
+  showSectionDividers: boolean;
+}
+
+export interface ThemeResponsiveSettings {
+  mobileProductColumns: 1 | 2;
+  mobileNavbarStyle: 'drawer' | 'bottom-bar' | 'compact';
+  mobileScaling: 'compact' | 'normal' | 'comfortable';
+}
+
+export interface ThemeSeoSettings {
+  seoTitleTemplate: string;
+  defaultMetaDescription: string;
+  ogImageUrl: string;
+  metaKeywords: string[];
+  twitterHandle: string;
+}
+
 export interface ThemeConfig {
   siteName: string;
   tagline: string;
@@ -1082,6 +1192,35 @@ export interface ThemeConfig {
   supportEmail: string;
   supportPhone: string;
   freeShippingThreshold: number;
+
+  // Granular settings categories
+  brand: ThemeBrandSettings;
+  typography: ThemeTypographySettings;
+  colors: ThemeColorSettings;
+  buttons: ThemeButtonSettings;
+  cards: ThemeCardSettings;
+  header: ThemeHeaderSettings;
+  footer: ThemeFooterSettings;
+  announcement: ThemeAnnouncementSettings;
+  layout: ThemeLayoutSettings;
+  responsive: ThemeResponsiveSettings;
+  seo: ThemeSeoSettings;
+
+  // Metadata
+  version?: number;
+  status?: 'draft' | 'published';
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface ThemeRevision {
+  id: string;
+  revision_name: string;
+  notes?: string;
+  created_at: string;
+  created_by?: string;
+  config: ThemeConfig;
+  is_published?: boolean;
 }
 
 export interface BillingInvoice {

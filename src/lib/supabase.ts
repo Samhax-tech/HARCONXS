@@ -32,6 +32,9 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
+  global: {
+    fetch: (...args) => globalThis.fetch(...args),
+  },
   db: {
     schema: 'public',
   },

@@ -21,7 +21,8 @@ import {
   BillingInvoice,
   KnowledgeCategory,
   KnowledgeArticle,
-  FaqItem
+  FaqItem,
+  ThemeConfig
 } from '../types';
 
 
@@ -2337,7 +2338,7 @@ export const INITIAL_BILLING_INVOICES: BillingInvoice[] = [
   }
 ];
 
-export const INITIAL_THEME_CONFIG = {
+export const INITIAL_THEME_CONFIG: ThemeConfig = {
   siteName: 'HARCONXS',
   tagline: 'LUXURY COMMERCE & SANCTUARY ATELIER',
   announcementText: 'Use code WELCOME15 for 15% off your first order',
@@ -2352,7 +2353,112 @@ export const INITIAL_THEME_CONFIG = {
   footerTagline: 'Premium commerce destination engineered for couples, handcrafted laser engravings, lifetime cloud memory portals, and bespoke digital automation.',
   supportEmail: 'care@harconxs.com',
   supportPhone: '+91 98200 12890',
-  freeShippingThreshold: 1500
+  freeShippingThreshold: 1500,
+
+  // Granular settings categories
+  brand: {
+    siteName: 'HARCONXS',
+    tagline: 'LUXURY COMMERCE & SANCTUARY ATELIER',
+    logoImageUrl: '',
+    faviconUrl: '',
+    brandStatement: 'Sovereign atelier crafting bespoke keepsakes, personalized titanium jewelry, and lifetime digital portals.',
+    copyrightText: 'HARCONXS Atelier. All Sovereign Rights Reserved.',
+    establishedYear: '2026',
+    showWordmarkIfNoLogo: true
+  },
+  typography: {
+    fontFamily: 'serif',
+    headingFont: 'Playfair Display',
+    bodyFont: 'Plus Jakarta Sans',
+    baseFontSize: '16px',
+    headingLetterSpacing: 'normal',
+    headingFontWeight: 'bold',
+    bodyLineHeight: 'relaxed'
+  },
+  colors: {
+    primaryColor: '#f59e0b',
+    accentColor: '#f43f5e',
+    secondaryColor: '#38bdf8',
+    backgroundColor: '#09090b',
+    surfaceColor: '#18181b',
+    borderColor: '#27272a',
+    textColor: '#f4f4f5',
+    textMutedColor: '#a1a1aa',
+    themeMode: 'dark'
+  },
+  buttons: {
+    buttonRadius: 'xl',
+    buttonStyle: 'solid',
+    buttonShadow: 'sm',
+    buttonTransform: 'none',
+    buttonFontWeight: 'semibold',
+    primaryBtnBg: '#f59e0b',
+    primaryBtnText: '#09090b',
+    secondaryBtnBg: '#27272a',
+    secondaryBtnText: '#f4f4f5'
+  },
+  cards: {
+    cardRadius: '2xl',
+    cardBackground: 'deep',
+    cardBorder: 'subtle',
+    cardShadow: 'hover-lift',
+    productImageAspect: 'square',
+    imageHoverZoom: true,
+    showQuickViewBadge: true
+  },
+  header: {
+    headerSticky: true,
+    headerBlur: true,
+    headerStyle: 'luxury',
+    headerHeight: 'normal',
+    showAnnouncementInHeader: true,
+    showCurrencySelector: true,
+    showSearchIcon: true,
+    headerBgColor: 'rgba(9, 9, 11, 0.85)'
+  },
+  footer: {
+    footerTagline: 'Premium commerce destination engineered for couples, handcrafted laser engravings, lifetime cloud memory portals, and bespoke digital automation.',
+    footerStyle: 'atelier-columns',
+    showPaymentBadges: true,
+    showSocialLinks: true,
+    showNewsletterBox: true,
+    supportEmail: 'care@harconxs.com',
+    supportPhone: '+91 98200 12890',
+    footerBgColor: '#09090b'
+  },
+  announcement: {
+    announcementEnabled: true,
+    announcementText: 'Use code WELCOME15 for 15% off your first order',
+    announcementDiscountCode: 'WELCOME15',
+    announcementBgColor: '#f59e0b',
+    announcementTextColor: '#09090b',
+    announcementLinkUrl: '/shop',
+    announcementLinkText: 'Shop New Arrivals',
+    announcementSticky: false,
+    freeShippingThreshold: 1500
+  },
+  layout: {
+    containerMaxWidth: 'max-w-7xl',
+    sectionSpacing: 'normal',
+    gridGap: 'lg',
+    showSectionDividers: true
+  },
+  responsive: {
+    mobileProductColumns: 2,
+    mobileNavbarStyle: 'drawer',
+    mobileScaling: 'normal'
+  },
+  seo: {
+    seoTitleTemplate: '%s | HARCONXS Luxury Commerce',
+    defaultMetaDescription: 'HARCONXS Sovereign Atelier - Luxury Commerce, Bespoke Titanium Jewelry, Custom Keepsakes & Lifetime Cloud Couple Portals.',
+    ogImageUrl: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=1200&auto=format&fit=crop&q=80',
+    metaKeywords: ['HARCONXS', 'Luxury Jewelry', 'Custom Engraving', 'Couple Websites', 'Bespoke Gifts'],
+    twitterHandle: '@harconxs'
+  },
+  version: 1,
+  status: 'published',
+  updatedAt: '2026-08-20T06:00:00Z',
+  updatedBy: 'system'
 };
 
 export const INITIAL_KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [

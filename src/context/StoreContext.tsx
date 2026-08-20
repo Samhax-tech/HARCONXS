@@ -36,6 +36,7 @@ import {
   SupabaseConfigStatus,
   BillingInvoice,
   ThemeConfig,
+  ThemeRevision,
   PageRecord,
   PageRevision,
   PageSection,
@@ -144,7 +145,14 @@ import {
   fetchInvoicesFromSupabase,
   insertInvoiceInSupabase,
   fetchThemeConfigFromSupabase,
+  fetchThemeDraftFromSupabase,
+  saveThemeDraftInSupabase,
   saveThemeConfigInSupabase,
+  publishThemeConfigInSupabase,
+  fetchThemeRevisionsFromSupabase,
+  createThemeRevisionSnapshot,
+  restoreThemeRevisionFromSupabase,
+  deleteThemeRevisionFromSupabase,
   recordAuditLog,
   trackAnalyticsEvent,
   fetchPageWithSectionsFromSupabase,
@@ -163,6 +171,7 @@ import {
   INITIAL_HOME_PAGE_RECORD,
   INITIAL_HOME_PAGE_SECTIONS
 } from '../data/defaultPageData';
+import { normalizeThemeConfig } from '../utils/themeUtils';
 
 export type CurrencyCode = 'INR';
 
@@ -281,8 +290,20 @@ interface StoreContextType {
   themeMode: 'dark' | 'light';
   toggleThemeMode: () => void;
 
-  // Store Theme Branding & Dynamic Styling
+  // Store Theme Branding, Drafts, Publishing & Snapshots (Supabase Backed)
   themeConfig: ThemeConfig;
+  themeDraft: ThemeConfig;
+  themeRevisions: ThemeRevision[];
+  isLoadingTheme: boolean;
+  updateThemeDraft: (cfg: Partial<ThemeConfig>) => void;
+  saveThemeDraft: (draft?: ThemeConfig) => Promise<{ success: boolean; error?: string }>;
+  publishTheme: (config?: ThemeConfig, revisionName?: string, notes?: string) => Promise<{ success: boolean; error?: string }>;
+  discardThemeChanges: () => Promise<void>;
+  resetThemeToDefaults: () => void;
+  createThemeSnapshot: (name: string, notes?: string) => Promise<{ success: boolean; error?: string }>;
+  restoreThemeSnapshot: (revisionId: string) => Promise<{ success: boolean; error?: string }>;
+  deleteThemeSnapshot: (revisionId: string) => Promise<boolean>;
+  refetchThemeConfig: () => Promise<void>;
   updateThemeConfig: (cfg: Partial<ThemeConfig>) => void;
 
   // Product Comparison (Up to 3 items)
@@ -547,13 +568,189 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setThemeMode(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Dynamic Theme Config & Branding
-  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(INITIAL_THEME_CONFIG);
+  // Dynamic Theme Config, Drafts, Snapshots & Branding (Supabase Backed)
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => normalizeThemeConfig(INITIAL_THEME_CONFIG));
+  const [themeDraft, setThemeDraft] = useState<ThemeConfig>(() => normalizeThemeConfig(INITIAL_THEME_CONFIG));
+  const [themeRevisions, setThemeRevisions] = useState<ThemeRevision[]>([]);
+  const [isLoadingTheme, setIsLoadingTheme] = useState<boolean>(false);
 
+  // Apply CSS variables to root document
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      const norm = normalizeThemeConfig(themeConfig);
+      root.style.setProperty('--theme-primary', norm.colors.primaryColor);
+      root.style.setProperty('--theme-accent', norm.colors.accentColor);
+      root.style.setProperty('--theme-secondary', norm.colors.secondaryColor);
+      root.style.setProperty('--theme-bg', norm.colors.backgroundColor);
+      root.style.setProperty('--theme-surface', norm.colors.surfaceColor);
+      root.style.setProperty('--theme-border', norm.colors.borderColor);
+      root.style.setProperty('--theme-text', norm.colors.textColor);
+      root.style.setProperty('--theme-text-muted', norm.colors.textMutedColor);
+    }
+  }, [themeConfig]);
+
+  // Immediate preview updater
+  const updateThemeDraft = (cfg: Partial<ThemeConfig>) => {
+    setThemeDraft(prev => normalizeThemeConfig({ ...prev, ...cfg }));
+  };
+
+  // Legacy backwards-compatible alias
   const updateThemeConfig = (cfg: Partial<ThemeConfig>) => {
-    const updated = { ...themeConfig, ...cfg };
-    setThemeConfig(updated);
-    saveThemeConfigInSupabase(updated);
+    updateThemeDraft(cfg);
+  };
+
+  // Refetch theme config from Supabase
+  const refetchThemeConfig = async () => {
+    setIsLoadingTheme(true);
+    try {
+      const [pubConfig, draftConfig, revisions] = await Promise.all([
+        fetchThemeConfigFromSupabase('published'),
+        fetchThemeConfigFromSupabase('draft'),
+        fetchThemeRevisionsFromSupabase()
+      ]);
+
+      if (pubConfig) setThemeConfig(normalizeThemeConfig(pubConfig));
+      if (draftConfig) setThemeDraft(normalizeThemeConfig(draftConfig));
+      else if (pubConfig) setThemeDraft(normalizeThemeConfig(pubConfig));
+      if (revisions) setThemeRevisions(revisions);
+    } catch (err) {
+      console.error('Error refreshing theme config from Supabase:', err);
+    } finally {
+      setIsLoadingTheme(false);
+    }
+  };
+
+  // Save draft to database (Never display "saved" if operation fails!)
+  const saveThemeDraft = async (draftToSave?: ThemeConfig): Promise<{ success: boolean; error?: string }> => {
+    setIsLoadingTheme(true);
+    try {
+      const targetDraft = normalizeThemeConfig(draftToSave || themeDraft);
+      const res = await saveThemeDraftInSupabase(targetDraft);
+      if (!res.success) {
+        showToast(`Save failed: ${res.error || 'Could not write to Supabase'}`);
+        return { success: false, error: res.error || 'Database write error' };
+      }
+      setThemeDraft(targetDraft);
+      showToast('Theme draft saved to database.');
+      return { success: true };
+    } catch (err: any) {
+      const errMsg = err?.message || 'Database connection error';
+      showToast(`Save failed: ${errMsg}`);
+      return { success: false, error: errMsg };
+    } finally {
+      setIsLoadingTheme(false);
+    }
+  };
+
+  // Publish theme to database (Updates storefront & creates snapshot)
+  const publishTheme = async (
+    configToPublish?: ThemeConfig,
+    revisionName?: string,
+    notes?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    setIsLoadingTheme(true);
+    try {
+      const targetConfig = normalizeThemeConfig(configToPublish || themeDraft);
+      const res = await publishThemeConfigInSupabase(targetConfig, revisionName, notes);
+      if (!res.success) {
+        showToast(`Publish failed: ${res.error || 'Database operation failed'}`);
+        return { success: false, error: res.error || 'Publish failed' };
+      }
+      setThemeConfig(targetConfig);
+      setThemeDraft(targetConfig);
+      
+      // Refresh revisions list
+      const revs = await fetchThemeRevisionsFromSupabase();
+      setThemeRevisions(revs);
+
+      showToast('Theme published live to HARCONXS storefront!');
+      return { success: true };
+    } catch (err: any) {
+      const errMsg = err?.message || 'Publication error';
+      showToast(`Publish failed: ${errMsg}`);
+      return { success: false, error: errMsg };
+    } finally {
+      setIsLoadingTheme(false);
+    }
+  };
+
+  // Discard draft changes and reload published version from database
+  const discardThemeChanges = async (): Promise<void> => {
+    setIsLoadingTheme(true);
+    try {
+      const pubConfig = await fetchThemeConfigFromSupabase('published');
+      const base = pubConfig ? normalizeThemeConfig(pubConfig) : normalizeThemeConfig(themeConfig);
+      setThemeDraft(base);
+      showToast('Draft changes discarded. Reverted to published version.');
+    } catch {
+      setThemeDraft(normalizeThemeConfig(themeConfig));
+      showToast('Reverted to current published theme.');
+    } finally {
+      setIsLoadingTheme(false);
+    }
+  };
+
+  // Reset theme to factory atelier defaults
+  const resetThemeToDefaults = () => {
+    const factoryDefaults = normalizeThemeConfig(INITIAL_THEME_CONFIG);
+    setThemeDraft(factoryDefaults);
+    showToast('Theme reset to atelier factory defaults. Click "Save Draft" or "Publish" to persist.');
+  };
+
+  // Create manual revision snapshot
+  const createThemeSnapshot = async (name: string, notes?: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoadingTheme(true);
+    try {
+      const res = await createThemeRevisionSnapshot(themeDraft, name, notes);
+      if (!res.success) {
+        showToast(`Snapshot error: ${res.error || 'Database error'}`);
+        return { success: false, error: res.error };
+      }
+      const revs = await fetchThemeRevisionsFromSupabase();
+      setThemeRevisions(revs);
+      showToast(`Revision snapshot "${name}" saved to database.`);
+      return { success: true };
+    } catch (err: any) {
+      const errMsg = err?.message || 'Snapshot error';
+      showToast(`Snapshot error: ${errMsg}`);
+      return { success: false, error: errMsg };
+    } finally {
+      setIsLoadingTheme(false);
+    }
+  };
+
+  // Restore revision snapshot
+  const restoreThemeSnapshot = async (revisionId: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoadingTheme(true);
+    try {
+      const res = await restoreThemeRevisionFromSupabase(revisionId);
+      if (!res.success || !res.config) {
+        showToast(`Restore error: ${res.error || 'Could not load snapshot'}`);
+        return { success: false, error: res.error };
+      }
+      setThemeDraft(normalizeThemeConfig(res.config));
+      showToast('Revision snapshot restored into active editor draft.');
+      return { success: true };
+    } catch (err: any) {
+      const errMsg = err?.message || 'Failed to restore revision';
+      showToast(`Restore error: ${errMsg}`);
+      return { success: false, error: errMsg };
+    } finally {
+      setIsLoadingTheme(false);
+    }
+  };
+
+  // Delete revision snapshot
+  const deleteThemeSnapshot = async (revisionId: string): Promise<boolean> => {
+    const ok = await deleteThemeRevisionFromSupabase(revisionId);
+    if (ok) {
+      setThemeRevisions(prev => prev.filter(r => r.id !== revisionId));
+      showToast('Revision snapshot removed from database.');
+    } else {
+      showToast('Failed to delete snapshot.');
+    }
+    return ok;
   };
 
   // Side-by-Side Product Comparison (up to 3 products)
@@ -742,6 +939,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           dbApiKeys,
           dbInvoices,
           dbThemeConfig,
+          dbThemeDraft,
+          dbThemeRevisions,
           dbPackaging,
           dbPageRecord,
           dbRevisions,
@@ -756,7 +955,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           fetchSupportTicketsFromSupabase(),
           fetchApiKeysFromSupabase(),
           fetchInvoicesFromSupabase(),
-          fetchThemeConfigFromSupabase(),
+          fetchThemeConfigFromSupabase('published'),
+          fetchThemeDraftFromSupabase(),
+          fetchThemeRevisionsFromSupabase(),
           fetchPackagingOptionsFromSupabase(),
           fetchPageWithSectionsFromSupabase('home'),
           fetchPageRevisionsFromSupabase('page_home'),
@@ -799,7 +1000,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setInvoices(dbInvoices.value);
         }
         if (dbThemeConfig.status === 'fulfilled' && dbThemeConfig.value) {
-          setThemeConfig(dbThemeConfig.value);
+          const normPub = normalizeThemeConfig(dbThemeConfig.value);
+          setThemeConfig(normPub);
+          setThemeDraft(normPub);
+        }
+        if (dbThemeDraft.status === 'fulfilled' && dbThemeDraft.value) {
+          setThemeDraft(normalizeThemeConfig(dbThemeDraft.value));
+        }
+        if (dbThemeRevisions.status === 'fulfilled' && dbThemeRevisions.value) {
+          setThemeRevisions(dbThemeRevisions.value);
         }
         if (dbPageRecord.status === 'fulfilled' && dbPageRecord.value && dbPageRecord.value.sections && dbPageRecord.value.sections.length > 0) {
           setActivePageRecord(dbPageRecord.value);
@@ -3360,6 +3569,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         themeMode,
         toggleThemeMode,
         themeConfig,
+        themeDraft,
+        themeRevisions,
+        isLoadingTheme,
+        updateThemeDraft,
+        saveThemeDraft,
+        publishTheme,
+        discardThemeChanges,
+        resetThemeToDefaults,
+        createThemeSnapshot,
+        restoreThemeSnapshot,
+        deleteThemeSnapshot,
+        refetchThemeConfig,
         updateThemeConfig,
         comparisonProductIds,
         addToComparison,

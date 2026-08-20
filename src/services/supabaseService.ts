@@ -22,6 +22,7 @@ import {
   EmailNotification,
   AppNotification,
   ThemeConfig,
+  ThemeRevision,
   DiscountCoupon,
   KnowledgeCategory,
   KnowledgeArticle,
@@ -33,6 +34,7 @@ import {
   PolicyVersion,
   PolicySection
 } from '../types';
+import { normalizeThemeConfig } from '../utils/themeUtils';
 
 /**
  * HARCONXS SHOP & ATELIER
@@ -2079,26 +2081,215 @@ export async function insertInvoiceInSupabase(invoice: BillingInvoice): Promise<
 // 9. SITE SETTINGS & THEME CONFIGURATION
 // ==============================================================================
 
-export async function fetchThemeConfigFromSupabase(): Promise<ThemeConfig | null> {
+// ==============================================================================
+// 9. THEME CONFIGURATION, DRAFTS & REVISIONS PERSISTENCE
+// ==============================================================================
+
+export async function fetchThemeConfigFromSupabase(version: 'published' | 'draft' = 'published'): Promise<ThemeConfig | null> {
   try {
+    const settingKey = version === 'draft' ? 'theme_config_draft' : 'theme_config';
     const { data, error } = await supabase
       .from('site_settings')
       .select('value')
-      .eq('key', 'theme_config')
-      .single();
+      .eq('key', settingKey)
+      .maybeSingle();
 
-    if (error || !data) return null;
-    return data.value as ThemeConfig;
-  } catch {
+    if (error || !data || !data.value) {
+      // If draft not found, fall back to published
+      if (version === 'draft') {
+        const { data: pubData } = await supabase
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'theme_config')
+          .maybeSingle();
+        if (pubData && pubData.value) {
+          return normalizeThemeConfig(pubData.value as ThemeConfig);
+        }
+      }
+      return null;
+    }
+    return normalizeThemeConfig(data.value as ThemeConfig);
+  } catch (err) {
+    console.error('Error fetching theme configuration from Supabase:', err);
     return null;
   }
 }
 
-export async function saveThemeConfigInSupabase(config: ThemeConfig): Promise<boolean> {
+export async function fetchThemeDraftFromSupabase(): Promise<ThemeConfig | null> {
+  return fetchThemeConfigFromSupabase('draft');
+}
+
+export async function saveThemeDraftInSupabase(draft: ThemeConfig): Promise<{ success: boolean; error?: string }> {
   try {
+    const normalized = normalizeThemeConfig({ ...draft, status: 'draft', updatedAt: new Date().toISOString() });
     const { error } = await supabase.from('site_settings').upsert({
+      key: 'theme_config_draft',
+      value: normalized,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'key' });
+
+    if (error) {
+      console.error('Failed to save theme draft in Supabase:', error);
+      return { success: false, error: error.message || 'Database write error' };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Exception while saving theme draft in Supabase:', err);
+    return { success: false, error: err?.message || 'Unexpected network or database error' };
+  }
+}
+
+export async function saveThemeConfigInSupabase(config: ThemeConfig): Promise<boolean> {
+  const res = await saveThemeDraftInSupabase(config);
+  return res.success;
+}
+
+export async function publishThemeConfigInSupabase(
+  config: ThemeConfig,
+  revisionName?: string,
+  notes?: string,
+  adminEmail?: string
+): Promise<{ success: boolean; revision?: ThemeRevision; error?: string }> {
+  try {
+    const timestamp = new Date().toISOString();
+    const publishedConfig = normalizeThemeConfig({
+      ...config,
+      status: 'published',
+      updatedAt: timestamp,
+      updatedBy: adminEmail || 'admin'
+    });
+
+    // 1. Write to published theme key
+    const { error: pubError } = await supabase.from('site_settings').upsert({
       key: 'theme_config',
-      value: config,
+      value: publishedConfig,
+      updated_at: timestamp
+    }, { onConflict: 'key' });
+
+    if (pubError) {
+      console.error('Failed to publish theme config in Supabase:', pubError);
+      return { success: false, error: pubError.message || 'Failed to update live theme settings' };
+    }
+
+    // 2. Synchronize draft key so draft reflects published
+    await supabase.from('site_settings').upsert({
+      key: 'theme_config_draft',
+      value: publishedConfig,
+      updated_at: timestamp
+    }, { onConflict: 'key' });
+
+    // 3. Create historical revision snapshot
+    const revName = revisionName || `Published Version ${publishedConfig.version || 1} • ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+    const snapshotRes = await createThemeRevisionSnapshot(
+      publishedConfig,
+      revName,
+      notes || 'Live storefront theme publication',
+      adminEmail
+    );
+
+    return {
+      success: true,
+      revision: snapshotRes.revision
+    };
+  } catch (err: any) {
+    console.error('Exception during theme publishing in Supabase:', err);
+    return { success: false, error: err?.message || 'Database transaction error during publication' };
+  }
+}
+
+export async function fetchThemeRevisionsFromSupabase(): Promise<ThemeRevision[]> {
+  try {
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'theme_revisions')
+      .maybeSingle();
+
+    if (error || !data || !data.value || !Array.isArray(data.value)) {
+      return [];
+    }
+    return data.value as ThemeRevision[];
+  } catch (err) {
+    console.error('Error fetching theme revisions from Supabase:', err);
+    return [];
+  }
+}
+
+export async function createThemeRevisionSnapshot(
+  config: ThemeConfig,
+  revisionName: string,
+  notes?: string,
+  adminEmail?: string
+): Promise<{ success: boolean; revision?: ThemeRevision; error?: string }> {
+  try {
+    const existingRevisions = await fetchThemeRevisionsFromSupabase();
+    const newRevision: ThemeRevision = {
+      id: `theme-rev-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      revision_name: revisionName,
+      notes: notes || '',
+      created_at: new Date().toISOString(),
+      created_by: adminEmail || 'Admin Atelier Staff',
+      config: normalizeThemeConfig(config),
+      is_published: config.status === 'published'
+    };
+
+    const updatedList = [newRevision, ...existingRevisions].slice(0, 30); // Keep last 30 snapshots
+
+    const { error } = await supabase.from('site_settings').upsert({
+      key: 'theme_revisions',
+      value: updatedList,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'key' });
+
+    if (error) {
+      console.error('Failed to create theme revision in Supabase:', error);
+      return { success: false, error: error.message || 'Database error creating snapshot' };
+    }
+
+    return { success: true, revision: newRevision };
+  } catch (err: any) {
+    console.error('Exception creating theme revision in Supabase:', err);
+    return { success: false, error: err?.message || 'Failed to save revision snapshot' };
+  }
+}
+
+export async function restoreThemeRevisionFromSupabase(
+  revisionId: string
+): Promise<{ success: boolean; config?: ThemeConfig; error?: string }> {
+  try {
+    const revisions = await fetchThemeRevisionsFromSupabase();
+    const found = revisions.find(r => r.id === revisionId);
+    if (!found) {
+      return { success: false, error: 'Theme revision snapshot not found in database' };
+    }
+
+    const restoredConfig = normalizeThemeConfig({
+      ...found.config,
+      status: 'draft',
+      updatedAt: new Date().toISOString()
+    });
+
+    // Save as current draft
+    const saveRes = await saveThemeDraftInSupabase(restoredConfig);
+    if (!saveRes.success) {
+      return { success: false, error: saveRes.error || 'Failed to apply restored snapshot as active draft' };
+    }
+
+    return { success: true, config: restoredConfig };
+  } catch (err: any) {
+    console.error('Exception restoring theme revision in Supabase:', err);
+    return { success: false, error: err?.message || 'Failed to restore snapshot' };
+  }
+}
+
+export async function deleteThemeRevisionFromSupabase(revisionId: string): Promise<boolean> {
+  try {
+    const revisions = await fetchThemeRevisionsFromSupabase();
+    const filtered = revisions.filter(r => r.id !== revisionId);
+    const { error } = await supabase.from('site_settings').upsert({
+      key: 'theme_revisions',
+      value: filtered,
       updated_at: new Date().toISOString()
     }, { onConflict: 'key' });
     return !error;

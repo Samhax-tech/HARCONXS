@@ -67,23 +67,12 @@ export const VisualPageEditor: React.FC = () => {
     setCurrentView,
     showToast,
     products,
-    formatPrice
+    formatPrice,
+    themeDraft,
+    updateThemeDraft,
+    saveThemeDraft,
+    publishTheme: publishThemeLive
   } = useStore();
-
-  const [themeConfig, setThemeConfig] = useState({
-    siteName: 'HARCONXS',
-    fontFamily: 'serif' as 'serif' | 'sans' | 'mono',
-    primaryColor: '#f59e0b',
-    accentColor: '#fbbf24',
-    announcementText: 'Complimentary Insured Air Express on Heirloom Commissions',
-    announcementDiscountCode: 'WELCOME15',
-    footerTagline: 'Haute Horlogerie & Precious Metals Sovereign Atelier',
-    supportEmail: 'concierge@harconxs.com',
-    supportPhone: '+91 (0) 80 4920 1800'
-  });
-  const saveThemeConfig = async (_config?: any) => {
-    showToast('Brand and theme preferences saved.');
-  };
 
   // Local Editor State
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop');
@@ -318,22 +307,30 @@ export const VisualPageEditor: React.FC = () => {
 
   const handleSaveDraft = async () => {
     setIsSaving(true);
-    await savePageDraft(activePageRecord);
-    if (themeConfig) {
-      await saveThemeConfig(themeConfig);
-    }
+    const [pageRes, themeRes] = await Promise.all([
+      savePageDraft(activePageRecord),
+      saveThemeDraft(themeDraft)
+    ]);
     setIsSaving(false);
-    showToast('Page draft and theme configuration saved.');
+    if (pageRes.success && themeRes.success) {
+      showToast('Page draft and theme configuration saved to database.');
+    } else {
+      showToast(pageRes.message || themeRes.error || 'Saved with partial warning.');
+    }
   };
 
   const handlePublish = async () => {
     setIsPublishing(true);
-    await publishPage(activePageRecord);
-    if (themeConfig) {
-      await saveThemeConfig(themeConfig);
-    }
+    const [pageRes, themeRes] = await Promise.all([
+      publishPage(activePageRecord),
+      publishThemeLive(themeDraft)
+    ]);
     setIsPublishing(false);
-    showToast('Published live to storefront! Customer view updated.');
+    if (pageRes.success && themeRes.success) {
+      showToast('Published live to storefront! Customer view updated.');
+    } else {
+      showToast(pageRes.message || themeRes.error || 'Publish completed with warnings.');
+    }
   };
 
   const handleCreateSnapshot = async () => {
