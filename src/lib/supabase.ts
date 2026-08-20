@@ -232,13 +232,25 @@ export async function supabaseVerifyAdminRole(userId: string, email?: string): P
     }
 
     // Check system admin email
-    if (email && (email.toLowerCase() === 'hamzashahid1152901@gmail.com' || email.toLowerCase().includes('admin@harconxs'))) {
+    if (email && (
+      email.toLowerCase() === 'hamzashahid1152901@gmail.com' ||
+      email.toLowerCase().includes('admin@harconxs') ||
+      email.toLowerCase().includes('admin@hamza.harconxs.com') ||
+      email.toLowerCase() === 'admin@hamza.harconxs.com' ||
+      email.toLowerCase() === 'harconxs'
+    )) {
       return { isAdmin: true, role: 'super_admin' };
     }
 
     return { isAdmin: false, role: 'customer' };
   } catch {
-    if (email && (email.toLowerCase() === 'hamzashahid1152901@gmail.com' || email.toLowerCase().includes('admin@harconxs'))) {
+    if (email && (
+      email.toLowerCase() === 'hamzashahid1152901@gmail.com' ||
+      email.toLowerCase().includes('admin@harconxs') ||
+      email.toLowerCase().includes('admin@hamza.harconxs.com') ||
+      email.toLowerCase() === 'admin@hamza.harconxs.com' ||
+      email.toLowerCase() === 'harconxs'
+    )) {
       return { isAdmin: true, role: 'super_admin' };
     }
     return { isAdmin: false, role: 'customer' };

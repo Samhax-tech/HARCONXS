@@ -61,6 +61,7 @@ import {
 import { EmailNotificationCenter } from '../account/EmailNotificationCenter';
 import { AdminApiConsole } from './AdminApiConsole';
 import { AdminReviewsModeration } from './AdminReviewsModeration';
+import { BillingAuthArchitectureGuide } from './BillingAuthArchitectureGuide';
 import { Star } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -1972,6 +1973,16 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* 13. BILLING PORTAL CROSS-DOMAIN AUTHENTICATION & HANDOFF */}
+        {activeSection === 'billing' && (
+          <BillingAuthArchitectureGuide />
+        )}
+
+        {/* 14. API KEYS & BOT CLIENT INTEGRATION CONSOLE */}
+        {activeSection === 'api-keys' && (
+          <AdminApiConsole />
         )}
 
       </main>

@@ -515,7 +515,27 @@ export type ApiScopeId =
   | 'couple_websites:read'
   | 'bot_services:read'
   | 'knowledge:read'
+  | 'auth:handoff'
   | 'admin:all';
+
+export interface BillingHandoffTicket {
+  ticketId: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  userRole?: string;
+  planId?: string;
+  productId?: string;
+  slug?: string;
+  billingCycle?: string;
+  createdAt: number;
+  expiresAt: number; // Single-use 60s TTL
+  used: boolean;
+  usedAt?: number;
+  ipCreated?: string;
+  ipRedeemed?: string;
+  source: string;
+}
 
 export interface ApiKeyScope {
   id: ApiScopeId;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExternalLink, CreditCard, ShieldCheck } from 'lucide-react';
 import { redirectToBillingPortal, BillingRedirectParams, buildSafeBillingUrl } from '../../../utils/billingUtils';
+import { useStore } from '../../../context/StoreContext';
 
 interface ContinueToBillingButtonProps {
   productId?: string;
@@ -27,15 +28,24 @@ export const ContinueToBillingButton: React.FC<ContinueToBillingButtonProps> = (
   className = '',
   children
 }) => {
+  const { user } = useStore();
+
   const params: BillingRedirectParams = {
     productId,
     planId,
     slug,
     billingCycle,
-    source
+    source,
+    userContext: user ? {
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.name,
+      userRole: user.role
+    } : undefined
   };
 
   const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     redirectToBillingPortal(params);
   };

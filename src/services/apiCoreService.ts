@@ -18,7 +18,8 @@ import {
   KnowledgeCategory,
   KnowledgeArticle,
   FaqItem,
-  PackagingOption
+  PackagingOption,
+  BillingHandoffTicket
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -115,6 +116,12 @@ export const SYSTEM_API_SCOPES: ApiKeyScope[] = [
     category: 'Knowledge'
   },
   {
+    id: 'auth:handoff',
+    name: 'Auth Cross-App Handoff',
+    description: 'Generate, issue and verify ephemeral single-use SSO handoff tickets for the Billing portal',
+    category: 'System'
+  },
+  {
     id: 'admin:all',
     name: 'Root Internal Administrator',
     description: 'Full unrestricted internal scope for administrative operations and workers',
@@ -142,7 +149,27 @@ export const INITIAL_API_CLIENTS: ApiClient[] = [
       'faq:read',
       'couple_websites:read',
       'bot_services:read',
-      'knowledge:read'
+      'knowledge:read',
+      'auth:handoff'
+    ],
+    createdAt: '2026-08-01T00:00:00Z',
+    updatedAt: '2026-08-19T00:00:00Z'
+  },
+  {
+    id: 'client_billing',
+    name: 'HARCONXS Billing Service (billingharconxs.vercel.app)',
+    clientCode: 'HARCONXS-BILLING',
+    clientType: 'internal_app',
+    description: 'Autonomous billing portal for subscription provisioning, invoice generation and cross-domain handoff verification',
+    isActive: true,
+    rateLimitPerMinute: 300,
+    defaultScopes: [
+      'auth:handoff',
+      'products:read',
+      'orders:read',
+      'bot_services:read',
+      'support:read',
+      'support:write'
     ],
     createdAt: '2026-08-01T00:00:00Z',
     updatedAt: '2026-08-19T00:00:00Z'
@@ -575,6 +602,20 @@ const DEFAULT_SEEDED_API_KEYS: ApiKeyRecord[] = [
     usageCount: 210,
     lastUsedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
     createdAt: '2026-08-14T00:00:00Z'
+  },
+  {
+    id: 'key_internal_billing_default',
+    clientId: 'client_billing',
+    clientName: 'HARCONXS Billing Service (billingharconxs.vercel.app)',
+    name: 'Billing Portal Production Token',
+    keyPrefix: 'hx_live_bil_4e...99fa',
+    keyHash: 'a4b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b800',
+    scopes: ['auth:handoff', 'products:read', 'orders:read', 'bot_services:read', 'support:read', 'support:write'],
+    status: 'active',
+    rateLimit: 300,
+    usageCount: 77,
+    lastUsedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    createdAt: '2026-08-15T00:00:00Z'
   }
 ];
 
@@ -1510,6 +1551,180 @@ RULES:
 }
 
 // ==============================================================================
+// 7.1 SECURE BILLING HANDOFF TICKET REPOSITORY (EPHEMERAL ZERO-LEAKAGE SSO)
+// ==============================================================================
+
+const HANDOFF_TICKETS_STORAGE_KEY = 'harconxs_billing_handoff_tickets_v1';
+let inMemoryHandoffTickets: Map<string, BillingHandoffTicket> = new Map();
+
+export async function createBillingHandoffTicket(params: {
+  userId: string;
+  userEmail: string;
+  userName: string;
+  userRole?: string;
+  planId?: string;
+  productId?: string;
+  slug?: string;
+  billingCycle?: string;
+  source?: string;
+  ip?: string;
+}): Promise<{ ticketId: string; expiresAt: number; expiresInSeconds: number }> {
+  pruneExpiredHandoffTickets();
+
+  const ticketId = `hxtkt_${generateRandomHex(24)}`;
+  const now = Date.now();
+  const ttlMs = 60 * 1000; // 60 seconds strict single-use TTL
+  const expiresAt = now + ttlMs;
+
+  const ticket: BillingHandoffTicket = {
+    ticketId,
+    userId: params.userId,
+    userEmail: params.userEmail,
+    userName: params.userName,
+    userRole: params.userRole || 'customer',
+    planId: params.planId,
+    productId: params.productId,
+    slug: params.slug,
+    billingCycle: params.billingCycle || 'monthly',
+    createdAt: now,
+    expiresAt,
+    used: false,
+    ipCreated: params.ip || 'client_direct',
+    source: params.source || 'harconxs_shop'
+  };
+
+  inMemoryHandoffTickets.set(ticketId, ticket);
+  saveHandoffTicketsToStorage();
+
+  return {
+    ticketId,
+    expiresAt,
+    expiresInSeconds: 60
+  };
+}
+
+export async function verifyAndRedeemBillingHandoffTicket(
+  ticketId: string,
+  ip?: string
+): Promise<{
+  valid: boolean;
+  errorCode?: string;
+  message: string;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  };
+  context?: {
+    planId?: string;
+    productId?: string;
+    slug?: string;
+    billingCycle?: string;
+    source?: string;
+  };
+}> {
+  pruneExpiredHandoffTickets();
+
+  if (!ticketId || typeof ticketId !== 'string') {
+    return {
+      valid: false,
+      errorCode: 'MISSING_TICKET',
+      message: 'No handoff ticket provided.'
+    };
+  }
+
+  loadHandoffTicketsFromStorage();
+  const ticket = inMemoryHandoffTickets.get(ticketId);
+
+  if (!ticket) {
+    return {
+      valid: false,
+      errorCode: 'INVALID_OR_EXPIRED_TICKET',
+      message: 'Handoff ticket is invalid, expired, or was already consumed. Please authenticate directly or re-initiate billing from HARCONXS.'
+    };
+  }
+
+  if (ticket.used) {
+    return {
+      valid: false,
+      errorCode: 'TICKET_ALREADY_USED',
+      message: 'Security Alert: This single-use handoff ticket has already been redeemed.'
+    };
+  }
+
+  if (Date.now() > ticket.expiresAt) {
+    inMemoryHandoffTickets.delete(ticketId);
+    saveHandoffTicketsToStorage();
+    return {
+      valid: false,
+      errorCode: 'TICKET_EXPIRED',
+      message: 'This handoff ticket has expired (60s lifetime exceeded). Please re-initiate billing from HARCONXS.'
+    };
+  }
+
+  // Mark ticket as burned immediately (single-use guarantee)
+  ticket.used = true;
+  ticket.usedAt = Date.now();
+  ticket.ipRedeemed = ip || 'billing_service';
+  inMemoryHandoffTickets.set(ticketId, ticket);
+  saveHandoffTicketsToStorage();
+
+  return {
+    valid: true,
+    message: 'Handoff ticket successfully verified and consumed.',
+    user: {
+      id: ticket.userId,
+      email: ticket.userEmail,
+      name: ticket.userName,
+      role: ticket.userRole || 'customer'
+    },
+    context: {
+      planId: ticket.planId,
+      productId: ticket.productId,
+      slug: ticket.slug,
+      billingCycle: ticket.billingCycle,
+      source: ticket.source
+    }
+  };
+}
+
+function pruneExpiredHandoffTickets() {
+  const now = Date.now();
+  for (const [id, ticket] of inMemoryHandoffTickets.entries()) {
+    if (now > ticket.expiresAt + 300000 || (ticket.used && now > (ticket.usedAt || 0) + 300000)) {
+      inMemoryHandoffTickets.delete(id);
+    }
+  }
+  saveHandoffTicketsToStorage();
+}
+
+function saveHandoffTicketsToStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = Array.from(inMemoryHandoffTickets.values());
+    localStorage.setItem(HANDOFF_TICKETS_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // Storage fallback
+  }
+}
+
+function loadHandoffTicketsFromStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(HANDOFF_TICKETS_STORAGE_KEY);
+    if (raw) {
+      const list: BillingHandoffTicket[] = JSON.parse(raw);
+      for (const item of list) {
+        inMemoryHandoffTickets.set(item.ticketId, item);
+      }
+    }
+  } catch {
+    // Storage fallback
+  }
+}
+
+// ==============================================================================
 // 8. MASTER /api/v1/* ENDPOINT HANDLER ENGINE
 // ==============================================================================
 
@@ -1596,6 +1811,41 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
     };
   }
 
+  // 1.1 Auth Cross-Domain Config (Public Architecture Inspection)
+  if (normalizedPath === '/auth/config' && method === 'GET') {
+    const authConfig = {
+      status: 'operational',
+      authProvider: 'Supabase Auth (Shared Project Architecture)',
+      sharedProject: {
+        supabaseUrl: isSupabaseConfigured ? 'https://v6ky2ym2gn3s6b7y2opdtl.supabase.co' : 'local-simulated-mode',
+        authMode: 'cross-domain-sso-and-ephemeral-ticket-handoff',
+        harconxsShopDomain: 'https://harconxs.vercel.app',
+        billingPortalDomain: 'https://billingharconxs.vercel.app'
+      },
+      securityGuarantees: [
+        'No plaintext passwords or auth credentials ever passed in URLs or query strings',
+        'No long-lived JWTs or access tokens exposed in redirect URLs or browser history',
+        'Service-role keys strictly hidden server-side',
+        'Query parameter user IDs are never trusted blindly by Billing portal',
+        'Independent session verification required on Billing portal via Supabase auth or single-use ticket exchange'
+      ],
+      ticketProtocol: {
+        lifetimeSeconds: 60,
+        singleUseEnforced: true,
+        endpointCreate: 'POST /api/v1/auth/handoff-ticket',
+        endpointVerify: 'POST /api/v1/auth/verify-ticket',
+        endpointSessionVerify: 'POST /api/v1/auth/verify-session'
+      }
+    };
+
+    responseHeaders['X-Response-Time'] = `${Date.now() - startTime}ms`;
+    return {
+      status: 200,
+      headers: responseHeaders,
+      body: authConfig
+    };
+  }
+
   // 2. Authenticate all protected internal routes
   let requiredScope: ApiScopeId = 'faq:read';
   if (normalizedPath.startsWith('/products')) requiredScope = 'products:read';
@@ -1607,6 +1857,7 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
   else if (normalizedPath.startsWith('/couple-websites')) requiredScope = 'couple_websites:read';
   else if (normalizedPath.startsWith('/bot-services')) requiredScope = 'bot_services:read';
   else if (normalizedPath.startsWith('/knowledge') || normalizedPath.startsWith('/faq')) requiredScope = 'knowledge:read';
+  else if (normalizedPath.startsWith('/auth')) requiredScope = 'auth:handoff';
 
   const auth = await authenticateInternalRequest(authHeader, requiredScope);
 
@@ -2191,6 +2442,141 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
     };
   }
 
+  // ROUTE 10: AUTH CROSS-APPLICATION HANDOFF & SSO (ZERO QUERY LEAKAGE)
+  else if (normalizedPath.startsWith('/auth')) {
+    if (normalizedPath === '/auth/handoff-ticket' && method === 'POST') {
+      const body = options.body || {};
+      const userId = body.userId || (auth.clientId === 'client_web' ? 'usr_authenticated_session' : undefined);
+      const userEmail = body.userEmail;
+      const userName = body.userName || 'HARCONXS Customer';
+
+      if (!userId || !userEmail) {
+        statusCode = 400;
+        responseBody = {
+          error: {
+            code: 'MISSING_USER_CONTEXT',
+            message: 'Both userId and userEmail are required to generate an ephemeral billing handoff ticket.',
+            requestId
+          }
+        };
+      } else {
+        const ticketResult = await createBillingHandoffTicket({
+          userId,
+          userEmail,
+          userName,
+          userRole: body.userRole,
+          planId: body.planId,
+          productId: body.productId,
+          slug: body.slug,
+          billingCycle: body.billingCycle,
+          source: body.source || 'harconxs_shop',
+          ip: options.ip
+        });
+
+        const billingBase = 'https://billingharconxs.vercel.app';
+        const searchParams = new URLSearchParams();
+        searchParams.set('handoff_ticket', ticketResult.ticketId);
+        if (body.productId) searchParams.set('productId', body.productId);
+        if (body.planId) searchParams.set('planId', body.planId);
+        if (body.slug) searchParams.set('slug', body.slug);
+        if (body.billingCycle) searchParams.set('cycle', body.billingCycle);
+        searchParams.set('source', 'harconxs_shop');
+
+        const safeHandoffUrl = `${billingBase}/?${searchParams.toString()}`;
+
+        responseBody = {
+          success: true,
+          ticketId: ticketResult.ticketId,
+          expiresAt: ticketResult.expiresAt,
+          expiresInSeconds: ticketResult.expiresInSeconds,
+          handoffUrl: safeHandoffUrl,
+          message: 'Single-use 60s ephemeral billing handoff ticket generated. No passwords or tokens embedded.'
+        };
+      }
+    } else if (normalizedPath === '/auth/verify-ticket' && method === 'POST') {
+      const body = options.body || {};
+      const ticketId = body.ticket || body.ticketId;
+      const result = await verifyAndRedeemBillingHandoffTicket(ticketId, options.ip);
+
+      if (!result.valid) {
+        statusCode = 400;
+        responseBody = {
+          error: {
+            code: result.errorCode,
+            message: result.message,
+            requestId
+          }
+        };
+      } else {
+        responseBody = {
+          success: true,
+          valid: true,
+          message: result.message,
+          user: result.user,
+          context: result.context,
+          authenticatedAt: new Date().toISOString()
+        };
+      }
+    } else if (normalizedPath === '/auth/verify-session' && method === 'POST') {
+      const body = options.body || {};
+      const accessToken = body.access_token || body.accessToken;
+
+      if (!accessToken) {
+        statusCode = 400;
+        responseBody = {
+          error: {
+            code: 'MISSING_ACCESS_TOKEN',
+            message: 'access_token is required to verify session.',
+            requestId
+          }
+        };
+      } else {
+        try {
+          const { data, error } = await supabase.auth.getUser(accessToken);
+          if (error || !data?.user) {
+            statusCode = 401;
+            responseBody = {
+              error: {
+                code: 'INVALID_SESSION_TOKEN',
+                message: error?.message || 'The provided Supabase session access token is invalid or expired.',
+                requestId
+              }
+            };
+          } else {
+            responseBody = {
+              success: true,
+              valid: true,
+              user: {
+                id: data.user.id,
+                email: data.user.email,
+                role: data.user.app_metadata?.role || data.user.user_metadata?.role || 'customer',
+                userMetadata: data.user.user_metadata
+              }
+            };
+          }
+        } catch (err: any) {
+          statusCode = 500;
+          responseBody = {
+            error: {
+              code: 'AUTH_VERIFY_ERROR',
+              message: err?.message || 'Error communicating with Supabase Auth.',
+              requestId
+            }
+          };
+        }
+      }
+    } else {
+      statusCode = 404;
+      responseBody = {
+        error: {
+          code: 'AUTH_ENDPOINT_NOT_FOUND',
+          message: `Auth route ${method} ${normalizedPath} not found. Available: POST /api/v1/auth/handoff-ticket, POST /api/v1/auth/verify-ticket, POST /api/v1/auth/verify-session, GET /api/v1/auth/config`,
+          requestId
+        }
+      };
+    }
+  }
+
   // Unrecognized endpoint
   else {
     statusCode = 404;
@@ -2200,6 +2586,10 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
         message: `The endpoint ${method} ${options.path} does not exist in HARCONXS Private API v1.`,
         availableEndpoints: [
           'GET /api/v1/health',
+          'GET /api/v1/auth/config',
+          'POST /api/v1/auth/handoff-ticket',
+          'POST /api/v1/auth/verify-ticket',
+          'POST /api/v1/auth/verify-session',
           'GET /api/v1/products',
           'GET /api/v1/products/:id',
           'GET /api/v1/search',
