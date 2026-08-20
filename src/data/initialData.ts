@@ -403,62 +403,783 @@ export const INITIAL_COUPLE_TEMPLATES: CoupleWebsiteTemplate[] = [
 ];
 
 export const INITIAL_BOT_PANEL_SERVICES: BotPanelService[] = [
+  // 1. Telegram Bot Panels
   {
     id: 'bot-tg-vip',
+    slug: 'telegram-community-vip-panel',
     name: 'Telegram Community & VIP Monetization Panel',
+    category: 'Telegram Bot Panels',
     platform: 'Telegram',
     shortDesc: 'Automated subscription gates, auto-expiring invite links, crypto & card payouts, broadcast scheduler.',
     fullDesc: 'The ultimate control center for Telegram channel owners and community leaders. Protect exclusive channels with automatic member verification, recurring billing webhooks, anti-forwarding shields, and interactive bot keyboards.',
+    description: 'Empower your Telegram community with enterprise-grade subscription gating, one-time passes, instant automated channel invites, and seamless payment gateways. Fully syncs with Stripe, Razorpay, Crypto, and your custom Pterodactyl hosting node.',
     icon: 'Send',
-    badge: 'Popular',
+    badge: 'Best Seller',
+    rating: 4.95,
+    reviewsCount: 142,
+    features: [
+      'Auto-expiring 1-click single-use invite links',
+      'Automated kick/ban upon subscription lapse or chargeback',
+      'Multi-tier VIP channel management (Gold, Diamond, Lifetime)',
+      'Scheduled broadcast campaign manager with rich media',
+      'Built-in Telegram mini-app web dashboard embed',
+      'Pterodactyl node auto-restart & health monitoring'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Subscription & Payment Gating',
+        items: [
+          'Direct Stripe, Crypto & Razorpay Webhook Handlers',
+          'Automated renewal reminders sent via bot PM',
+          'One-click subscriber revocation on cancellation',
+          'Affiliate tracking sub-bots for group referrers'
+        ]
+      },
+      {
+        category: 'Channel Security & Anti-Leak',
+        items: [
+          'Anti-forwarding and restricted content flag enforcement',
+          'Dynamic patron watermark overlay injection',
+          'Anti-spam and CAPTCHA user join verification',
+          'Silent raid protection mode'
+        ]
+      },
+      {
+        category: 'Broadcasting & Engagement',
+        items: [
+          'Rich inline keyboard button customizer',
+          'A/B testing campaign analytics & read receipts',
+          'Multi-channel simultaneous message dispatcher',
+          'Automated welcome video & onboarding sequences'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'Telegram Bot Token', detail: 'Obtained freely from @BotFather in 30 seconds', icon: 'Bot' },
+      { title: 'Channel Admin Privileges', detail: 'Bot must be added as Administrator with "Invite Users via Link" rights', icon: 'Shield' },
+      { title: 'HTTPS Webhook SSL', detail: 'Provided automatically by HARCONXS Cloud Pterodactyl Container', icon: 'Lock' }
+    ],
+    hostingInfo: {
+      specs: 'Dedicated Pterodactyl Docker Node',
+      cpu: '200% AMD EPYC Dedicated vCPU',
+      ram: '2 GB DDR5 RAM',
+      storage: '20 GB NVMe Gen4 Storage',
+      uptime: '99.98% Guaranteed SLA',
+      locations: ['Frankfurt, Germany', 'Singapore', 'Mumbai, India', 'Ashburn, USA'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Daily Automated Cloud Snapshots',
+      ddosProtection: 'Path.net 12 Tbps DDoS Filtering'
+    },
     plans: [
       { id: 'p1', name: 'Starter Bot', price: 19.00, billingPeriod: 'monthly', features: ['Up to 2 Channels', 'Instant Webhooks', 'Stripe & Crypto Gates', '24/7 Cloud Uptime'] },
       { id: 'p2', name: 'Pro Scaler', price: 49.00, billingPeriod: 'monthly', isPopular: true, features: ['Unlimited Channels', 'Automated Content Broadcasts', 'Custom AI Support Agent', 'Affiliate Tracking Sub-bots', 'Priority Cloud VPS'] },
-      { id: 'p3', name: 'Lifetime Suite', price: 299.00, billingPeriod: 'lifetime', features: ['Source Code Included', 'Dedicated Server Deployment', 'Custom Branding & Domain', 'Lifetime Updates'] }
+      { id: 'p3', name: 'Lifetime Suite', price: 299.00, billingPeriod: 'lifetime', features: ['Full Source Code Included', 'Dedicated Server Deployment', 'Custom Branding & Domain', 'Lifetime Updates & Support'] }
     ],
     screenshots: [
-      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80'
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80'
     ],
     demoUrl: 'https://demo-tg.harconxs.com',
-    docsUrl: 'https://docs.harconxs.com/tg-panel'
+    docsUrl: 'https://docs.harconxs.com/tg-panel',
+    faqs: [
+      { question: 'How quickly does the Telegram bot activate after billing?', answer: 'Activation is fully automated. As soon as your order completes on billingharconxs.vercel.app, your Pterodactyl container boots up within 60 seconds with your initial license key.' },
+      { question: 'Can I connect multiple Telegram channels and groups?', answer: 'Yes! The Pro Scaler and Lifetime plans support unlimited public and private channels, discussion groups, and VIP tiers.' },
+      { question: 'What payment gateways does the bot support for membership?', answer: 'The panel supports native Stripe Checkout, Razorpay, LemonSqueezy, USDT (TRC20/ERC20), and manual admin approvals.' }
+    ],
+    supportInfo: {
+      channel: 'Dedicated Telegram VIP Concierge & Discord Ticket Portal',
+      responseTime: 'Average under 15 minutes (24/7/365)',
+      docsUrl: 'https://docs.harconxs.com/tg-panel',
+      contactEmail: 'concierge@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'broadcast'
   },
   {
+    id: 'bot-tg-ai-store',
+    slug: 'telegram-ai-support-commerce-bot',
+    name: 'Telegram AI Concierge & Direct Commerce Bot',
+    category: 'Telegram Bot Panels',
+    platform: 'Telegram',
+    shortDesc: 'Grounded conversational AI shop closer, real-time order tracking lookup, live catalog browsing.',
+    fullDesc: 'Transform your Telegram channel into a high-converting storefront. Powered by HARCONXS AI Engine, this bot answers customer questions, verifies orders securely, suggests matching products, and escalates complex queries to human agents.',
+    description: 'Equip your brand with an intelligent 24/7 Telegram sales assistant. Customers can browse your complete product catalog, search by keywords, view luxury unboxing videos, and check carrier delivery statuses directly in chat.',
+    icon: 'Bot',
+    badge: 'AI Powered',
+    rating: 4.88,
+    reviewsCount: 96,
+    features: [
+      'Grounded AI conversational engine trained on your store catalog',
+      'Safe patron order verification with masked customer privacy',
+      'In-chat catalog browser with dynamic inline purchase buttons',
+      'Automatic escalation to central Supabase support tickets',
+      'Multi-language translation for international patrons',
+      'Comprehensive conversion analytics & question insights'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Conversational Commerce',
+        items: [
+          'Context-aware product recommendations based on budget',
+          'Instant answers to shipping, returns, and sizing policies',
+          'Direct Telegram Pay and external checkout link generator',
+          'Abandoned cart nudge sequences'
+        ]
+      },
+      {
+        category: 'Support & Order Tracking',
+        items: [
+          'Safe order lookup via Order # and patron email/phone',
+          'Live carrier tracking milestones and delivery estimates',
+          'One-click ticket filing into central admin dashboard',
+          'Human support agent live takeover switch'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'Telegram Bot API Token', detail: 'Token from @BotFather', icon: 'Bot' },
+      { title: 'HARCONXS Private API Key', detail: 'Provided in your admin dashboard with products:read scope', icon: 'Key' }
+    ],
+    hostingInfo: {
+      specs: 'Cloud Docker Instance with High-Speed Gemini Bridge',
+      cpu: '150% Dedicated vCPU',
+      ram: '1.5 GB RAM',
+      storage: '15 GB SSD Storage',
+      uptime: '99.95% Guaranteed SLA',
+      locations: ['Frankfurt, Germany', 'Mumbai, India', 'Singapore'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Daily Cloud Snapshots',
+      ddosProtection: 'Enterprise Cloudflare Shield'
+    },
+    plans: [
+      { id: 'ptga1', name: 'Starter AI', price: 25.00, billingPeriod: 'monthly', features: ['1,000 AI Conversations/mo', 'Catalog Sync', 'Safe Order Lookup', 'Cloud Hosting Included'] },
+      { id: 'ptga2', name: 'Enterprise AI', price: 69.00, billingPeriod: 'monthly', isPopular: true, features: ['Unlimited Conversations', 'Custom Fine-Tuned Persona', 'Human Agent Inbox', 'Priority Node Speed'] }
+    ],
+    screenshots: [
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80'
+    ],
+    demoUrl: 'https://demo-tg-ai.harconxs.com',
+    docsUrl: 'https://docs.harconxs.com/tg-ai',
+    faqs: [
+      { question: 'Does the bot hallucinate prices or fake orders?', answer: 'No. The bot queries the real-time HARCONXS central API before quoting any prices or tracking information.' },
+      { question: 'Can my human team take over the chat?', answer: 'Yes, with a single button click in your admin console, the AI gracefully pauses and transfers the customer to your live agent.' }
+    ],
+    supportInfo: {
+      channel: 'Telegram Support Concierge',
+      responseTime: 'Under 15 minutes',
+      docsUrl: 'https://docs.harconxs.com/tg-ai',
+      contactEmail: 'support@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'broadcast'
+  },
+
+  // 2. Discord Bot Panels
+  {
     id: 'bot-dc-hub',
+    slug: 'discord-moderation-ticket-engine',
     name: 'Discord Multi-Server Moderation & Ticket Engine',
+    category: 'Discord Bot Panels',
     platform: 'Discord',
     shortDesc: 'Enterprise ticket transcripts, XP levelling system, customizable reaction roles, AI mod filters.',
     fullDesc: 'Manage hundreds of Discord servers from one unified, sleek web interface. Includes interactive web-based dashboard, role sync with Patreon/Shopify, voice channel generators, and audio streaming bot modules.',
+    description: 'The definitive Discord operations suite for gaming networks, crypto DAOs, luxury brand communities, and creator servers. Features automated thread ticketing, HTML transcript generation, reaction roles, and automated moderation.',
     icon: 'Shield',
     badge: 'Top Rated',
+    rating: 4.96,
+    reviewsCount: 178,
+    features: [
+      'Interactive Web-Based Discord Server Configuration Portal',
+      'HTML transcript generation uploaded to secure S3 storage',
+      'Intelligent anti-raid, link filtering, and CAPTCHA gateway',
+      'Automatic role assignment based on store purchases',
+      'Custom slash commands generator (/track, /catalog, /support)',
+      'High-uptime Pterodactyl container with 0% socket drop rate'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Support Ticketing & Customer Service',
+        items: [
+          'Button and dropdown ticket creation panel',
+          'Direct integration with central Supabase tickets table',
+          'Automatic staff assignment based on ticket category',
+          'Interactive patron star rating upon ticket close'
+        ]
+      },
+      {
+        category: 'Security & Auto-Moderation',
+        items: [
+          'AI-powered toxic message and slur removal',
+          'Discord Invite link scrubber and anti-phishing filter',
+          'New account age gates and avatar verification',
+          'Automatic slowmode during high-traffic raids'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'Discord Application & Bot Token', detail: 'Created from Discord Developer Portal', icon: 'Bot' },
+      { title: 'Server Administrator Permission', detail: 'To invite the bot and manage server roles', icon: 'Shield' }
+    ],
+    hostingInfo: {
+      specs: 'Ultra-low Latency Discord Gateway Container',
+      cpu: '250% Intel Xeon / AMD EPYC Core',
+      ram: '2 GB High-Speed RAM',
+      storage: '25 GB SSD',
+      uptime: '99.99% Discord Gateway WebSocket Uptime',
+      locations: ['Ashburn (US-East)', 'Frankfurt (EU-Central)', 'Singapore'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Real-time database replication',
+      ddosProtection: 'Pterodactyl Shield'
+    },
     plans: [
-      { id: 'pd1', name: 'Guild Basic', price: 15.00, billingPeriod: 'monthly', features: ['3 Discord Servers', 'Ticket Transcripts', 'Anti-Raid Auto Shield', 'Custom Embed Builder'] },
-      { id: 'pd2', name: 'Empire Pro', price: 39.00, billingPeriod: 'monthly', isPopular: true, features: ['Unlimited Guilds', 'AI Auto-Response Bot', 'Custom Bot Avatar & Token', 'Voice Channel Auto-Host'] }
+      { id: 'pd1', name: 'Guild Basic', price: 15.00, billingPeriod: 'monthly', features: ['Up to 3 Discord Servers', 'Ticket Transcripts', 'Anti-Raid Auto Shield', 'Custom Embed Builder'] },
+      { id: 'pd2', name: 'Empire Pro', price: 39.00, billingPeriod: 'monthly', isPopular: true, features: ['Unlimited Guilds', 'AI Auto-Response Bot', 'Custom Bot Avatar & Token', 'Voice Channel Auto-Host', 'Store Role Sync'] },
+      { id: 'pd3', name: 'Enterprise Cluster', price: 120.00, billingPeriod: 'monthly', features: ['Dedicated Server Node', 'Custom Bot Code Modifications', 'White-Label Branding', 'Dedicated Account Manager'] }
     ],
     screenshots: [
-      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80'
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80'
     ],
     demoUrl: 'https://demo-dc.harconxs.com',
-    docsUrl: 'https://docs.harconxs.com/dc-panel'
+    docsUrl: 'https://docs.harconxs.com/dc-panel',
+    faqs: [
+      { question: 'Where are ticket transcripts stored?', answer: 'Transcripts are compiled into clean, searchable HTML files and archived securely with encrypted links for your staff.' },
+      { question: 'Can the bot grant Discord roles when a customer purchases on our website?', answer: 'Yes! Link your HARCONXS API or webhooks to automatically assign VIP or Backer roles instantly on checkout.' }
+    ],
+    supportInfo: {
+      channel: 'Discord Official Server & Developer Channel',
+      responseTime: 'Under 10 minutes',
+      docsUrl: 'https://docs.harconxs.com/dc-panel',
+      contactEmail: 'discord-ops@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'moderation'
   },
   {
-    id: 'bot-wa-crm',
-    name: 'WhatsApp Business AI Sales & CRM Dashboard',
-    platform: 'WhatsApp',
-    shortDesc: 'Official Cloud API connector, automated cart recovery, catalog browsing & 24/7 AI sales closer.',
-    fullDesc: 'Turn WhatsApp conversations into automated revenue. Connect your store directly to WhatsApp, trigger order tracking SMS/messages, send rich interactive button menus, and manage human handoffs seamlessly.',
-    icon: 'MessageSquare',
+    id: 'bot-dc-economy',
+    slug: 'discord-community-economy-pterodactyl',
+    name: 'Discord Economy, Rewards & Pterodactyl Server Linker',
+    category: 'Discord Bot Panels',
+    platform: 'Discord',
+    shortDesc: 'Virtual currency wallet, reward shop, daily coin multipliers & automated Pterodactyl server controls.',
+    fullDesc: 'Engage your gaming and tech community with a complete virtual economy. Users earn server coins through chat activity and rewarded events, then redeem coins for real Pterodactyl game server temporary instances or role upgrades.',
+    description: 'The ultimate gamification and hosting bridge for Discord. Connects directly to your Pterodactyl panel API so members can start, stop, restart, and monitor their servers directly through Discord slash commands.',
+    icon: 'Terminal',
+    badge: 'Gaming & Economy',
+    rating: 4.91,
+    reviewsCount: 84,
+    features: [
+      'Virtual Coin Economy with Leaderboards, Gambling, and Daily Streaks',
+      'Pterodactyl Panel API integration (/server start, /server status)',
+      'Automated temporary 7-day server provisioning via coin redemption',
+      'Discord OAuth account binding to client billing profile',
+      'Anti-cheat and multi-account coin exploit detection'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Pterodactyl Integration',
+        items: [
+          'Real-time CPU, RAM, and disk utilization graphs in Discord embeds',
+          'Automatic server suspension when coin credits expire',
+          '1-click server power management for authorized players',
+          'Server backup trigger from Discord channel'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'Discord Bot Application', detail: 'With message content and server members intents', icon: 'Bot' },
+      { title: 'Pterodactyl Client/Application API Key', detail: 'To execute server commands on your hosting node', icon: 'Key' }
+    ],
+    hostingInfo: {
+      specs: 'Dedicated Node with WebSocket Listener',
+      cpu: '200% AMD Ryzen 9 Core',
+      ram: '2 GB RAM',
+      storage: '20 GB NVMe Storage',
+      uptime: '99.98% SLA',
+      locations: ['Frankfurt, Germany', 'Ashburn, USA'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Every 6 hours',
+      ddosProtection: 'Game-Optimized DDoS Filter'
+    },
     plans: [
-      { id: 'pw1', name: 'Growth', price: 29.00, billingPeriod: 'monthly', features: ['1 Phone Number', '1,000 Free AI Conversations/mo', 'Catalog Sync', 'Order Status Automation'] },
-      { id: 'pw2', name: 'Business Max', price: 79.00, billingPeriod: 'monthly', isPopular: true, features: ['5 Agents Multi-login', 'Unlimited AI Conversations', 'Broadcast Campaign Manager', 'Webhook API Access'] }
+      { id: 'pdc_eco1', name: 'Community Node', price: 22.00, billingPeriod: 'monthly', features: ['500 Server Members', 'Economy & Leaderboard', 'Pterodactyl Server Link', '24/7 Uptime'] },
+      { id: 'pdc_eco2', name: 'Network Pro', price: 55.00, billingPeriod: 'monthly', isPopular: true, features: ['Unlimited Members', 'Multiple Pterodactyl Panels', 'Custom Coin Shop', 'Priority Node Allocation'] }
     ],
     screenshots: [
-      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80'
     ],
-    demoUrl: 'https://demo-wa.harconxs.com',
-    docsUrl: 'https://docs.harconxs.com/wa-panel'
+    demoUrl: 'https://demo-dc-eco.harconxs.com',
+    docsUrl: 'https://docs.harconxs.com/dc-economy',
+    faqs: [
+      { question: 'Is my Pterodactyl master API key safe?', answer: 'Yes. API keys are stored securely server-side inside your isolated Pterodactyl container environment.' }
+    ],
+    supportInfo: {
+      channel: 'Discord Community Support Hub',
+      responseTime: 'Under 20 minutes',
+      docsUrl: 'https://docs.harconxs.com/dc-economy',
+      contactEmail: 'gaming-support@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'hosting_pterodactyl'
+  },
+
+  // 3. WordPress Bot Panels
+  {
+    id: 'bot-wp-bridge',
+    slug: 'wordpress-central-support-catalog-bridge',
+    name: 'WordPress & WooCommerce Central Support & Catalog Bridge',
+    category: 'WordPress Bot Panels',
+    platform: 'WordPress',
+    shortDesc: 'Drop-in WordPress plugin for real-time catalog sync, safe order tracking widget, and central ticketing.',
+    fullDesc: 'Seamlessly link your WordPress or WooCommerce website to the central HARCONXS backend. Provides shortcodes and Gutenberg blocks for interactive order status tracking, FAQ accordion sync, and direct support ticket submission without cluttering your WordPress database.',
+    description: 'Lightweight, ultra-fast PHP & React bridge plugin for WordPress. Offloads catalog queries and customer support tickets to the central high-speed Supabase engine, keeping your WordPress site blazing fast and database-lean.',
+    icon: 'Globe',
+    badge: 'WooCommerce Ready',
+    rating: 4.89,
+    reviewsCount: 112,
+    features: [
+      'Shortcodes: [harconxs_order_tracker], [harconxs_support_widget], [harconxs_catalog]',
+      'Zero database bloat: all orders & tickets sync to central cloud database',
+      'Safe patron privacy shield: requires matching Order # and Billing Email',
+      'Full compatibility with Elementor, Divi, Gutenberg, and classic themes',
+      'Automatic AJAX polling and responsive mobile layouts',
+      'Automated plugin updates pushed directly from HARCONXS CDN'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'WooCommerce & Catalog Sync',
+        items: [
+          'Bi-directional product inventory & pricing sync',
+          'Customizable checkout redirect with origin tracking',
+          'Rich SEO Schema markup for catalog items',
+          'Automated category taxonomy mirroring'
+        ]
+      },
+      {
+        category: 'Customer Self-Service Widgets',
+        items: [
+          'Embeddable order lookup form with carrier tracking URLs',
+          'Instant support ticket creation directly into admin inbox',
+          'Live AI customer concierge floating chat widget',
+          'Customizable color palette matching your WordPress theme'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'WordPress 5.8 or higher', detail: 'PHP 7.4, 8.0, 8.1, or 8.2 compatible', icon: 'Globe' },
+      { title: 'HARCONXS Private API Key', detail: 'Configured in WordPress Settings > HARCONXS Bridge', icon: 'Key' }
+    ],
+    hostingInfo: {
+      specs: 'Cloud API Bridge Gateway & CDN Asset Delivery',
+      cpu: 'Global Edge Anycast Network',
+      ram: 'Shared Edge Memory Cache',
+      storage: 'Unlimited Cloud Sync',
+      uptime: '99.99% API SLA',
+      locations: ['Global Cloudflare Edge (280+ cities)'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Continuous Cloud Backup',
+      ddosProtection: 'Enterprise Web Application Firewall'
+    },
+    plans: [
+      { id: 'pwp1', name: 'Single Site', price: 14.00, billingPeriod: 'monthly', features: ['1 WordPress / WooCommerce Site', 'Catalog & Order Widgets', 'Central Ticket Sync', 'Automatic Plugin Updates'] },
+      { id: 'pwp2', name: 'Agency 5-Pack', price: 39.00, billingPeriod: 'monthly', isPopular: true, features: ['Up to 5 Client Websites', 'White-Label Plugin Branding', 'Priority API Rate Limit', 'Developer API Webhooks'] },
+      { id: 'pwp3', name: 'Unlimited Agency Lifetime', price: 249.00, billingPeriod: 'lifetime', features: ['Unlimited Client Sites', 'Full PHP/React Source Code', 'Lifetime License Keys', 'Direct Developer Support'] }
+    ],
+    screenshots: [
+      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80'
+    ],
+    demoUrl: 'https://demo-wp.harconxs.com',
+    docsUrl: 'https://docs.harconxs.com/wp-bridge',
+    faqs: [
+      { question: 'Will this slow down my WordPress website?', answer: 'No. The plugin communicates asynchronously via client-side AJAX/REST APIs, ensuring zero impact on your core WordPress TTFB or page render speeds.' },
+      { question: 'Can I customize the design of the shortcodes?', answer: 'Yes! The widgets inherit your theme’s typography and offer simple CSS class hooks and custom color pickers in WP-Admin.' }
+    ],
+    supportInfo: {
+      channel: 'WordPress Developer Ticket Portal',
+      responseTime: 'Under 30 minutes',
+      docsUrl: 'https://docs.harconxs.com/wp-bridge',
+      contactEmail: 'wp-plugins@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'wordpress_bridge'
+  },
+  {
+    id: 'bot-wp-social',
+    slug: 'wordpress-automation-social-sync',
+    name: 'WordPress Auto-Publisher & Social Bot Sync',
+    category: 'WordPress Bot Panels',
+    platform: 'WordPress',
+    shortDesc: 'Auto-publish blog posts, product drops, and flash discounts directly to Telegram & Discord channels.',
+    fullDesc: 'Supercharge your content distribution. Every time you publish a new product, blog post, or flash sale in WordPress, this bot automatically creates visually rich embeds and dispatches them across your Telegram and Discord channels in milliseconds.',
+    description: 'Eliminate manual cross-posting. Features customized embed templates, scheduled social queueing, automated hashtag insertion, and UTM campaign tracking for every social click.',
+    icon: 'Share2',
+    badge: 'Automation',
+    rating: 4.82,
+    reviewsCount: 65,
+    features: [
+      'Instant post dispatch on WordPress publish / update',
+      'Custom Telegram MarkdownV2 and Discord Rich Embed formats',
+      'Automated featured image resizing and thumbnail attachment',
+      'Product price drop and coupon code broadcast triggers',
+      'Detailed click-through analytics and referral tracking'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Social Channels',
+        items: [
+          'Telegram Channels and VIP Groups',
+          'Discord Announcement and Community Channels',
+          'WhatsApp Business Broadcast Channels',
+          'Twitter / X and Mastodon webhooks'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'WordPress 5.0+', detail: 'REST API enabled (default on standard installs)', icon: 'Globe' },
+      { title: 'Bot Tokens / Webhook URLs', detail: 'For target Telegram/Discord channels', icon: 'Key' }
+    ],
+    hostingInfo: {
+      specs: 'Cloud Automation Dispatcher',
+      cpu: '100% vCPU',
+      ram: '1 GB RAM',
+      storage: '10 GB SSD',
+      uptime: '99.95% SLA',
+      locations: ['Frankfurt, Germany', 'Ashburn, USA'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Daily Snapshots',
+      ddosProtection: 'Standard DDoS Shield'
+    },
+    plans: [
+      { id: 'pwps1', name: 'Starter Sync', price: 12.00, billingPeriod: 'monthly', features: ['1 WP Site', '2 Social Channels', 'Instant Publishing', 'Basic Analytics'] },
+      { id: 'pwps2', name: 'Power Publisher', price: 29.00, billingPeriod: 'monthly', isPopular: true, features: ['5 WP Sites', 'Unlimited Channels', 'Custom Embed Builder', 'UTM Analytics'] }
+    ],
+    screenshots: [
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80'
+    ],
+    demoUrl: 'https://demo-wp-social.harconxs.com',
+    docsUrl: 'https://docs.harconxs.com/wp-social',
+    faqs: [
+      { question: 'Can I customize the message text before it sends?', answer: 'Yes, you can define template variables like {post_title}, {price}, {discount_code}, and {permalink}.' }
+    ],
+    supportInfo: {
+      channel: 'Support Ticket System',
+      responseTime: 'Under 1 hour',
+      docsUrl: 'https://docs.harconxs.com/wp-social',
+      contactEmail: 'social-bot@harconxs.com',
+      liveChatAvailable: false
+    },
+    interactiveDemoType: 'broadcast'
+  },
+
+  // 4. Custom Bot Panels
+  {
+    id: 'bot-custom-suite',
+    slug: 'custom-enterprise-bot-suite',
+    name: 'Custom Enterprise Multi-Platform Bot & Architecture',
+    category: 'Custom Bot Panels',
+    platform: 'Custom',
+    shortDesc: 'Bespoke microservices, custom database integrations, proprietary CRM connectors & dedicated container setup.',
+    fullDesc: 'Have a specialized automation requirement? Our senior software architects build custom bot solutions tailored specifically to your business workflows. From proprietary stock market alert bots to custom crypto smart contract event listeners and multi-channel customer CRM integrations.',
+    description: 'Full-cycle bespoke bot engineering. Includes requirements scoping, private architecture design, high-concurrency Node.js/Python microservices, custom dashboard frontend, and private Pterodactyl container deployment.',
+    icon: 'Layers',
+    badge: 'Bespoke Solution',
+    rating: 5.0,
+    reviewsCount: 38,
+    features: [
+      'Custom architecture designed specifically for your business logic',
+      'Cross-platform execution across Telegram, Discord, WhatsApp & Web',
+      'Integration with your existing PostgreSQL, MySQL, Supabase or REST APIs',
+      'Dedicated high-performance Pterodactyl cloud node with SLA guarantee',
+      'Full source code ownership and intellectual property transfer',
+      'Dedicated DevOps engineer and 24/7 priority incident response'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Custom Engineering Process',
+        items: [
+          'Detailed technical specification & milestone delivery',
+          'Private GitHub repository with CI/CD deployment pipeline',
+          'Unit & integration automated test suites',
+          'Comprehensive API documentation & admin training session'
+        ]
+      },
+      {
+        category: 'Enterprise Infrastructure',
+        items: [
+          'Isolated Docker container cluster on high-frequency NVMe hardware',
+          'Zero-downtime rolling container deployments',
+          'Custom telemetry dashboard with error alerts via PagerDuty',
+          'Custom domain name and SSL certificates'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'Project Scope Brief', detail: 'Overview of required integrations and user workflows', icon: 'Layers' },
+      { title: 'Target Platform Credentials', detail: 'API keys or developer access for services to be integrated', icon: 'Key' }
+    ],
+    hostingInfo: {
+      specs: 'Custom Scalable Cloud Cluster (Pterodactyl / Kubernetes)',
+      cpu: 'Up to 8 Dedicated vCPUs',
+      ram: 'Up to 16 GB DDR5 RAM',
+      storage: '100+ GB NVMe Storage',
+      uptime: '99.99% Enterprise SLA',
+      locations: ['Global Custom Region Deployment'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Hourly Snapshots & Multi-Region Failover',
+      ddosProtection: 'Custom Enterprise DDoS Mitigation'
+    },
+    plans: [
+      { id: 'pcust_std', name: 'Custom Milestone Build', price: 499.00, billingPeriod: 'lifetime', features: ['Complete Custom Bot Logic', '2 Platform Integrations', '1 Month Free Cloud Hosting', 'Source Code & Documentation'] },
+      { id: 'pcust_ent', name: 'Enterprise Complete Suite', price: 1200.00, billingPeriod: 'lifetime', isPopular: true, features: ['Unlimited Platform Bridges', 'Custom Web Admin Panel', '6 Months Dedicated Hosting', 'Dedicated DevOps Support', 'Full IP Rights Transfer'] }
+    ],
+    screenshots: [
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80'
+    ],
+    demoUrl: 'https://demo-custom.harconxs.com',
+    docsUrl: 'https://docs.harconxs.com/custom-bots',
+    faqs: [
+      { question: 'How long does a custom bot build take?', answer: 'Standard custom builds take 5 to 10 business days depending on complexity, with iterative weekly demo sprints.' },
+      { question: 'Do I get the source code?', answer: 'Yes! All custom builds include full Git repository transfer with unrestricted ownership.' }
+    ],
+    supportInfo: {
+      channel: 'Dedicated Slack / Discord Private War-Room Channel',
+      responseTime: 'Priority Instant Concierge (< 5 mins)',
+      docsUrl: 'https://docs.harconxs.com/custom-bots',
+      contactEmail: 'architects@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'custom_builder'
+  },
+  {
+    id: 'bot-custom-trading',
+    slug: 'custom-trading-alert-bot',
+    name: 'TradingView & Crypto Webhook Execution Bot',
+    category: 'Custom Bot Panels',
+    platform: 'Custom',
+    shortDesc: 'Sub-millisecond TradingView alert parser, multi-exchange order router, and private VIP trade copier.',
+    fullDesc: 'Connect your PineScript trading strategies or TradingView webhook alerts directly to Binance, Bybit, KuCoin, or private Telegram/Discord subscriber groups with sub-10ms execution speeds and risk management controls.',
+    description: 'Institutional-grade trade execution bot. Parses incoming webhook JSON signals, calculates position sizing based on account balance, places stop-loss / take-profit orders, and broadcasts real-time PnL cards to your VIP channel.',
+    icon: 'Zap',
+    badge: 'Ultra Fast',
+    rating: 4.97,
+    reviewsCount: 72,
+    features: [
+      'Sub-10ms Webhook receiver with IP whitelist protection',
+      'Multi-Exchange API support (Binance, Bybit, OKX, MT5 bridge)',
+      'Automated position size calculator with max drawdown risk rules',
+      'Automated visual PnL card generator for Telegram/Discord channels',
+      'Trailing stop-loss & multi-target take-profit order management'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Execution Engine',
+        items: [
+          'High-frequency WebSocket exchange listeners',
+          'Reconnection failover with zero missed signals',
+          'Slippage and latency protection algorithms',
+          'Encrypted API key vault in container memory'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'TradingView Pro / Webhook Alert access', detail: 'To configure webhook alert payloads', icon: 'Zap' },
+      { title: 'Exchange API Keys (Trading Only)', detail: 'Never require withdrawal permissions', icon: 'Lock' }
+    ],
+    hostingInfo: {
+      specs: 'Ultra-Low Latency Co-located Trading Node',
+      cpu: '300% Dedicated High-Frequency Core',
+      ram: '4 GB High-Speed RAM',
+      storage: '30 GB NVMe Storage',
+      uptime: '99.999% SLA',
+      locations: ['Tokyo (Binance Co-located)', 'London (LMAX)', 'Frankfurt'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Continuous Log Streaming',
+      ddosProtection: 'Financial-Grade Shield'
+    },
+    plans: [
+      { id: 'pct_trd1', name: 'Trader Pro', price: 79.00, billingPeriod: 'monthly', features: ['Up to 3 Exchanges', 'Sub-15ms Execution', 'Telegram Alert Copier', 'Risk Management Engine'] },
+      { id: 'pct_trd2', name: 'Fund VIP', price: 199.00, billingPeriod: 'monthly', isPopular: true, features: ['Unlimited Accounts', 'Sub-5ms Co-located Node', 'Multi-Tier Copier', 'Dedicated DevOps Line'] }
+    ],
+    screenshots: [
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80'
+    ],
+    demoUrl: 'https://demo-trading.harconxs.com',
+    docsUrl: 'https://docs.harconxs.com/trading-bot',
+    faqs: [
+      { question: 'Is my money safe?', answer: 'Yes. The bot only requires "Trade" permissions on exchange API keys; withdrawal permissions are strictly disabled.' }
+    ],
+    supportInfo: {
+      channel: 'Trader VIP Concierge Channel',
+      responseTime: 'Under 10 minutes',
+      docsUrl: 'https://docs.harconxs.com/trading-bot',
+      contactEmail: 'trading@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'broadcast'
+  },
+
+  // 5. Hosting Panels
+  {
+    id: 'bot-host-pterodactyl',
+    slug: 'pterodactyl-bot-hosting-panel',
+    name: 'Pterodactyl High-Performance Bot & Cloud Panel',
+    category: 'Hosting Panels',
+    platform: 'Hosting',
+    shortDesc: 'Isolated Docker container hosting for Node.js, Python, Go, and Java bots with web file manager & fast console.',
+    fullDesc: 'Deploy and monitor any Discord, Telegram, or custom automation bot in seconds. Powered by the industry-standard Pterodactyl management panel, you get a full web-based terminal, SFTP access, live resource graphs, environment variable editor, and automated crash recovery.',
+    description: 'The premier cloud hosting environment designed specifically for bots and game servers. Choose your desired RAM, CPU, and disk size, and our automated provisioning engine delivers your server credentials immediately upon checkout.',
+    icon: 'Terminal',
+    badge: 'Popular Hosting',
+    rating: 4.98,
+    reviewsCount: 230,
+    features: [
+      'Full Pterodactyl v1.11+ web management panel access',
+      'Live real-time web console with instant command execution',
+      'Interactive visual file manager + secure SFTP connection',
+      'One-click runtime installer (Node.js 18/20/22, Python 3.10/3.11/3.12, Java 21, Golang)',
+      'Automated server restart on crash or unexpected exit',
+      'Schedule cron tasks (daily restarts, database backups, cache clears)'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Server Hardware & Virtualization',
+        items: [
+          'Enterprise AMD EPYC 9654 & Ryzen 9 7950X processors',
+          'PCIe 4.0 NVMe RAID-1 enterprise storage with 7,000 MB/s read/write',
+          'DDR5 4800MHz ECC Server Memory',
+          'Unmetered 1 Gbps / 10 Gbps redundant uplink bandwidth'
+        ]
+      },
+      {
+        category: 'Security & Management',
+        items: [
+          'Isolated Docker container environment per customer',
+          'Permanent Path.net and Voxility 12 Tbps DDoS Filtering',
+          'Multi-user sub-user permission delegation for your staff',
+          'Environment variable & secret management without code modification'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'Any standard Bot Repository or Script', detail: 'Node.js, Python, Java, Go, Rust, or C# supported', icon: 'Terminal' },
+      { title: 'Browser or SFTP Client', detail: 'Access your files from any web browser or FileZilla/WinSCP', icon: 'Globe' }
+    ],
+    hostingInfo: {
+      specs: 'Dedicated Pterodactyl Docker Container Instance',
+      cpu: 'Up to 400% Dedicated AMD Ryzen / EPYC vCPU',
+      ram: '1 GB to 16 GB DDR5 RAM Options',
+      storage: '10 GB to 100 GB NVMe Gen4 Storage',
+      uptime: '99.99% Guaranteed Network SLA',
+      locations: ['Frankfurt, Germany (EU)', 'Mumbai, India (Asia-South)', 'Singapore (Asia-East)', 'Ashburn, USA (US-East)'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Automated 1-Click Cloud Backups',
+      ddosProtection: 'Permanent 12 Tbps Always-On DDoS Mitigation'
+    },
+    plans: [
+      { id: 'php_1gb', name: '1GB Free Trial Panel (20 Coins)', price: 0.00, billingPeriod: 'monthly', features: ['1 GB DDR5 RAM', '100% CPU Core', '1 GB NVMe Storage', '7 Days Duration', '1 Active Panel Limit'] },
+      { id: 'php_5gb', name: '5GB Panel', price: 1.78, billingPeriod: 'monthly', isPopular: true, features: ['5 GB DDR5 RAM', '200% AMD vCPU', '25 GB NVMe Storage', 'Full SFTP & Web Console', '99.99% Uptime SLA'] },
+      { id: 'php_10gb', name: '10GB Panel', price: 2.09, billingPeriod: 'monthly', features: ['10 GB DDR5 RAM', '300% AMD vCPU', '50 GB NVMe Storage', 'Priority Network Route', 'Free Daily Backups'] },
+      { id: 'php_unl', name: 'Unlimited Panel', price: 4.18, billingPeriod: 'monthly', features: ['16 GB RAM Burst', '400% CPU Core', '100 GB NVMe Storage', 'Dedicated IP Option', 'VIP 24/7 Support'] },
+      { id: 'php_reseller', name: 'Reseller Panel', price: 7.32, billingPeriod: 'monthly', features: ['Create & Sell Sub-Panels', '50 GB Pool RAM', '250 GB NVMe Pool', 'Custom Subdomain', 'API Provisioning Access'] }
+    ],
+    screenshots: [
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80'
+    ],
+    demoUrl: 'https://demo-pterodactyl.harconxs.com',
+    docsUrl: 'https://docs.harconxs.com/pterodactyl',
+    faqs: [
+      { question: 'How do I upload my bot code?', answer: 'You can upload your files directly through the web-based File Manager (including drag-and-drop zip extraction) or connect via SFTP using FileZilla or WinSCP.' },
+      { question: 'What runtimes are supported?', answer: 'We support all major versions of Node.js, Python, Java, Golang, C#, Rust, and custom Docker container images.' },
+      { question: 'How does free panel creation with coins work?', answer: 'Users can earn 20 coins through rewarded activities or referrals, then create a temporary 1GB / 7-day free Pterodactyl panel directly from their dashboard!' }
+    ],
+    supportInfo: {
+      channel: 'Pterodactyl DevOps Technical Support & Discord',
+      responseTime: 'Under 10 minutes',
+      docsUrl: 'https://docs.harconxs.com/pterodactyl',
+      contactEmail: 'pterodactyl-ops@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'hosting_pterodactyl'
+  },
+  {
+    id: 'bot-host-docker-vps',
+    slug: 'nodejs-python-docker-hosting',
+    name: 'Node.js & Python Dedicated Docker Micro-Container Node',
+    category: 'Hosting Panels',
+    platform: 'Hosting',
+    shortDesc: 'Always-on background worker instances, zero-sleep architecture, environment secrets manager, fast restart.',
+    fullDesc: 'The lightweight hosting solution for individual developers and agencies running background workers, cron scripts, web scrapers, and bot instances with guaranteed zero sleep timeouts and dedicated memory allocation.',
+    description: 'Stop dealing with random free host timeouts. Get dedicated, always-on Docker instances with integrated Git deployment, live stdout/stderr logging streams, and automated health checks.',
+    icon: 'Layers',
+    badge: 'Developer Choice',
+    rating: 4.87,
+    reviewsCount: 95,
+    features: [
+      'Guaranteed 100% Always-On Uptime (Zero Sleep or Hibernation)',
+      'Direct Git Repository webhook deploy on git push',
+      'Live streaming real-time stdout and stderr log viewer',
+      'Custom environment variables with AES-256 encrypted storage',
+      'Port binding for express/fastify webhooks with free SSL subdomains'
+    ],
+    categorizedFeatures: [
+      {
+        category: 'Developer Experience',
+        items: [
+          'Automatic npm install / pip install on container startup',
+          'Custom startup command flags (e.g. tsx, nodemon, gunicorn)',
+          'Automated RAM leak restart threshold configuration',
+          'Direct SSH shell terminal access'
+        ]
+      }
+    ],
+    requirements: [
+      { title: 'package.json or requirements.txt', detail: 'Standard project manifest file', icon: 'Code' },
+      { title: 'Main entry point file', detail: 'e.g. index.js, bot.py, server.ts', icon: 'Terminal' }
+    ],
+    hostingInfo: {
+      specs: 'Dedicated Lightweight Cloud Worker Node',
+      cpu: '150% Dedicated vCPU',
+      ram: '2 GB DDR5 RAM',
+      storage: '15 GB SSD Storage',
+      uptime: '99.95% SLA',
+      locations: ['Frankfurt, Germany', 'Mumbai, India', 'Ashburn, USA'],
+      pterodactylCompatible: true,
+      backupFrequency: 'Daily Automated Snapshots',
+      ddosProtection: 'Enterprise DDoS Shield'
+    },
+    plans: [
+      { id: 'pdock_dev', name: 'Developer Micro', price: 2.50, billingPeriod: 'monthly', features: ['1.5 GB RAM', 'Always-On Worker', 'Live Log Streaming', 'Git Deploy Webhook'] },
+      { id: 'pdock_pro', name: 'Cluster Pro', price: 6.00, billingPeriod: 'monthly', isPopular: true, features: ['4 GB RAM', 'Dedicated vCPU', 'Port 443 HTTPS Proxy', 'Priority SLA'] }
+    ],
+    screenshots: [
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80'
+    ],
+    demoUrl: 'https://demo-docker.harconxs.com',
+    docsUrl: 'https://docs.harconxs.com/docker-hosting',
+    faqs: [
+      { question: 'Does my bot go to sleep when idle?', answer: 'Never. Unlike standard free tiers, all HARCONXS bot instances run 24/7 with zero sleeping or throttling.' }
+    ],
+    supportInfo: {
+      channel: 'Dev Support Desk',
+      responseTime: 'Under 25 minutes',
+      docsUrl: 'https://docs.harconxs.com/docker-hosting',
+      contactEmail: 'dev-support@harconxs.com',
+      liveChatAvailable: true
+    },
+    interactiveDemoType: 'hosting_pterodactyl'
   }
 ];
+
 
 export const INITIAL_COUPONS: DiscountCoupon[] = [
   {

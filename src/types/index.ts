@@ -430,26 +430,77 @@ export interface CoupleWebsiteProject {
   expiresAt: string;
 }
 
-export interface BotPanelService {
+export type BotPanelCategory = 
+  | 'Telegram Bot Panels'
+  | 'Discord Bot Panels'
+  | 'WordPress Bot Panels'
+  | 'Custom Bot Panels'
+  | 'Hosting Panels';
+
+export interface BotPanelPlan {
   id: string;
   name: string;
+  price: number;
+  billingPeriod: 'monthly' | 'yearly' | 'lifetime';
+  features: string[];
+  isPopular?: boolean;
+}
+
+export interface BotPanelRequirement {
+  title: string;
+  detail: string;
+  icon?: string;
+}
+
+export interface BotPanelHostingInfo {
+  specs: string;
+  cpu: string;
+  ram: string;
+  storage: string;
+  uptime: string;
+  locations: string[];
+  pterodactylCompatible: boolean;
+  backupFrequency?: string;
+  ddosProtection?: string;
+}
+
+export interface BotPanelFaq {
+  question: string;
+  answer: string;
+}
+
+export interface BotPanelSupportInfo {
+  channel: string;
+  responseTime: string;
+  docsUrl: string;
+  contactEmail: string;
+  liveChatAvailable: boolean;
+}
+
+export interface BotPanelService {
+  id: string;
+  slug: string;
+  name: string;
+  category: BotPanelCategory;
   platform: 'Telegram' | 'Discord' | 'WhatsApp' | 'WordPress' | 'Hosting' | 'Custom';
   shortDesc: string;
   fullDesc: string;
   description?: string;
   icon: string;
   badge?: string;
-  plans: {
-    id: string;
-    name: string;
-    price: number;
-    billingPeriod: 'monthly' | 'yearly' | 'lifetime';
-    features: string[];
-    isPopular?: boolean;
-  }[];
+  rating?: number;
+  reviewsCount?: number;
+  features?: string[];
+  categorizedFeatures?: { category: string; items: string[] }[];
+  requirements?: BotPanelRequirement[];
+  hostingInfo?: BotPanelHostingInfo;
+  plans: BotPanelPlan[];
   screenshots: string[];
   demoUrl: string;
   docsUrl: string;
+  faqs?: BotPanelFaq[];
+  supportInfo?: BotPanelSupportInfo;
+  interactiveDemoType?: 'broadcast' | 'moderation' | 'whatsapp_crm' | 'wordpress_bridge' | 'hosting_pterodactyl' | 'custom_builder';
 }
 
 export type ApiScopeId = 
