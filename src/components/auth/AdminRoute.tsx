@@ -51,24 +51,24 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-zinc-300">Admin Email</label>
+              <label className="block text-xs font-semibold text-zinc-300">Admin Username or Email</label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@harconxs.com"
+                placeholder="HARCONXS or admin@hamza.harconxs.com"
                 required
                 className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-xs focus:outline-none focus:border-amber-500 transition-colors font-mono"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-zinc-300">Master Secret Key / PIN</label>
+              <label className="block text-xs font-semibold text-zinc-300">Master Administrator Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Admin@Hmaza12"
                 required
                 className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-xs focus:outline-none focus:border-amber-500 transition-colors font-mono"
               />
@@ -91,8 +91,8 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
           </form>
 
           <div className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-800/80 text-center">
-            <p className="text-[11px] text-zinc-500">
-              Demo master key: <span className="font-mono text-amber-400">admin123</span>
+            <p className="text-[11px] text-zinc-400">
+              Supabase Auth & RBAC Protected • Authorized Administrators Only
             </p>
           </div>
         </div>

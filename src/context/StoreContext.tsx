@@ -29,7 +29,11 @@ import {
   EmailNotification,
   SupabaseConfigStatus,
   BillingInvoice,
-  ThemeConfig
+  ThemeConfig,
+  PageRecord,
+  PageRevision,
+  PageSection,
+  PageSectionType
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -69,7 +73,9 @@ import {
   supabaseSignInWithGoogle,
   supabaseSignOut,
   supabaseVerifyAdminRole,
-  supabaseAdminSignIn
+  supabaseAdminSignIn,
+  getStoredAdminSession,
+  supabaseAdminSignOut
 } from '../lib/supabase';
 import {
   fetchProductsFromSupabase,
@@ -123,8 +129,18 @@ import {
   fetchThemeConfigFromSupabase,
   saveThemeConfigInSupabase,
   recordAuditLog,
-  trackAnalyticsEvent
+  trackAnalyticsEvent,
+  fetchPageWithSectionsFromSupabase,
+  savePageDraftInSupabase,
+  publishPageInSupabase,
+  fetchPageRevisionsFromSupabase,
+  createPageRevisionInSupabase,
+  deletePageSectionFromSupabase
 } from '../services/supabaseService';
+import {
+  INITIAL_HOME_PAGE_RECORD,
+  INITIAL_HOME_PAGE_SECTIONS
+} from '../data/defaultPageData';
 
 export type CurrencyCode = 'INR';
 
@@ -377,6 +393,19 @@ interface StoreContextType {
   setActivePolicySlug: (slug: string) => void;
   toastMessage: string | null;
   showToast: (msg: string) => void;
+
+  // Private Website Editor State & Methods (Supabase Backed)
+  activePageRecord: PageRecord;
+  pageRevisions: PageRevision[];
+  isLoadingPageConfig: boolean;
+  savePageDraft: (page: PageRecord) => Promise<{ success: boolean; message: string }>;
+  publishPage: (page: PageRecord) => Promise<{ success: boolean; message: string }>;
+  fetchPageRevisionsList: (pageId: string) => Promise<PageRevision[]>;
+  createPageRevisionSnapshot: (pageId: string, revisionName: string, pageData: PageRecord) => Promise<PageRevision | null>;
+  restorePageRevisionSnapshot: (revision: PageRevision) => Promise<boolean>;
+  deletePageSectionItem: (sectionId: string) => Promise<boolean>;
+  updateActivePageRecord: (updater: (prev: PageRecord) => PageRecord) => void;
+  refetchPageConfig: (slugOrId?: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -417,6 +446,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [wishlist, setWishlist] = useState<string[]>(['prod-couple-1', 'prod-couple-2']);
   const [isLoadingWishlist, setIsLoadingWishlist] = useState<boolean>(false);
   const [wishlistError, setWishlistError] = useState<string | null>(null);
+
+  // Private Website Visual Editor State (Supabase Backed)
+  const [activePageRecord, setActivePageRecord] = useState<PageRecord>(INITIAL_HOME_PAGE_RECORD);
+  const [pageRevisions, setPageRevisions] = useState<PageRevision[]>([]);
+  const [isLoadingPageConfig, setIsLoadingPageConfig] = useState<boolean>(false);
 
   // Cart session identifier for guests or authenticated users
   const getCartSessionId = (userId?: string) => {
@@ -588,6 +622,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     let isMounted = true;
 
+    // Restore verified administrator session if available
+    const storedAdmin = getStoredAdminSession();
+    if (storedAdmin && storedAdmin.isAdmin) {
+      setIsAdminAuthenticated(true);
+      setIsAdminMode(true);
+      if (!currentUser) {
+        setCurrentUser({
+          id: 'usr_harconxs_super_admin',
+          name: 'HARCONXS Administrator',
+          email: storedAdmin.email || 'admin@hamza.harconxs.com',
+          phone: '+91 (080) 4892-3000',
+          loyaltyPoints: 9999,
+          storeCredit: 1000,
+          isAffiliate: true,
+          affiliateCode: 'HXMASTER',
+          affiliateCommissionEarned: 0,
+          addresses: []
+        });
+      }
+    }
+
     async function loadSupabaseInitialData() {
       setIsLoadingProducts(true);
       setProductsError(null);
@@ -603,7 +658,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           dbApiKeys,
           dbInvoices,
           dbThemeConfig,
-          dbPackaging
+          dbPackaging,
+          dbPageRecord,
+          dbRevisions
         ] = await Promise.allSettled([
           fetchProductsFromSupabase(),
           fetchOrdersFromSupabase(),
@@ -615,7 +672,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           fetchApiKeysFromSupabase(),
           fetchInvoicesFromSupabase(),
           fetchThemeConfigFromSupabase(),
-          fetchPackagingOptionsFromSupabase()
+          fetchPackagingOptionsFromSupabase(),
+          fetchPageWithSectionsFromSupabase('home'),
+          fetchPageRevisionsFromSupabase('page_home')
         ]);
 
         if (!isMounted) return;
@@ -652,6 +711,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         if (dbThemeConfig.status === 'fulfilled' && dbThemeConfig.value) {
           setThemeConfig(dbThemeConfig.value);
+        }
+        if (dbPageRecord.status === 'fulfilled' && dbPageRecord.value && dbPageRecord.value.sections && dbPageRecord.value.sections.length > 0) {
+          setActivePageRecord(dbPageRecord.value);
+        }
+        if (dbRevisions.status === 'fulfilled' && dbRevisions.value) {
+          setPageRevisions(dbRevisions.value);
         }
 
         // Check health
@@ -811,6 +876,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const adminLogout = async () => {
+    await supabaseAdminSignOut();
     await supabaseSignOut();
     setIsAdminAuthenticated(false);
     setIsAdminMode(false);
@@ -2523,6 +2589,135 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Legal policy published.');
   };
 
+  // Private Website Visual Editor Methods (Supabase Persisted)
+  const savePageDraft = async (page: PageRecord): Promise<{ success: boolean; message: string }> => {
+    setIsLoadingPageConfig(true);
+    try {
+      const updatedPage = { ...page, status: 'draft' as const, updatedAt: new Date().toISOString() };
+      setActivePageRecord(updatedPage);
+      const res = await savePageDraftInSupabase(updatedPage);
+      if (res.success) {
+        recordAuditLog(currentUser?.email || 'admin', 'save_page_draft', 'page', updatedPage.id);
+        showToast('Page draft saved securely to Supabase.');
+        return { success: true, message: 'Draft saved.' };
+      }
+      return { success: false, message: res.message || 'Failed to save draft.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Error saving page draft.' };
+    } finally {
+      setIsLoadingPageConfig(false);
+    }
+  };
+
+  const publishPage = async (page: PageRecord): Promise<{ success: boolean; message: string }> => {
+    setIsLoadingPageConfig(true);
+    try {
+      const publishedPage = { ...page, status: 'published' as const, publishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      setActivePageRecord(publishedPage);
+      const res = await publishPageInSupabase(publishedPage);
+      if (res.success) {
+        const revs = await fetchPageRevisionsFromSupabase(page.id);
+        setPageRevisions(revs);
+        recordAuditLog(currentUser?.email || 'admin', 'publish_page', 'page', publishedPage.id);
+        showToast('🚀 Page successfully published live to Supabase!');
+        return { success: true, message: 'Page published.' };
+      }
+      return { success: false, message: res.message || 'Failed to publish page.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Error publishing page.' };
+    } finally {
+      setIsLoadingPageConfig(false);
+    }
+  };
+
+  const fetchPageRevisionsList = async (pageId: string): Promise<PageRevision[]> => {
+    try {
+      const revs = await fetchPageRevisionsFromSupabase(pageId);
+      setPageRevisions(revs);
+      return revs;
+    } catch {
+      return pageRevisions;
+    }
+  };
+
+  const createPageRevisionSnapshot = async (
+    pageId: string,
+    revisionName: string,
+    pageData: PageRecord
+  ): Promise<PageRevision | null> => {
+    try {
+      const rev = await createPageRevisionInSupabase(
+        pageId,
+        revisionName,
+        pageData
+      );
+      if (rev) {
+        setPageRevisions(prev => [rev, ...prev]);
+        showToast(`Revision snapshot "${revisionName}" created.`);
+        return rev;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const restorePageRevisionSnapshot = async (revision: PageRevision): Promise<boolean> => {
+    if (!revision.snapshotData) return false;
+    try {
+      const restoredPage: PageRecord = {
+        id: revision.snapshotData.page?.id || activePageRecord.id,
+        title: revision.snapshotData.page?.title || activePageRecord.title,
+        slug: revision.snapshotData.page?.slug || activePageRecord.slug,
+        status: 'draft',
+        meta: revision.snapshotData.page?.meta || activePageRecord.meta,
+        sections: revision.snapshotData.sections || activePageRecord.sections,
+        publishedAt: null,
+        createdAt: activePageRecord.createdAt,
+        updatedAt: new Date().toISOString()
+      };
+      setActivePageRecord(restoredPage);
+      await savePageDraftInSupabase(restoredPage);
+      showToast(`Restored page configuration from revision "${revision.revisionName}".`);
+      return true;
+    } catch {
+      showToast('Failed to restore revision.');
+      return false;
+    }
+  };
+
+  const deletePageSectionItem = async (sectionId: string): Promise<boolean> => {
+    try {
+      setActivePageRecord(prev => ({
+        ...prev,
+        sections: prev.sections.filter(s => s.id !== sectionId)
+      }));
+      await deletePageSectionFromSupabase(sectionId);
+      showToast('Section removed from page.');
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const updateActivePageRecord = (updater: (prev: PageRecord) => PageRecord) => {
+    setActivePageRecord(updater);
+  };
+
+  const refetchPageConfig = async (slugOrId: string = 'home') => {
+    setIsLoadingPageConfig(true);
+    try {
+      const page = await fetchPageWithSectionsFromSupabase(slugOrId);
+      if (page && page.sections && page.sections.length > 0) {
+        setActivePageRecord(page);
+        const revs = await fetchPageRevisionsFromSupabase(page.id);
+        setPageRevisions(revs);
+      }
+    } finally {
+      setIsLoadingPageConfig(false);
+    }
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -2682,7 +2877,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         activePolicySlug,
         setActivePolicySlug,
         toastMessage,
-        showToast
+        showToast,
+        activePageRecord,
+        pageRevisions,
+        isLoadingPageConfig,
+        savePageDraft,
+        publishPage,
+        fetchPageRevisionsList,
+        createPageRevisionSnapshot,
+        restorePageRevisionSnapshot,
+        deletePageSectionItem,
+        updateActivePageRecord,
+        refetchPageConfig
       }}
     >
       {children}

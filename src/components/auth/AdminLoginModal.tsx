@@ -78,15 +78,15 @@ export const AdminLoginModal: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
-              Admin Email Address
+              Admin Username or Email
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="email"
+                type="text"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="admin@harconxs.com"
+                placeholder="HARCONXS or admin@hamza.harconxs.com"
                 required
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60"
               />
@@ -103,7 +103,7 @@ export const AdminLoginModal: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Hamza@Admin12"
+                placeholder="Admin@Hmaza12"
                 required
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60"
               />

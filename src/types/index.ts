@@ -7,15 +7,33 @@ export interface ProductVariant {
   id: string;
   sku: string;
   name: string;
+  productId?: string;
+  productName?: string;
+  barcode?: string;
+  title?: string;
   size?: string;
   color?: string;
   material?: string;
+  options?: {
+    size?: string;
+    material?: string;
+    color?: string;
+    finish?: string;
+    engraving?: string;
+  };
   price: number;
   compareAtPrice?: number;
   cost?: number;
+  costPrice?: number;
   inventory: number;
+  stock?: number;
+  weightGrams?: number;
   image?: string;
+  imageUrl?: string;
+  isActive?: boolean;
 }
+
+export type Review = ProductReview;
 
 export interface ProductReview {
   id: string;
@@ -915,4 +933,398 @@ export interface BillingInvoice {
   itemsSummary: string;
   receiptUrl?: string;
 }
+
+// ==============================================================================
+// 12. HARCONXS PRIVATE WEBSITE EDITOR & SECTION SCHEMAS
+// ==============================================================================
+
+export type PageSectionType = 
+  | 'hero'
+  | 'announcement_bar'
+  | 'banners'
+  | 'categories'
+  | 'featured_products'
+  | 'best_sellers'
+  | 'new_arrivals'
+  | 'custom_gifts'
+  | 'couple_websites'
+  | 'bot_panels'
+  | 'testimonials'
+  | 'reviews'
+  | 'faq'
+  | 'cta'
+  | 'newsletter'
+  | 'footer';
+
+export interface PageSectionSettings {
+  paddingTop?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  paddingBottom?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  backgroundColor?: string;
+  backgroundGradient?: string;
+  textColor?: string;
+  containerWidth?: 'narrow' | 'normal' | 'wide' | 'full';
+  showDivider?: boolean;
+  animation?: 'fade' | 'slide-up' | 'none';
+  customCssClass?: string;
+}
+
+export interface PageSection<TSettings = PageSectionSettings, TContent = any> {
+  id: string;
+  pageId: string;
+  sectionType: PageSectionType;
+  sortOrder: number;
+  isHidden: boolean;
+  settings: TSettings;
+  content: TContent;
+  name?: string;
+  // DB column aliases for backward compatibility:
+  page_id?: string;
+  section_type?: PageSectionType;
+  sort_order?: number;
+  is_hidden?: boolean;
+  is_visible?: boolean;
+  settings_json?: any;
+  content_json?: any;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PageRecord {
+  id: string;
+  slug: string;
+  title: string;
+  status: 'draft' | 'published';
+  meta?: {
+    description?: string;
+    keywords?: string;
+    ogImage?: string;
+    customHeadHtml?: string;
+  };
+  sections: PageSection[];
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // DB aliases:
+  published_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PageRevision {
+  id: string;
+  pageId: string;
+  versionNumber: number;
+  revisionName: string;
+  snapshotData: {
+    page: Partial<PageRecord>;
+    sections: PageSection[];
+  };
+  createdBy?: string;
+  createdAt: string;
+  // DB aliases:
+  page_id?: string;
+  version_number?: number;
+  revision_name?: string;
+  snapshot_data?: any;
+  snapshot_json?: any;
+  created_by?: string;
+  created_at?: string;
+}
+
+export type EditorDeviceViewport = 'desktop' | 'tablet' | 'mobile';
+
+// ==============================================================================
+// 13. FULL E-COMMERCE ADMINISTRATION SUITE DATA TYPES
+// ==============================================================================
+
+export type AdminSectionKey =
+  | 'overview'
+  // Catalog / Products
+  | 'products'
+  | 'categories'
+  | 'variants'
+  | 'inventory'
+  // Orders
+  | 'orders'
+  | 'order-details'
+  | 'returns'
+  | 'refunds'
+  | 'shipping'
+  // Customers
+  | 'customers'
+  | 'customer-details'
+  | 'addresses'
+  | 'reviews'
+  | 'support'
+  // Custom Orders
+  | 'custom'
+  | 'quotes'
+  | 'custom-order-chat'
+  | 'packaging'
+  // Couple Websites
+  | 'couple-templates'
+  | 'couple-projects'
+  // Bot Panels
+  | 'bot-plans'
+  | 'bot-services'
+  // Private API
+  | 'api-clients'
+  | 'api-keys'
+  | 'api-scopes'
+  | 'api-usage'
+  | 'api-logs'
+  // Marketing
+  | 'coupons'
+  | 'affiliates'
+  | 'gift-cards'
+  | 'loyalty'
+  // Content
+  | 'pages'
+  | 'page-builder'
+  | 'faq'
+  | 'policies'
+  | 'seo'
+  // Analytics
+  | 'analytics-sales'
+  | 'analytics-customers'
+  | 'analytics-products'
+  | 'analytics-traffic'
+  | 'analytics-conversions'
+  // Settings
+  | 'settings-general'
+  | 'settings-payments'
+  | 'settings-shipping'
+  | 'settings-tax'
+  | 'settings-notifications'
+  | 'settings-email'
+  | 'settings-staff'
+  | 'settings-roles'
+  | 'settings-permissions'
+  | 'settings-audit-logs'
+  // Supabase SQL Studio
+  | 'sql-editor';
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  imageUrl: string;
+  itemCount: number;
+  displayOrder: number;
+  featured: boolean;
+  parentCategoryId?: string | null;
+  metaTitle?: string;
+  metaDescription?: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  location: string;
+  currentStock: number;
+  reservedStock: number;
+  availableStock: number;
+  lowStockThreshold: number;
+  reorderQuantity: number;
+  costPerUnit: number;
+  supplier: string;
+  status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'discontinued';
+  lastRestockedAt: string;
+}
+
+export interface InventoryMovementLog {
+  id: string;
+  inventoryId: string;
+  sku: string;
+  productName: string;
+  changeType: 'purchase_order' | 'order_fulfillment' | 'return_restock' | 'adjustment' | 'damaged_writeoff';
+  quantityDelta: number;
+  previousStock: number;
+  newStock: number;
+  reason: string;
+  performedBy: string;
+  createdAt: string;
+}
+
+export interface ReturnRequest {
+  id: string;
+  rmaNumber: string;
+  orderId: string;
+  orderNumber: string;
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  items: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    price: number;
+    reason: 'damaged' | 'wrong_item' | 'defective_craft' | 'changed_mind' | 'size_mismatch';
+    condition: 'unopened' | 'opened' | 'damaged' | 'missing_parts';
+  }[];
+  requestedRefundAmount: number;
+  status: 'requested' | 'approved' | 'in_transit' | 'received' | 'inspected' | 'restocked' | 'rejected' | 'refunded';
+  returnCarrier?: string;
+  returnTrackingAwb?: string;
+  inspectionNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RefundRecord {
+  id: string;
+  refundNumber: string;
+  orderId: string;
+  orderNumber: string;
+  customerId: string;
+  customerName: string;
+  amount: number;
+  reason: string;
+  status: 'processed' | 'pending' | 'failed';
+  gateway: 'Razorpay PG' | 'Stripe' | 'Manual Bank Transfer' | 'Store Credit';
+  gatewayTransactionId: string;
+  initiatedBy: string;
+  createdAt: string;
+}
+
+export interface ShippingCarrierInfo {
+  id: string;
+  name: string;
+  code: 'bluedart' | 'fedex' | 'dhl' | 'delhivery' | 'india_post' | 'custom';
+  accountNumber: string;
+  apiKey: string;
+  isActive: boolean;
+  trackingBaseUrl: string;
+  supportsLiveTracking: boolean;
+  ratePerKg: number;
+  deliveryDaysEstimate: string;
+}
+
+export interface ShippingZoneConfig {
+  id: string;
+  name: string;
+  regions: string[];
+  baseRate: number;
+  freeShippingAbove: number;
+  estimatedDays: string;
+  active: boolean;
+}
+
+export interface CustomerRecord {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  tier: 'standard' | 'vip' | 'royal_sovereign';
+  totalOrders: number;
+  totalSpent: number;
+  avgOrderValue: number;
+  lastOrderDate?: string;
+  status: 'active' | 'inactive' | 'flagged';
+  tags: string[];
+  notes?: string;
+  rewardPoints: number;
+  customOrdersCount: number;
+  createdAt: string;
+}
+
+export interface CustomerAddressItem {
+  id: string;
+  customerId: string;
+  customerName: string;
+  addressType: 'shipping' | 'billing';
+  isDefault: boolean;
+  street: string;
+  apartment?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+}
+
+export interface CustomQuoteRecord {
+  id: string;
+  quoteNumber: string;
+  orderId: string;
+  customerName: string;
+  customerEmail: string;
+  projectTitle: string;
+  estimatedPrice: number;
+  depositRequired: number;
+  leadTimeDays: number;
+  packagingName: string;
+  specsSummary: string;
+  cadProofUrl?: string;
+  status: 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+  validUntil: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GiftCardRecord {
+  id: string;
+  code: string;
+  initialBalance: number;
+  currentBalance: number;
+  currency: 'INR';
+  recipientName: string;
+  recipientEmail: string;
+  senderName: string;
+  message?: string;
+  status: 'active' | 'redeemed' | 'disabled' | 'expired';
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface LoyaltyTierInfo {
+  tier: 'standard' | 'vip' | 'royal_sovereign';
+  name: string;
+  minSpend: number;
+  pointsMultiplier: number;
+  perks: string[];
+  color: string;
+}
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  role: 'super_admin' | 'admin' | 'manager' | 'support_agent' | 'fulfillment_specialist' | 'marketing_lead' | 'financial_controller';
+  status: 'active' | 'invited' | 'suspended';
+  lastLoginAt?: string;
+  twoFactorEnabled: boolean;
+  avatarUrl?: string;
+  department: string;
+  createdAt: string;
+}
+
+export interface AdminRoleDefinition {
+  id: string;
+  roleKey: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  isSystem: boolean;
+  memberCount: number;
+}
+
+export interface AuditLogRecord {
+  id: string;
+  adminId: string;
+  adminEmail: string;
+  action: string;
+  resourceType: string;
+  resourceId?: string;
+  oldValue?: any;
+  newValue?: any;
+  status: 'ALLOWED' | 'DENIED';
+  ipAddress: string;
+  userAgent?: string;
+  createdAt: string;
+}
+
 

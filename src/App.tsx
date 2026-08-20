@@ -35,6 +35,7 @@ import { OrderSuccessPage } from './pages/OrderSuccessPage';
 // Customer & Admin
 import { AccountPage } from './pages/AccountPage';
 import { AdminPage } from './pages/AdminPage';
+import { EditPageStudio } from './pages/EditPageStudio';
 
 export const App: React.FC = () => {
   return (
@@ -121,7 +122,8 @@ export const App: React.FC = () => {
             <Route path="/account/support" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
             <Route path="/account/notifications" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
 
-            {/* Admin Portal (Protected) */}
+            {/* Admin Portal & Visual Page Editor (Protected by Supabase Auth + RBAC) */}
+            <Route path="/edit-page" element={<AdminRoute><EditPageStudio /></AdminRoute>} />
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
             <Route path="/admin/*" element={<AdminRoute><AdminPage /></AdminRoute>} />
             <Route path="/hax-portal" element={<AdminRoute><AdminPage /></AdminRoute>} />

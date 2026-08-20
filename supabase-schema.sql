@@ -732,6 +732,51 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
 );
 
 -- ==============================================================================
+-- 18B. PRIVATE WEBSITE EDITOR: PAGES, PAGE SECTIONS & REVISIONS
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.pages (
+    id TEXT PRIMARY KEY,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+    meta JSONB DEFAULT '{"description": "", "keywords": "", "ogImage": ""}'::jsonb,
+    published_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.page_sections (
+    id TEXT PRIMARY KEY,
+    page_id TEXT NOT NULL REFERENCES public.pages(id) ON DELETE CASCADE,
+    section_type TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_hidden BOOLEAN NOT NULL DEFAULT false,
+    settings_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    content_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.page_revisions (
+    id TEXT PRIMARY KEY,
+    page_id TEXT NOT NULL REFERENCES public.pages(id) ON DELETE CASCADE,
+    version_number INTEGER NOT NULL,
+    revision_name TEXT NOT NULL,
+    snapshot_data JSONB NOT NULL,
+    created_by TEXT DEFAULT 'HARCONXS Super Administrator',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TRIGGER set_pages_updated_at
+BEFORE UPDATE ON public.pages
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER set_page_sections_updated_at
+BEFORE UPDATE ON public.page_sections
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ==============================================================================
 -- 19. INDEXES FOR LIGHTNING FAST QUERY PERFORMANCE
 -- ==============================================================================
 
@@ -767,6 +812,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON public.audit_logs(resource
 CREATE INDEX IF NOT EXISTS idx_knowledge_articles_category ON public.knowledge_articles(category_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_articles_slug ON public.knowledge_articles(slug);
 CREATE INDEX IF NOT EXISTS idx_faq_items_category ON public.faq_items(category_id);
+CREATE INDEX IF NOT EXISTS idx_pages_slug ON public.pages(slug);
+CREATE INDEX IF NOT EXISTS idx_page_sections_page_id ON public.page_sections(page_id);
+CREATE INDEX IF NOT EXISTS idx_page_sections_sort_order ON public.page_sections(sort_order);
+CREATE INDEX IF NOT EXISTS idx_page_revisions_page_id ON public.page_revisions(page_id);
 
 -- ==============================================================================
 -- 20. ROW LEVEL SECURITY (RLS) POLICIES
@@ -797,6 +846,9 @@ ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.policies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.page_sections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.page_revisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.knowledge_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.knowledge_articles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.faq_items ENABLE ROW LEVEL SECURITY;
@@ -813,6 +865,13 @@ CREATE POLICY "Public Read: Policies" ON public.policies FOR SELECT USING (true)
 CREATE POLICY "Public Read: Active Coupons" ON public.coupons FOR SELECT USING (active = true);
 CREATE POLICY "Public Read: Active Couple Websites" ON public.couple_websites FOR SELECT USING (status = 'active');
 CREATE POLICY "Public Read: Site Settings" ON public.site_settings FOR SELECT USING (true);
+CREATE POLICY "Public Read: Pages (Published)" ON public.pages FOR SELECT USING (status = 'published');
+CREATE POLICY "Public Read: Page Sections (Published)" ON public.page_sections FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.pages WHERE pages.id = page_sections.page_id AND pages.status = 'published')
+);
+CREATE POLICY "Admin Full Access: Pages" ON public.pages FOR ALL USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+CREATE POLICY "Admin Full Access: Page Sections" ON public.page_sections FOR ALL USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+CREATE POLICY "Admin Full Access: Page Revisions" ON public.page_revisions FOR ALL USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
 CREATE POLICY "Public Read: Knowledge Categories" ON public.knowledge_categories FOR SELECT USING (true);
 CREATE POLICY "Public Read: Knowledge Articles" ON public.knowledge_articles FOR SELECT USING (true);
 CREATE POLICY "Public Read: FAQ Items" ON public.faq_items FOR SELECT USING (true);
