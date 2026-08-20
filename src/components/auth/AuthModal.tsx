@@ -140,16 +140,20 @@ export const AuthModal: React.FC = () => {
     setErrorMessage('');
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const res = userOtpLogin(otpPhone, otpCode);
+    setErrorMessage('');
+    try {
+      const res = await userOtpLogin(otpPhone, otpCode);
       setLoading(false);
       if (!res.success) {
         setErrorMessage(res.message);
       }
-    }, 400);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err?.message || 'OTP verification failed.');
+    }
   };
 
   return (

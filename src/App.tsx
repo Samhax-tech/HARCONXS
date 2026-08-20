@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import { StoreProvider } from './context/StoreContext';
 import { RootLayout } from './components/layout/RootLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -42,9 +43,10 @@ import { EditPageStudio } from './pages/EditPageStudio';
 export const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <StoreProvider>
-        <BrowserRouter>
-          <Routes>
+      <AuthProvider>
+        <StoreProvider>
+          <BrowserRouter>
+            <Routes>
             {/* Main Layout wrapper for all customer & public storefront pages */}
             <Route element={<RootLayout />}>
               
@@ -141,6 +143,7 @@ export const App: React.FC = () => {
           </Routes>
         </BrowserRouter>
       </StoreProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 };

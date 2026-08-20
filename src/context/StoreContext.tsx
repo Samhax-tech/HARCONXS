@@ -92,7 +92,6 @@ import {
   supabaseSignOut,
   supabaseVerifyAdminRole,
   supabaseAdminSignIn,
-  getStoredAdminSession,
   supabaseAdminSignOut
 } from '../lib/supabase';
 import {
@@ -396,7 +395,7 @@ interface StoreContextType {
   userLogin: (emailOrPhone: string, password?: string) => Promise<{ success: boolean; message: string }>;
   userRegister: (name: string, email: string, phone: string, password?: string) => Promise<{ success: boolean; message: string }>;
   userGoogleLogin: () => Promise<void>;
-  userOtpLogin: (phone: string, otp: string) => { success: boolean; message: string };
+  userOtpLogin: (phone: string, otp: string) => Promise<{ success: boolean; message: string }>;
   userLogout: () => Promise<void>;
   updateUser: (data: Partial<UserProfile>) => void;
   addUserAddress: (address: UserAddress) => void;
@@ -728,27 +727,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     let isMounted = true;
 
-    // Restore verified administrator session if available
-    const storedAdmin = getStoredAdminSession();
-    if (storedAdmin && storedAdmin.isAdmin) {
-      setIsAdminAuthenticated(true);
-      setIsAdminMode(true);
-      if (!currentUser) {
-        setCurrentUser({
-          id: 'usr_harconxs_super_admin',
-          name: 'HARCONXS Administrator',
-          email: storedAdmin.email || 'admin@hamza.harconxs.com',
-          phone: '+91 (080) 4892-3000',
-          loyaltyPoints: 9999,
-          storeCredit: 1000,
-          isAffiliate: true,
-          affiliateCode: 'HXMASTER',
-          affiliateCommissionEarned: 0,
-          addresses: []
-        });
-      }
-    }
-
     async function loadSupabaseInitialData() {
       setIsLoadingProducts(true);
       setProductsError(null);
@@ -854,32 +832,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
         // Verify RBAC privileges from database
         const { isAdmin } = await supabaseVerifyAdminRole(session.user.id, userEmail);
+        setIsAdminAuthenticated(isAdmin);
         if (isAdmin) {
-          setIsAdminAuthenticated(true);
+          setIsAdminMode(true);
         }
 
         const profile: UserProfile = {
           id: session.user.id,
           name: userMeta.full_name || userEmail.split('@')[0] || 'Member',
           email: userEmail,
-          phone: userMeta.phone || '+91 98765 43210',
-          loyaltyPoints: 150,
+          phone: userMeta.phone || '',
+          loyaltyPoints: 0,
           storeCredit: 0,
-          isAffiliate: true,
+          isAffiliate: false,
           affiliateCode: `HX${session.user.id.substring(0, 4).toUpperCase()}`,
           affiliateCommissionEarned: 0,
-          addresses: [
-            {
-              fullName: userMeta.full_name || 'Member',
-              street: 'Atelier Avenue, Cyber Hub',
-              city: 'Bangalore',
-              state: 'Karnataka',
-              zip: '560001',
-              country: 'India',
-              phone: userMeta.phone || '+91 98765 43210',
-              isDefault: true
-            }
-          ]
+          addresses: []
         };
         setCurrentUser(profile);
 
@@ -903,6 +871,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setIsLoadingWishlist(false);
         }
       } else {
+        setCurrentUser(null);
         setIsAdminAuthenticated(false);
         setIsAdminMode(false);
       }
@@ -912,9 +881,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         const { isAdmin } = await supabaseVerifyAdminRole(session.user.id, session.user.email);
+        setIsAdminAuthenticated(isAdmin);
         if (isAdmin) {
-          setIsAdminAuthenticated(true);
+          setIsAdminMode(true);
         }
+      } else {
+        setIsAdminAuthenticated(false);
+        setIsAdminMode(false);
       }
     });
 
@@ -1016,52 +989,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const userLogin = async (emailOrPhone: string, password?: string) => {
     const cleanId = emailOrPhone.trim();
-    if (!cleanId) {
-      return { success: false, message: 'Please provide your email or phone number.' };
+    if (!cleanId || !password) {
+      return { success: false, message: 'Please provide both your email/phone and password.' };
     }
 
-    let authenticatedUserId = `usr-${Date.now()}`;
-    let authenticatedUserName = cleanId.includes('@') ? cleanId.split('@')[0] : 'Harconxs Customer';
-    let authenticatedUserEmail = cleanId.includes('@') ? cleanId : `${cleanId}@harconxs-client.in`;
-
-    if (cleanId.includes('@')) {
-      const { user, error } = await supabaseSignIn(cleanId, password);
-      if (error) {
-        return { success: false, message: error.message || 'Login failed. Please check your credentials.' };
-      }
-      if (user) {
-        authenticatedUserId = user.id;
-        authenticatedUserName = user.user_metadata?.full_name || cleanId.split('@')[0];
-        authenticatedUserEmail = user.email || cleanId;
-        const { isAdmin } = await supabaseVerifyAdminRole(user.id, user.email);
-        if (isAdmin) {
-          setIsAdminAuthenticated(true);
-        }
-      }
+    const { user, error } = await supabaseSignIn(cleanId, password);
+    if (error || !user) {
+      return { success: false, message: error?.message || 'Login failed. Invalid credentials.' };
     }
+
+    const userMeta = user.user_metadata || {};
+    const userEmail = user.email || cleanId;
+    const { isAdmin } = await supabaseVerifyAdminRole(user.id, userEmail);
+    setIsAdminAuthenticated(isAdmin);
 
     const newUser: UserProfile = {
-      id: authenticatedUserId,
-      name: authenticatedUserName,
-      email: authenticatedUserEmail,
-      phone: cleanId.includes('@') ? '+91 98765 43210' : cleanId,
-      loyaltyPoints: 100,
+      id: user.id,
+      name: userMeta.full_name || userEmail.split('@')[0] || 'Customer',
+      email: userEmail,
+      phone: userMeta.phone || '',
+      loyaltyPoints: 0,
       storeCredit: 0,
       isAffiliate: false,
-      affiliateCode: `HX${Math.floor(1000 + Math.random() * 9000)}`,
+      affiliateCode: `HX${user.id.substring(0, 4).toUpperCase()}`,
       affiliateCommissionEarned: 0,
-      addresses: [
-        {
-          fullName: authenticatedUserName,
-          street: '12th Cross, Indiranagar',
-          city: 'Bangalore',
-          state: 'Karnataka',
-          zip: '560038',
-          country: 'India',
-          phone: '+91 98765 43210',
-          isDefault: true,
-        }
-      ]
+      addresses: []
     };
 
     setCurrentUser(newUser);
@@ -1076,34 +1028,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!name.trim() || !email.trim()) {
       return { success: false, message: 'Name and email are required to create an account.' };
     }
+    if (!password) {
+      return { success: false, message: 'A secure password is required to register.' };
+    }
 
     const { user, error } = await supabaseSignUp(email.trim(), password, { full_name: name.trim(), phone: phone.trim() });
-    if (error) {
-      return { success: false, message: error.message || 'Registration failed.' };
+    if (error || !user) {
+      return { success: false, message: error?.message || 'Registration failed.' };
     }
 
     const newUser: UserProfile = {
-      id: user?.id || `usr-${Date.now()}`,
+      id: user.id,
       name: name.trim(),
       email: email.trim(),
-      phone: phone.trim() || '+91 98765 43210',
-      loyaltyPoints: 150,
-      storeCredit: 50,
-      isAffiliate: true,
+      phone: phone.trim(),
+      loyaltyPoints: 0,
+      storeCredit: 0,
+      isAffiliate: false,
       affiliateCode: `${name.substring(0, 4).toUpperCase()}${Math.floor(100 + Math.random() * 900)}`,
       affiliateCommissionEarned: 0,
-      addresses: [
-        {
-          fullName: name.trim(),
-          street: '108 Brigade Road, Central Hub',
-          city: 'Bangalore',
-          state: 'Karnataka',
-          zip: '560025',
-          country: 'India',
-          phone: phone.trim() || '+91 98765 43210',
-          isDefault: true,
-        }
-      ]
+      addresses: []
     };
 
     setCurrentUser(newUser);
@@ -1121,16 +1065,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       priority: 'high'
     });
 
-    // Also trigger email verification notification
-    dispatchNotification({
-      type: 'EMAIL_VERIFICATION',
-      recipientEmail: newUser.email,
-      recipientName: newUser.name,
-      userId: newUser.id,
-      data: { verificationCode: Math.floor(100000 + Math.random() * 900000).toString() },
-      priority: 'high'
-    });
-
     return { success: true, message: 'Account created successfully.' };
   };
 
@@ -1138,40 +1072,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await supabaseSignInWithGoogle();
   };
 
-  const userOtpLogin = (phone: string, otp: string) => {
-    if (otp !== '1234' && otp.length !== 4 && otp.length !== 6) {
-      return { success: false, message: 'Invalid OTP. Please enter the verification code sent to your mobile.' };
+  const userOtpLogin = async (phone: string, otp: string) => {
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: phone.trim(),
+        token: otp.trim(),
+        type: 'sms'
+      });
+      if (error || !data.user) {
+        return { success: false, message: error?.message || 'Invalid verification OTP.' };
+      }
+
+      setIsAuthModalOpen(false);
+      showToast('Mobile verified successfully. Welcome!');
+      executePendingAuth();
+      return { success: true, message: 'OTP verified successfully.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'OTP verification failed.' };
     }
-
-    const newUser: UserProfile = {
-      id: `usr-otp-${Date.now()}`,
-      name: `User ${phone.slice(-4)}`,
-      email: `user${phone.slice(-4)}@harconxs.in`,
-      phone: phone,
-      loyaltyPoints: 100,
-      storeCredit: 0,
-      isAffiliate: false,
-      affiliateCode: `IN${phone.slice(-4)}`,
-      affiliateCommissionEarned: 0,
-      addresses: [
-        {
-          fullName: `User ${phone.slice(-4)}`,
-          street: 'Sector 18, Cyber City',
-          city: 'Gurugram',
-          state: 'Haryana',
-          zip: '122002',
-          country: 'India',
-          phone: phone,
-          isDefault: true,
-        }
-      ]
-    };
-
-    setCurrentUser(newUser);
-    setIsAuthModalOpen(false);
-    showToast('Mobile verified successfully. Welcome!');
-    executePendingAuth();
-    return { success: true, message: 'OTP verified successfully.' };
   };
 
   const userLogout = async () => {

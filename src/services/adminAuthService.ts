@@ -358,29 +358,50 @@ export const INITIAL_ROLE_DEFINITIONS: AdminRoleDefinition[] = [
 /**
  * Server-side Permission Verification Engine
  * Enforces access control on the Supabase/backend layer before performing any mutation.
+ * Flow: Supabase Auth user -> server/database role -> permission check.
  */
 export async function verifyServerSidePermission(
   permission: AdminPermission,
   resourceContext?: { resourceType?: string; resourceId?: string }
 ): Promise<{ allowed: boolean; role: AdminRole; email: string; error?: string }> {
   try {
-    // 1. Retrieve administrative session
-    const rawSession = sessionStorage.getItem('hx_admin_session');
-    if (!rawSession) {
-      await recordAuditTrail('anonymous', 'DENIED', permission, resourceContext?.resourceType || 'system', resourceContext?.resourceId, 'No active admin session found.');
-      return { allowed: false, role: 'support_agent', email: 'anonymous', error: 'Server authentication required. Please sign in.' };
+    // 1. Retrieve active Supabase Auth user
+    const { data: authData } = await supabase.auth.getUser();
+    const authUser = authData?.user;
+
+    if (!authUser) {
+      await recordAuditTrail('anonymous', 'DENIED', permission, resourceContext?.resourceType || 'system', resourceContext?.resourceId, 'No active Supabase Auth session found.');
+      return { allowed: false, role: 'support_agent', email: 'anonymous', error: 'Authentication required. No active Supabase Auth session found.' };
     }
 
-    const session = JSON.parse(rawSession);
-    const userRole: AdminRole = (session.role as AdminRole) || 'super_admin';
-    const email = session.email || 'admin@harconxs.com';
+    const email = authUser.email || 'authenticated_user';
 
-    // 2. Super Admin always bypasses
+    // 2. Fetch role strictly from Supabase profiles or JWT metadata
+    let userRole: AdminRole = 'support_agent';
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (profile?.role) {
+        userRole = profile.role as AdminRole;
+      } else if (authUser.app_metadata?.role || authUser.user_metadata?.role) {
+        userRole = (authUser.app_metadata?.role || authUser.user_metadata?.role) as AdminRole;
+      }
+    } catch {
+      if (authUser.app_metadata?.role || authUser.user_metadata?.role) {
+        userRole = (authUser.app_metadata?.role || authUser.user_metadata?.role) as AdminRole;
+      }
+    }
+
+    // 3. Super Admin always has full bypass privileges
     if (userRole === 'super_admin') {
       return { allowed: true, role: userRole, email };
     }
 
-    // 3. Check role permission list
+    // 4. Check role permission list
     const allowedPermissions = DEFAULT_ROLE_PERMISSIONS[userRole] || [];
     const isAllowed = allowedPermissions.includes(permission);
 
@@ -452,14 +473,56 @@ export async function recordAuditTrail(
 }
 
 /**
- * Get current active admin session
+ * Get current active admin session asynchronously from Supabase Auth
+ * Returns null if not authenticated or not an admin.
+ * No fallback super admin is created.
+ */
+export async function getAdminSessionAsync(): Promise<StaffMember | null> {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    if (!user) return null;
+
+    let role: AdminRole = 'support_agent';
+    let name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin';
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile?.role) {
+      role = profile.role as AdminRole;
+      if (profile.full_name) name = profile.full_name;
+    } else if (user.app_metadata?.role || user.user_metadata?.role) {
+      role = (user.app_metadata?.role || user.user_metadata?.role) as AdminRole;
+    }
+
+    const isAdmin = ['super_admin', 'admin', 'manager'].includes(role);
+    if (!isAdmin) return null;
+
+    return {
+      id: user.id,
+      name,
+      email: user.email || '',
+      role,
+      department: role === 'super_admin' ? 'Executive & Core Platform' : 'Operations',
+      status: 'active',
+      avatarUrl: user.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      twoFactorEnabled: false,
+      createdAt: user.created_at || new Date().toISOString(),
+      lastLoginAt: user.last_sign_in_at || new Date().toISOString()
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Synchronous helper for legacy component calls.
+ * Returns null if unauthenticated.
  */
 export function getAdminSession(): StaffMember | null {
-  try {
-    const raw = sessionStorage.getItem('hx_admin_session');
-    if (raw) {
-      return JSON.parse(raw);
-    }
-  } catch {}
-  return INITIAL_STAFF_MEMBERS[0]; // Defaults to lead super administrator Hamza Shahid
+  return null;
 }

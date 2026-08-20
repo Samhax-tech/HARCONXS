@@ -471,15 +471,12 @@ curl -X POST https://harconxs.vercel.app/api/v1/auth/verify-ticket \\
 
           <div className="p-3 bg-zinc-950/80 border border-zinc-800 rounded-xl flex items-center justify-between">
             <div>
-              <span className="text-[10px] text-zinc-500 block uppercase font-mono">Admin Password</span>
-              <span className="text-xs font-mono font-bold text-amber-300">Admin@Hmaza12</span>
+              <span className="text-[10px] text-zinc-500 block uppercase font-mono">Authentication Identity Source</span>
+              <span className="text-xs font-mono font-bold text-amber-300">Supabase Auth (Role: super_admin)</span>
             </div>
-            <button
-              onClick={() => copyToClipboard('Admin@Hmaza12', 'Admin Password')}
-              className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded cursor-pointer"
-            >
-              {copiedKey === 'Admin Password' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            </button>
+            <div className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-mono rounded">
+              Verified RBAC
+            </div>
           </div>
         </div>
       </div>

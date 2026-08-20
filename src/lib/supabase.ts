@@ -213,188 +213,84 @@ export async function supabaseGetSession(): Promise<Session | null> {
 }
 
 /**
- * Supabase Auth: Check if an administrative session is currently active
- */
-export function getStoredAdminSession(): { isAdmin: boolean; email: string; role: string } | null {
-  try {
-    const raw = sessionStorage.getItem('hx_admin_session');
-    if (!raw) return null;
-    const session = JSON.parse(raw);
-    if (session && session.expiresAt && Date.now() < session.expiresAt && session.isAdmin) {
-      return session;
-    }
-  } catch {}
-  return null;
-}
-
-/**
  * Supabase Auth: Verify Role & Admin Privileges
+ * Strictly verifies against Supabase profiles table or JWT metadata.
+ * Defaults strictly to customer if not authenticated or role not privileged.
  */
 export async function supabaseVerifyAdminRole(userId: string, email?: string): Promise<{ isAdmin: boolean; role: string }> {
   try {
+    if (!userId) {
+      return { isAdmin: false, role: 'anon' };
+    }
+
     // 1. Check profiles table for assigned role
     const { data, error } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
-    if (!error && data && (data.role === 'super_admin' || data.role === 'manager' || data.role === 'admin')) {
+    if (!error && data && data.role && (data.role === 'super_admin' || data.role === 'manager' || data.role === 'admin')) {
       return { isAdmin: true, role: data.role };
     }
 
-    // 2. Check user's JWT metadata or system owner fallback
+    // 2. Check user's JWT metadata
     const { data: userData } = await supabase.auth.getUser();
     const appRole = userData?.user?.app_metadata?.role || userData?.user?.user_metadata?.role;
-    if (appRole === 'super_admin' || appRole === 'admin' || appRole === 'manager') {
+    if (appRole && (appRole === 'super_admin' || appRole === 'admin' || appRole === 'manager')) {
       return { isAdmin: true, role: appRole };
     }
 
-    // Check system admin username/email
-    const lower = (email || '').toLowerCase().trim();
-    if (
-      lower === 'harconxs' ||
-      lower === 'admin@hamza.harconxs.com' ||
-      lower === 'admin@harconxs.com' ||
-      lower === 'hamzashahid1152901@gmail.com' ||
-      lower.includes('admin@harconxs') ||
-      lower.includes('admin@hamza.harconxs.com')
-    ) {
-      return { isAdmin: true, role: 'super_admin' };
-    }
-
-    return { isAdmin: false, role: 'customer' };
+    return { isAdmin: false, role: data?.role || appRole || 'customer' };
   } catch {
-    const lower = (email || '').toLowerCase().trim();
-    if (
-      lower === 'harconxs' ||
-      lower === 'admin@hamza.harconxs.com' ||
-      lower === 'admin@harconxs.com' ||
-      lower === 'hamzashahid1152901@gmail.com' ||
-      lower.includes('admin@harconxs') ||
-      lower.includes('admin@hamza.harconxs.com')
-    ) {
-      return { isAdmin: true, role: 'super_admin' };
-    }
     return { isAdmin: false, role: 'customer' };
   }
 }
 
 /**
  * Supabase Auth: Admin Login via Supabase Auth + Server-side Role Check
- * Supports both username "HARCONXS" and email "admin@hamza.harconxs.com" / "admin@harconxs.com"
+ * Uses Supabase Auth as the ONLY identity source.
+ * Customer login or wrong credentials NEVER produces success.
  */
 export async function supabaseAdminSignIn(
-  usernameOrEmail: string,
+  email: string,
   password: string
 ): Promise<{ success: boolean; message: string; role?: string; user?: any }> {
   try {
-    const input = (usernameOrEmail || '').trim();
-    const pwd = (password || '').trim();
+    const cleanEmail = (email || '').trim();
+    const cleanPwd = (password || '').trim();
 
-    if (!input || !pwd) {
-      return { success: false, message: 'Please enter both administrator username/email and master key.' };
+    if (!cleanEmail || !cleanPwd) {
+      return { success: false, message: 'Please enter both administrator email and password.' };
     }
 
-    // Normalize username or email identifier
-    let resolvedEmail = input;
-    const isUsername = !input.includes('@');
-    if (isUsername && input.toLowerCase() === 'harconxs') {
-      resolvedEmail = 'admin@hamza.harconxs.com';
-    } else if (isUsername) {
-      resolvedEmail = `${input.toLowerCase()}@harconxs.com`;
-    }
+    // Attempt standard Supabase Auth signInWithPassword
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: cleanPwd
+    });
 
-    // 1. Attempt standard Supabase Auth signInWithPassword
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: resolvedEmail,
-        password: pwd
-      });
-
-      if (!error && data.user) {
-        const { isAdmin, role } = await supabaseVerifyAdminRole(data.user.id, data.user.email);
-        if (isAdmin) {
-          // Persist verified session
-          const sessionObj = {
-            isAdmin: true,
-            email: resolvedEmail,
-            role,
-            userId: data.user.id,
-            expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
-          };
-          sessionStorage.setItem('hx_admin_session', JSON.stringify(sessionObj));
-
-          return { 
-            success: true, 
-            message: 'Supabase Auth administrative session verified successfully.', 
-            role,
-            user: data.user
-          };
-        }
-      }
-    } catch {
-      // Continue to master fallback if network/auth endpoint is initializing
-    }
-
-    // 2. Verified Master Administrator Access Check for Standalone and Live Runtimes
-    const cleanInput = input.trim();
-    const cleanPwd = pwd.trim();
-    const isAuthorizedAdminIdentifier = (
-      cleanInput.toLowerCase() === 'harconxs' ||
-      cleanInput.toLowerCase() === 'admin' ||
-      resolvedEmail.toLowerCase() === 'admin@hamza.harconxs.com' ||
-      resolvedEmail.toLowerCase() === 'admin@harconxs.com' ||
-      resolvedEmail.toLowerCase() === 'hamzashahid1152901@gmail.com'
-    );
-
-    const isMasterKeyMatch = (
-      cleanPwd === 'Admin@Hmaza12' ||
-      cleanPwd === 'Admin@Hamza12' ||
-      cleanPwd === 'Admin@Hmaza123' ||
-      (cleanPwd.length >= 8 && isAuthorizedAdminIdentifier)
-    );
-
-    if (isAuthorizedAdminIdentifier && isMasterKeyMatch) {
-      const adminUser = {
-        id: 'usr_harconxs_super_admin',
-        email: resolvedEmail || 'admin@hamza.harconxs.com',
-        full_name: 'HARCONXS Super Administrator (Hamza Shahid)',
-        role: 'super_admin'
-      };
-
-      const sessionObj = {
-        isAdmin: true,
-        email: resolvedEmail || 'admin@hamza.harconxs.com',
-        role: 'super_admin',
-        userId: adminUser.id,
-        name: 'Hamza Shahid',
-        full_name: 'HARCONXS Super Administrator',
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
-      };
-      sessionStorage.setItem('hx_admin_session', JSON.stringify(sessionObj));
-
-      // Attempt to ensure profile exists in DB asynchronously
-      try {
-        await supabase.from('profiles').upsert({
-          id: 'a0000000-0000-0000-0000-000000000001',
-          email: resolvedEmail,
-          full_name: 'HARCONXS Super Administrator',
-          role: 'super_admin'
-        }, { onConflict: 'email' });
-      } catch {}
-
+    if (error || !data.user) {
       return {
-        success: true,
-        message: 'Superadmin Atelier Console unlocked with verified Supabase credentials.',
-        role: 'super_admin',
-        user: adminUser
+        success: false,
+        message: error?.message || 'Invalid administrative credentials. Please verify your email and password.'
       };
     }
 
-    return { 
-      success: false, 
-      message: 'Invalid administrative credentials. Please verify your administrator username/email and password.' 
+    const { isAdmin, role } = await supabaseVerifyAdminRole(data.user.id, data.user.email);
+    if (!isAdmin) {
+      // User authenticated but lacks administrative privileges
+      return {
+        success: false,
+        message: 'Access Denied: Your account does not have administrator privileges.'
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Supabase Auth administrative session verified successfully.',
+      role,
+      user: data.user
     };
   } catch (err: any) {
     return { success: false, message: err?.message || 'Admin authentication failed.' };
@@ -406,7 +302,6 @@ export async function supabaseAdminSignIn(
  */
 export async function supabaseAdminSignOut(): Promise<void> {
   try {
-    sessionStorage.removeItem('hx_admin_session');
     await supabase.auth.signOut();
   } catch {}
 }
