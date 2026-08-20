@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
 import {
   X,
@@ -11,18 +12,24 @@ import {
   ArrowRight,
   KeyRound,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { supabaseResetPasswordForEmail, supabaseResendVerification } from '../../lib/supabase';
 
 export const AuthModal: React.FC = () => {
   const {
+    login,
+    register,
+    loginWithGoogle,
+    loginWithOtp,
+    verifyOtp,
+    user
+  } = useAuth();
+
+  const {
     isAuthModalOpen,
     setIsAuthModalOpen,
-    userLogin,
-    userRegister,
-    userGoogleLogin,
-    userOtpLogin,
     showToast
   } = useStore();
 
@@ -44,7 +51,7 @@ export const AuthModal: React.FC = () => {
 
   // OTP form
   const [otpPhone, setOtpPhone] = useState('+91 98765 43210');
-  const [otpCode, setOtpCode] = useState('1234');
+  const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState('');
@@ -60,10 +67,13 @@ export const AuthModal: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await userLogin(loginEmailOrPhone, loginPassword);
+      const res = await login(loginEmailOrPhone.trim(), loginPassword.trim());
       setLoading(false);
       if (!res.success) {
         setErrorMessage(res.message);
+      } else {
+        setIsAuthModalOpen(false);
+        showToast('Signed in successfully.');
       }
     } catch (err: any) {
       setLoading(false);
@@ -78,12 +88,17 @@ export const AuthModal: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await userRegister(registerName, registerEmail, registerPhone, registerPassword);
+      const res = await register(registerEmail.trim(), registerPassword.trim(), {
+        full_name: registerName.trim(),
+        phone: registerPhone.trim()
+      });
       setLoading(false);
       if (!res.success) {
         setErrorMessage(res.message);
       } else {
-        setSuccessMessage('Account registered! A verification email has been dispatched.');
+        setSuccessMessage('Account registered! Verification link sent or session started.');
+        showToast('Account registered successfully.');
+        setIsAuthModalOpen(false);
       }
     } catch (err: any) {
       setLoading(false);
@@ -130,14 +145,23 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpPhone.trim() || otpPhone.length < 10) {
+    const cleanPhone = otpPhone.trim();
+    if (!cleanPhone || cleanPhone.length < 10) {
       setErrorMessage('Please enter a valid 10-digit mobile number.');
       return;
     }
-    setOtpSent(true);
+    setLoading(true);
     setErrorMessage('');
+    const res = await loginWithOtp(cleanPhone);
+    setLoading(false);
+    if (res.success) {
+      setOtpSent(true);
+      showToast('Verification code dispatched to mobile.');
+    } else {
+      setErrorMessage(res.message || 'Failed to dispatch OTP.');
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -145,14 +169,24 @@ export const AuthModal: React.FC = () => {
     setLoading(true);
     setErrorMessage('');
     try {
-      const res = await userOtpLogin(otpPhone, otpCode);
+      const res = await verifyOtp(otpPhone.trim(), otpCode.trim());
       setLoading(false);
       if (!res.success) {
-        setErrorMessage(res.message);
+        setErrorMessage(res.message || 'Invalid verification OTP.');
+      } else {
+        setIsAuthModalOpen(false);
+        showToast('Mobile authenticated successfully.');
       }
     } catch (err: any) {
       setLoading(false);
       setErrorMessage(err?.message || 'OTP verification failed.');
+    }
+  };
+
+  const handleGoogleClick = async () => {
+    const { error } = await loginWithGoogle();
+    if (error) {
+      showToast('Google OAuth initialization error.');
     }
   };
 
@@ -245,7 +279,7 @@ export const AuthModal: React.FC = () => {
           <form onSubmit={handleLogin} className="space-y-3.5">
             <div>
               <label className="block text-[11px] font-semibold text-zinc-300 uppercase tracking-wider mb-1">
-                Email or Mobile Number
+                Email or Username
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -253,7 +287,7 @@ export const AuthModal: React.FC = () => {
                   type="text"
                   value={loginEmailOrPhone}
                   onChange={(e) => setLoginEmailOrPhone(e.target.value)}
-                  placeholder="e.g. hamza@gmail.com or 9876543210"
+                  placeholder="e.g. hamza@gmail.com or admin username"
                   required
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500"
                 />
@@ -280,6 +314,7 @@ export const AuthModal: React.FC = () => {
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••••••"
+                  required
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -288,9 +323,16 @@ export const AuthModal: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer disabled:opacity-50 mt-2"
+              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
             >
-              {loading ? 'Authenticating with Supabase...' : 'Sign In & Continue'}
+              {loading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Authenticating with Supabase...</span>
+                </>
+              ) : (
+                <span>Sign In & Continue</span>
+              )}
             </button>
           </form>
         )}
@@ -369,9 +411,16 @@ export const AuthModal: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer disabled:opacity-50 mt-2"
+              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer disabled:opacity-50 mt-2 flex items-center justify-center gap-2"
             >
-              {loading ? 'Creating Account in Supabase...' : 'Create Account (+150 Bonus Points)'}
+              {loading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Creating Account in Supabase...</span>
+                </>
+              ) : (
+                <span>Create Account (+150 Bonus Points)</span>
+              )}
             </button>
           </form>
         )}
@@ -401,9 +450,16 @@ export const AuthModal: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Sending Recovery Link...' : 'Send Password Reset Email'}
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending Recovery Link...</span>
+                    </>
+                  ) : (
+                    <span>Send Password Reset Email</span>
+                  )}
                 </button>
               </form>
             ) : (
@@ -460,29 +516,39 @@ export const AuthModal: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer flex items-center justify-center gap-1.5"
+                  disabled={loading}
+                  className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <span>Send Verification Code</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Dispatching OTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send Verification Code</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
                 </button>
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-3">
                 <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/60 rounded-xl text-[11px] text-emerald-300 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>OTP code sent to {otpPhone}. (Demo Code: 1234)</span>
+                  <span>OTP code sent to {otpPhone}. Enter code to verify.</span>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-zinc-300 uppercase tracking-wider mb-1">
-                    4-Digit Verification OTP
+                    6-Digit Verification OTP
                   </label>
                   <input
                     type="text"
                     maxLength={6}
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="1 2 3 4"
+                    placeholder="1 2 3 4 5 6"
                     required
                     className="w-full text-center tracking-widest text-lg font-mono font-bold bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 px-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500"
                   />
@@ -491,9 +557,16 @@ export const AuthModal: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-emerald-500/10 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md shadow-emerald-500/10 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Verifying...' : 'Verify OTP & Continue'}
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <span>Verify OTP & Continue</span>
+                  )}
                 </button>
 
                 <div className="text-center">
@@ -525,7 +598,7 @@ export const AuthModal: React.FC = () => {
             {/* Google One-Click Login */}
             <button
               type="button"
-              onClick={userGoogleLogin}
+              onClick={handleGoogleClick}
               className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 hover:border-zinc-700 text-xs font-medium rounded-xl flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">

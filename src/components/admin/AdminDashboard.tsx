@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
 import {
   LayoutDashboard,
@@ -82,8 +83,9 @@ export const AdminDashboard: React.FC = () => {
   const [adminSearch, setAdminSearch] = useState('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  // Current authenticated staff member
-  const currentSession = getAdminSession();
+  const { user: authUser, role: authRole, logout: authLogout } = useAuth();
+  const adminName = authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'Admin';
+  const adminRoleDisplay = (authRole || 'admin').toUpperCase();
 
   // 1. ADMIN LOCK SCREEN GATE
   if (!isAdminAuthenticated) {
@@ -339,7 +341,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="pt-4 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-xs text-zinc-400 font-mono truncate">{currentSession?.name || 'Hamza Shahid'}</span>
+              <span className="text-xs text-zinc-400 font-mono truncate">{adminName}</span>
               <button
                 onClick={adminLogout}
                 className="px-3 py-1.5 min-h-[38px] text-xs text-rose-400 bg-rose-500/10 rounded-lg font-bold"
@@ -576,10 +578,10 @@ export const AdminDashboard: React.FC = () => {
         <div className="p-4 border-t border-zinc-800 text-[11px] text-zinc-400 space-y-1">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-zinc-200 font-semibold truncate">{currentSession?.name || 'Hamza Shahid'}</span>
+            <span className="text-zinc-200 font-semibold truncate">{adminName}</span>
           </div>
           <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-            <span>Role: {(currentSession?.role || 'super_admin').toUpperCase()}</span>
+            <span>Role: {adminRoleDisplay}</span>
             <span className="text-emerald-400">RBAC Active</span>
           </div>
         </div>

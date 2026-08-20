@@ -178,6 +178,7 @@ import {
   INITIAL_PAGES_LIST
 } from '../data/defaultPageData';
 import { normalizeThemeConfig } from '../utils/themeUtils';
+import { useAuth } from './AuthContext';
 
 export type CurrencyCode = 'INR';
 
@@ -508,13 +509,27 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Authoritative Supabase Auth & RBAC session from AuthContext
+  const {
+    user: authUser,
+    isAdmin: authIsAdmin,
+    role: authRole,
+    login: authLogin,
+    adminLogin: authAdminLogin,
+    register: authRegister,
+    logout: authLogout,
+    loginWithGoogle: authGoogleLogin,
+    resetPassword: authResetPassword,
+    updatePassword: authUpdatePassword
+  } = useAuth();
+
   // Navigation
   const [currentView, setCurrentView] = useState<string>('home');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'all'>('all');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
-  // Admin Mode & Auth State (Derived from Supabase Auth & verified roles)
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+  // Admin Mode & Auth State (Authoritatively derived from Supabase Auth & verified roles)
+  const isAdminAuthenticated = authIsAdmin;
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
   const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
 
@@ -857,10 +872,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  // User Profile & Authentication State
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  // User Profile & Authentication State (Synced with authoritative Supabase Auth)
+  const [profileData, setProfileData] = useState<Partial<UserProfile>>({});
 
-  const isUserLoggedIn = !!currentUser;
+  const currentUser: UserProfile | null = authUser ? {
+    id: authUser.id,
+    name: profileData.name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Member',
+    email: authUser.email || '',
+    phone: profileData.phone || authUser.user_metadata?.phone || '',
+    loyaltyPoints: profileData.loyaltyPoints ?? 150,
+    storeCredit: profileData.storeCredit ?? 0,
+    isAffiliate: profileData.isAffiliate ?? false,
+    affiliateCode: profileData.affiliateCode || `HX${authUser.id.substring(0, 4).toUpperCase()}`,
+    affiliateCommissionEarned: profileData.affiliateCommissionEarned ?? 0,
+    addresses: profileData.addresses || []
+  } : null;
+
+  const isUserLoggedIn = !!authUser;
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [pendingAuthCallback, setPendingAuthCallback] = useState<(() => void) | null>(null);
 
@@ -1049,78 +1077,66 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     loadSupabaseInitialData();
 
-    // Supabase Auth State Change Listener & Session Persistence
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const userMeta = session.user.user_metadata || {};
-        const userEmail = session.user.email || '';
-        
-        // Verify RBAC privileges from database
-        const { isAdmin } = await supabaseVerifyAdminRole(session.user.id, userEmail);
-        setIsAdminAuthenticated(isAdmin);
-        if (isAdmin) {
-          setIsAdminMode(true);
-        }
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-        const profile: UserProfile = {
-          id: session.user.id,
-          name: userMeta.full_name || userEmail.split('@')[0] || 'Member',
-          email: userEmail,
-          phone: userMeta.phone || '',
-          loyaltyPoints: 0,
-          storeCredit: 0,
-          isAffiliate: false,
-          affiliateCode: `HX${session.user.id.substring(0, 4).toUpperCase()}`,
-          affiliateCommissionEarned: 0,
-          addresses: []
-        };
-        setCurrentUser(profile);
+  // Sync user profile data and cart/wishlist whenever authoritative authUser changes
+  useEffect(() => {
+    let isMounted = true;
 
-        // Fetch user's wishlist and cart from Supabase
-        try {
-          setIsLoadingWishlist(true);
-          const [userWishlist, userCart] = await Promise.allSettled([
-            fetchWishlistFromSupabase(session.user.id),
-            fetchUserCartFromSupabase(`cart_user_${session.user.id}`)
-          ]);
-
-          if (userWishlist.status === 'fulfilled' && userWishlist.value && userWishlist.value.length > 0) {
-            setWishlist(userWishlist.value);
-          }
-          if (userCart.status === 'fulfilled' && userCart.value && userCart.value.length > 0) {
-            setCart(userCart.value);
-          }
-        } catch {
-          // Keep current state
-        } finally {
-          setIsLoadingWishlist(false);
-        }
-      } else {
-        setCurrentUser(null);
-        setIsAdminAuthenticated(false);
-        setIsAdminMode(false);
+    if (authUser) {
+      if (authIsAdmin) {
+        setIsAdminMode(true);
       }
-    });
 
-    // Check initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const { isAdmin } = await supabaseVerifyAdminRole(session.user.id, session.user.email);
-        setIsAdminAuthenticated(isAdmin);
-        if (isAdmin) {
-          setIsAdminMode(true);
+      // Fetch user profile from Supabase profiles table
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (isMounted && data) {
+            setProfileData({
+              name: data.full_name || authUser.user_metadata?.full_name,
+              phone: data.phone || authUser.user_metadata?.phone,
+              loyaltyPoints: data.loyalty_points ?? 150,
+              storeCredit: data.store_credit ?? 0,
+              isAffiliate: data.is_affiliate ?? false,
+              affiliateCode: data.affiliate_code,
+              affiliateCommissionEarned: data.affiliate_commission_earned ?? 0,
+              addresses: (data.addresses as any) || []
+            });
+          }
+        });
+
+      // Fetch user's wishlist and cart from Supabase
+      setIsLoadingWishlist(true);
+      Promise.allSettled([
+        fetchWishlistFromSupabase(authUser.id),
+        fetchUserCartFromSupabase(`cart_user_${authUser.id}`)
+      ]).then(([userWishlist, userCart]) => {
+        if (!isMounted) return;
+        if (userWishlist.status === 'fulfilled' && userWishlist.value && userWishlist.value.length > 0) {
+          setWishlist(userWishlist.value);
         }
-      } else {
-        setIsAdminAuthenticated(false);
-        setIsAdminMode(false);
-      }
-    });
+        if (userCart.status === 'fulfilled' && userCart.value && userCart.value.length > 0) {
+          setCart(userCart.value);
+        }
+      }).finally(() => {
+        if (isMounted) setIsLoadingWishlist(false);
+      });
+    } else {
+      setProfileData({});
+      setIsAdminMode(false);
+    }
 
     return () => {
       isMounted = false;
-      authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [authUser, authIsAdmin]);
 
   const addEmailNotification = (notification: EmailNotification) => {
     setEmailNotifications(prev => [notification, ...prev]);
@@ -1165,36 +1181,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return `₹${Math.round(converted).toLocaleString('en-IN')}`;
   };
 
-  // ADMIN AUTHENTICATION (SUPABASE AUTH + RBAC)
-  const adminLogin = async (email: string, p: string) => {
-    try {
-      const res = await supabaseAdminSignIn(email, p);
-      if (res.success) {
-        setIsAdminAuthenticated(true);
-        setIsAdminMode(true);
-        setIsAdminLoginModalOpen(false);
-        setCurrentView('admin');
-        recordAuditLog(email, 'admin_login', 'admin_session');
-        showToast('Admin Atelier Console unlocked with verified Supabase credentials.');
-        return { success: true, message: 'Authentication successful.' };
-      }
-      return { success: false, message: res.message };
-    } catch (err: any) {
-      return { success: false, message: err?.message || 'Admin authentication failed.' };
+  // ADMIN AUTHENTICATION (DELEGATED TO USEAUTH)
+  const adminLogin = async (identifier: string, p: string) => {
+    const res = await authAdminLogin(identifier, p);
+    if (res.success) {
+      setIsAdminMode(true);
+      setIsAdminLoginModalOpen(false);
+      setCurrentView('admin');
+      recordAuditLog(identifier, 'admin_login', 'admin_session');
+      showToast('Admin Atelier Console unlocked with verified Supabase credentials.');
+      return { success: true, message: 'Authentication successful.' };
     }
+    return { success: false, message: res.message || 'Admin authentication failed.' };
   };
 
   const adminLogout = async () => {
-    await supabaseAdminSignOut();
-    await supabaseSignOut();
-    setIsAdminAuthenticated(false);
+    await authLogout();
     setIsAdminMode(false);
-    setCurrentUser(null);
     setCurrentView('home');
     showToast('Admin logged out securely.');
   };
 
-  // USER AUTHENTICATION (SUPABASE AUTH)
+  // USER AUTHENTICATION (DELEGATED TO USEAUTH)
   const openAuthModalWithAction = (callback?: () => void) => {
     if (callback) {
       setPendingAuthCallback(() => callback);
@@ -1213,88 +1221,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const userLogin = async (emailOrPhone: string, password?: string) => {
-    const cleanId = emailOrPhone.trim();
-    if (!cleanId || !password) {
-      return { success: false, message: 'Please provide both your email/phone and password.' };
+    const res = await authLogin(emailOrPhone, password || '');
+    if (res.success) {
+      setIsAuthModalOpen(false);
+      showToast(`Welcome back!`);
+      executePendingAuth();
+      return { success: true, message: res.message };
     }
-
-    const { user, error } = await supabaseSignIn(cleanId, password);
-    if (error || !user) {
-      return { success: false, message: error?.message || 'Login failed. Invalid credentials.' };
-    }
-
-    const userMeta = user.user_metadata || {};
-    const userEmail = user.email || cleanId;
-    const { isAdmin } = await supabaseVerifyAdminRole(user.id, userEmail);
-    setIsAdminAuthenticated(isAdmin);
-
-    const newUser: UserProfile = {
-      id: user.id,
-      name: userMeta.full_name || userEmail.split('@')[0] || 'Customer',
-      email: userEmail,
-      phone: userMeta.phone || '',
-      loyaltyPoints: 0,
-      storeCredit: 0,
-      isAffiliate: false,
-      affiliateCode: `HX${user.id.substring(0, 4).toUpperCase()}`,
-      affiliateCommissionEarned: 0,
-      addresses: []
-    };
-
-    setCurrentUser(newUser);
-    setIsAuthModalOpen(false);
-    showToast(`Welcome back, ${newUser.name}!`);
-    executePendingAuth();
-
-    return { success: true, message: 'Signed in successfully.' };
+    return { success: false, message: res.message };
   };
 
   const userRegister = async (name: string, email: string, phone: string, password?: string) => {
-    if (!name.trim() || !email.trim()) {
-      return { success: false, message: 'Name and email are required to create an account.' };
+    const res = await authRegister(email, password || '', { full_name: name, phone });
+    if (res.success) {
+      setIsAuthModalOpen(false);
+      showToast(`Account created! Please check your email for verification.`);
+      executePendingAuth();
+
+      // Trigger Account Created In-App Notification & Server Email
+      dispatchNotification({
+        type: 'ACCOUNT_CREATED',
+        recipientEmail: email.trim(),
+        recipientName: name.trim(),
+        userId: authUser?.id || '',
+        data: { loyaltyPoints: 150 },
+        priority: 'high'
+      });
+
+      return { success: true, message: res.message };
     }
-    if (!password) {
-      return { success: false, message: 'A secure password is required to register.' };
-    }
-
-    const { user, error } = await supabaseSignUp(email.trim(), password, { full_name: name.trim(), phone: phone.trim() });
-    if (error || !user) {
-      return { success: false, message: error?.message || 'Registration failed.' };
-    }
-
-    const newUser: UserProfile = {
-      id: user.id,
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      loyaltyPoints: 0,
-      storeCredit: 0,
-      isAffiliate: false,
-      affiliateCode: `${name.substring(0, 4).toUpperCase()}${Math.floor(100 + Math.random() * 900)}`,
-      affiliateCommissionEarned: 0,
-      addresses: []
-    };
-
-    setCurrentUser(newUser);
-    setIsAuthModalOpen(false);
-    showToast(`Account created! A verification link has been sent to ${email.trim()}.`);
-    executePendingAuth();
-
-    // Trigger Account Created In-App Notification & Server Email
-    dispatchNotification({
-      type: 'ACCOUNT_CREATED',
-      recipientEmail: newUser.email,
-      recipientName: newUser.name,
-      userId: newUser.id,
-      data: { loyaltyPoints: newUser.loyaltyPoints },
-      priority: 'high'
-    });
-
-    return { success: true, message: 'Account created successfully.' };
+    return { success: false, message: res.message };
   };
 
   const userGoogleLogin = async () => {
-    await supabaseSignInWithGoogle();
+    await authGoogleLogin();
   };
 
   const userOtpLogin = async (phone: string, otp: string) => {
@@ -1318,34 +1278,44 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const userLogout = async () => {
-    await supabaseSignOut();
-    setCurrentUser(null);
-    setIsAdminAuthenticated(false);
+    await authLogout();
     setIsAdminMode(false);
     showToast('Signed out of your account.');
   };
 
   const updateUser = (data: Partial<UserProfile>) => {
-    if (!currentUser) return;
-    setCurrentUser(prev => prev ? { ...prev, ...data } : null);
+    setProfileData(prev => ({ ...prev, ...data }));
+    if (authUser) {
+      supabase.from('profiles').update({
+        full_name: data.name,
+        phone: data.phone,
+        updated_at: new Date().toISOString()
+      }).eq('id', authUser.id).then(() => {});
+    }
     showToast('Profile updated.');
   };
 
   const addUserAddress = (newAddress: UserAddress) => {
-    if (!currentUser) return;
     const addressWithId = {
       ...newAddress,
       id: newAddress.id || `addr-${Date.now()}`
     };
-    const isFirst = (currentUser.addresses || []).length === 0;
+    const currentAddrs = currentUser?.addresses || [];
+    const isFirst = currentAddrs.length === 0;
     const updatedAddresses = isFirst || addressWithId.isDefault
       ? [
           { ...addressWithId, isDefault: true },
-          ...(currentUser.addresses || []).map(a => ({ ...a, isDefault: false }))
+          ...currentAddrs.map(a => ({ ...a, isDefault: false }))
         ]
-      : [...(currentUser.addresses || []), addressWithId];
+      : [...currentAddrs, addressWithId];
 
-    setCurrentUser(prev => prev ? { ...prev, addresses: updatedAddresses } : null);
+    setProfileData(prev => ({ ...prev, addresses: updatedAddresses }));
+    if (authUser) {
+      supabase.from('profiles').update({
+        addresses: updatedAddresses,
+        updated_at: new Date().toISOString()
+      }).eq('id', authUser.id).then(() => {});
+    }
     showToast('Address added to your address book.');
   };
 
@@ -1362,21 +1332,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return addr;
     });
 
-    setCurrentUser(prev => prev ? { ...prev, addresses: updatedAddresses } : null);
+    setProfileData(prev => ({ ...prev, addresses: updatedAddresses }));
+    if (authUser) {
+      supabase.from('profiles').update({
+        addresses: updatedAddresses,
+        updated_at: new Date().toISOString()
+      }).eq('id', authUser.id).then(() => {});
+    }
     showToast('Address updated.');
   };
 
   const deleteUserAddress = (index: number) => {
-    if (!currentUser) return;
-    const filtered = currentUser.addresses.filter((_, idx) => idx !== index);
-    // If we deleted the default and there are remaining addresses, set the first as default
-    const hasDefault = filtered.some(a => a.isDefault);
-    const finalAddresses = !hasDefault && filtered.length > 0
-      ? filtered.map((a, idx) => idx === 0 ? { ...a, isDefault: true } : a)
-      : filtered;
+    if (!currentUser || !currentUser.addresses[index]) return;
+    const wasDefault = currentUser.addresses[index].isDefault;
+    const updatedAddresses = currentUser.addresses.filter((_, idx) => idx !== index);
+    if (wasDefault && updatedAddresses.length > 0) {
+      updatedAddresses[0].isDefault = true;
+    }
 
-    setCurrentUser(prev => prev ? { ...prev, addresses: finalAddresses } : null);
-    showToast('Address removed.');
+    setProfileData(prev => ({ ...prev, addresses: updatedAddresses }));
+    if (authUser) {
+      supabase.from('profiles').update({
+        addresses: updatedAddresses,
+        updated_at: new Date().toISOString()
+      }).eq('id', authUser.id).then(() => {});
+    }
+    showToast('Address removed from address book.');
   };
 
   const setDefaultUserAddress = (index: number) => {
@@ -1385,22 +1366,41 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...addr,
       isDefault: idx === index
     }));
-    setCurrentUser(prev => prev ? { ...prev, addresses: updatedAddresses } : null);
-    showToast('Default delivery address updated.');
+
+    setProfileData(prev => ({ ...prev, addresses: updatedAddresses }));
+    if (authUser) {
+      supabase.from('profiles').update({
+        addresses: updatedAddresses,
+        updated_at: new Date().toISOString()
+      }).eq('id', authUser.id).then(() => {});
+    }
+    showToast('Default shipping address updated.');
   };
 
-  const redeemLoyaltyPoints = (points: number) => {
-    if (!currentUser || currentUser.loyaltyPoints < points) {
+  const redeemLoyaltyPoints = (pointsToRedeem: number): boolean => {
+    if (!currentUser || currentUser.loyaltyPoints < pointsToRedeem) {
       showToast('Insufficient loyalty points balance.');
       return false;
     }
-    const creditAddition = points * 0.1;
-    setCurrentUser(prev => prev ? {
+    const creditEarned = Math.floor(pointsToRedeem / 10);
+    const newPoints = currentUser.loyaltyPoints - pointsToRedeem;
+    const newCredit = (currentUser.storeCredit || 0) + creditEarned;
+
+    setProfileData(prev => ({
       ...prev,
-      loyaltyPoints: prev.loyaltyPoints - points,
-      storeCredit: prev.storeCredit + creditAddition
-    } : null);
-    showToast(`Redeemed ${points} points for ₹${Math.round(creditAddition * 86.5)} store credit!`);
+      loyaltyPoints: newPoints,
+      storeCredit: newCredit
+    }));
+
+    if (authUser) {
+      supabase.from('profiles').update({
+        loyalty_points: newPoints,
+        store_credit: newCredit,
+        updated_at: new Date().toISOString()
+      }).eq('id', authUser.id).then(() => {});
+    }
+
+    showToast(`Redeemed ${pointsToRedeem} points for ₹${creditEarned * 86.5} store credit!`);
     return true;
   };
 

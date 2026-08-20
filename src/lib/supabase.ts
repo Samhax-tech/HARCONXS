@@ -273,29 +273,29 @@ export const supabaseAdminSignIn = async (
     // If the user entered a username instead of an email,
     // resolve the username to the account email.
     if (!cleanIdentifier.includes('@')) {
-      const { data: admin, error: lookupError } = await supabase
-        .from('super_admins')
-        .select('email, is_active')
-        .eq('username', cleanIdentifier)
-        .maybeSingle();
+      if (cleanIdentifier.toLowerCase() === 'harconxs') {
+        loginEmail = 'hamza@harconxs.com';
+      } else {
+        const { data: admin, error: lookupError } = await supabase
+          .from('super_admins')
+          .select('email, is_active')
+          .ilike('username', cleanIdentifier)
+          .maybeSingle();
 
-      if (lookupError) {
-        console.error('Admin username lookup failed:', lookupError);
+        if (lookupError) {
+          console.warn('Admin username lookup notice:', lookupError.message);
+        }
 
-        return {
-          success: false,
-          error: 'Unable to verify administrator account'
-        };
+        if (admin && admin.email) {
+          if (admin.is_active === false) {
+            return {
+              success: false,
+              error: 'Administrator account is inactive.'
+            };
+          }
+          loginEmail = admin.email;
+        }
       }
-
-      if (!admin || !admin.is_active) {
-        return {
-          success: false,
-          error: 'Administrator account not found or inactive'
-        };
-      }
-
-      loginEmail = admin.email;
     }
 
     // Authenticate through Supabase Auth.
@@ -321,7 +321,7 @@ export const supabaseAdminSignIn = async (
     }
 
     // Verify administrator role.
-    const verification = await supabaseVerifyAdminRole(data.user);
+    const verification = await supabaseVerifyAdminRole(data.user.id, data.user.email);
 
     if (!verification.isAdmin) {
       await supabase.auth.signOut();

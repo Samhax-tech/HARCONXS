@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useStore } from '../../context/StoreContext';
-import { Shield, Lock, Mail, X, AlertCircle, KeyRound } from 'lucide-react';
+import { Shield, Lock, Mail, X, AlertCircle, KeyRound, Loader2 } from 'lucide-react';
 
 export const AdminLoginModal: React.FC = () => {
+  const { adminLogin, isAdmin } = useAuth();
   const {
     isAdminLoginModalOpen,
     setIsAdminLoginModalOpen,
-    adminLogin,
-    isAdminAuthenticated
+    showToast
   } = useStore();
 
-  const [adminEmail, setAdminEmail] = useState('');
+  const [adminIdentifier, setAdminIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!isAdminLoginModalOpen || isAdminAuthenticated) return null;
+  if (!isAdminLoginModalOpen || isAdmin) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,13 +24,15 @@ export const AdminLoginModal: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await adminLogin(adminEmail, password);
+      const res = await adminLogin(adminIdentifier.trim(), password.trim());
       setIsLoading(false);
       if (!res.success) {
         setErrorMessage(res.message);
       } else {
-        setAdminEmail('');
+        setAdminIdentifier('');
         setPassword('');
+        setIsAdminLoginModalOpen(false);
+        showToast('Admin Atelier authenticated successfully.');
       }
     } catch (err: any) {
       setIsLoading(false);
@@ -84,8 +87,8 @@ export const AdminLoginModal: React.FC = () => {
               <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
+                value={adminIdentifier}
+                onChange={(e) => setAdminIdentifier(e.target.value)}
                 placeholder="admin@harconxs.com or username"
                 required
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2.5 pl-10 pr-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60"
@@ -117,7 +120,10 @@ export const AdminLoginModal: React.FC = () => {
               className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isLoading ? (
-                <span>Verifying credentials with Supabase...</span>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verifying credentials with Supabase...</span>
+                </>
               ) : (
                 <>
                   <KeyRound className="w-4 h-4" />

@@ -23,7 +23,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM public.profiles 
-        WHERE id = user_id AND role IN ('super_admin', 'manager')
+        WHERE id = user_id AND role IN ('super_admin', 'admin', 'manager')
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -38,6 +38,26 @@ CREATE TABLE IF NOT EXISTS public.roles (
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS public.super_admins (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL DEFAULT 'super_admin' REFERENCES public.roles(id) ON DELETE CASCADE,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.super_admins ENABLE ROW LEVEL SECURITY;
+
+-- Allow reading super_admins mapping for username lookup
+CREATE POLICY "Public: Lookup super admin email by username" ON public.super_admins
+    FOR SELECT USING (true);
+
+-- Only super_admins can insert or modify super_admins
+CREATE POLICY "SuperAdmins: Manage super_admins" ON public.super_admins
+    FOR ALL USING (public.is_admin(auth.uid()))
+    WITH CHECK (public.is_admin(auth.uid()));
 
 CREATE TABLE IF NOT EXISTS public.permissions (
     id TEXT PRIMARY KEY,
@@ -935,10 +955,16 @@ CREATE POLICY "Public: Insert Analytics" ON public.analytics_events FOR INSERT
 -- SEED ESSENTIAL SYSTEM ROLES
 INSERT INTO public.roles (id, name, description) VALUES 
 ('super_admin', 'Super Administrator', 'Full unconstrained platform control'),
+('admin', 'Administrator', 'Administrative platform operations'),
 ('manager', 'Store Manager', 'Orders, inventory, customer management'),
 ('support_agent', 'Support Agent', 'Live chat, tickets and customer inquiry desk'),
 ('customer', 'Customer', 'Verified store customer and member')
 ON CONFLICT (id) DO NOTHING;
+
+-- SEED VERIFIED SUPER ADMIN MAPPING
+INSERT INTO public.super_admins (username, email, role, is_active) VALUES
+('HARCONXS', 'hamza@harconxs.com', 'super_admin', true)
+ON CONFLICT (username) DO UPDATE SET email = EXCLUDED.email, role = EXCLUDED.role, is_active = EXCLUDED.is_active;
 
 -- SEED SYSTEM POLICIES
 INSERT INTO public.policies (id, title, slug, version, content) VALUES

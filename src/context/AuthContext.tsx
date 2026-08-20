@@ -28,7 +28,8 @@ export interface AuthContextType {
   loading: boolean;
   role: UserRole;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string; error?: any }>;
+  login: (emailOrUsername: string, password: string) => Promise<{ success: boolean; message: string; error?: any }>;
+  adminLogin: (identifier: string, password: string) => Promise<{ success: boolean; message: string; error?: any }>;
   register: (
     email: string,
     password: string,
@@ -37,6 +38,8 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   loginWithGoogle: () => Promise<{ error: Error | null }>;
+  loginWithOtp: (phone: string) => Promise<{ success: boolean; message?: string; error?: any }>;
+  verifyOtp: (phone: string, token: string) => Promise<{ success: boolean; message?: string; error?: any }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error: Error | null }>;
   resendVerification: (email: string) => Promise<{ success: boolean; error: Error | null }>;
@@ -76,14 +79,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { role: assignedRole, isAdmin: adminStatus };
       }
 
-      // 2. Check JWT app_metadata / user_metadata
+      // 2. Check super_admins table by email
+      if (authUser.email) {
+        const { data: superAdmin } = await supabase
+          .from('super_admins')
+          .select('role')
+          .ilike('email', authUser.email)
+          .maybeSingle();
+
+        if (superAdmin && superAdmin.role) {
+          const assignedRole = superAdmin.role as UserRole;
+          const adminStatus = ['super_admin', 'admin', 'manager'].includes(assignedRole);
+          return { role: assignedRole, isAdmin: adminStatus };
+        }
+      }
+
+      // 3. Check JWT app_metadata / user_metadata
       const jwtRole = (authUser.app_metadata?.role || authUser.user_metadata?.role) as UserRole | undefined;
       if (jwtRole && ['super_admin', 'admin', 'manager', 'support_agent', 'fulfillment_specialist', 'marketing_lead', 'financial_controller', 'customer'].includes(jwtRole)) {
         const adminStatus = ['super_admin', 'admin', 'manager'].includes(jwtRole);
         return { role: jwtRole, isAdmin: adminStatus };
       }
 
-      // 3. Strict default for any registered customer
+      // 4. Strict default for any registered customer
       return { role: 'customer', isAdmin: false };
     } catch {
       // On query failure, default safely to customer
@@ -162,24 +180,56 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [resolveUserRole]);
 
   /**
-   * Login with Supabase Auth (Sign in with password)
-   * If credentials fail, returns { success: false } - NEVER produces success on failure.
+   * Login with Supabase Auth (Sign in with password).
+   * Supports email or admin username lookup from public.super_admins.
    */
-  const login = async (email: string, password: string): Promise<{ success: boolean; message: string; error?: any }> => {
-    const cleanEmail = (email || '').trim();
+  const login = async (
+    emailOrUsername: string,
+    password: string
+  ): Promise<{ success: boolean; message: string; error?: any }> => {
+    const cleanIdentifier = (emailOrUsername || '').trim();
     const cleanPwd = (password || '').trim();
 
-    if (!cleanEmail || !cleanPwd) {
-      return { success: false, message: 'Please provide both email and password.' };
+    if (!cleanIdentifier || !cleanPwd) {
+      return { success: false, message: 'Please provide both email/username and password.' };
     }
 
     try {
-      const { user: authUser, session: authSession, error } = await supabaseSignIn(cleanEmail, cleanPwd);
+      let resolvedEmail = cleanIdentifier;
+
+      // If user enters a username without '@', look up public.super_admins or use verified HARCONXS admin identity
+      if (!cleanIdentifier.includes('@')) {
+        if (cleanIdentifier.toLowerCase() === 'harconxs') {
+          resolvedEmail = 'hamza@harconxs.com';
+        } else {
+          const { data: admin, error: lookupError } = await supabase
+            .from('super_admins')
+            .select('email, is_active')
+            .ilike('username', cleanIdentifier)
+            .maybeSingle();
+
+          if (lookupError) {
+            console.warn('[AuthContext] Admin username lookup notice:', lookupError.message);
+          }
+
+          if (admin && admin.email) {
+            if (admin.is_active === false) {
+              return {
+                success: false,
+                message: 'Account is inactive. Please contact support.'
+              };
+            }
+            resolvedEmail = admin.email;
+          }
+        }
+      }
+
+      const { user: authUser, session: authSession, error } = await supabaseSignIn(resolvedEmail, cleanPwd);
 
       if (error || !authUser) {
         return {
           success: false,
-          message: error?.message || 'Invalid email or password. Please check your credentials.',
+          message: error?.message || 'Invalid login credentials. Please check your email and password.',
           error
         };
       }
@@ -199,6 +249,95 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return {
         success: false,
         message: err?.message || 'Authentication failed. Please try again.',
+        error: err
+      };
+    }
+  };
+
+  /**
+   * Dedicated Admin Login: Authenticates through Supabase Auth and strictly enforces admin role.
+   * If an authenticated user does NOT have an admin role, signs them out and denies access.
+   */
+  const adminLogin = async (
+    identifier: string,
+    password: string
+  ): Promise<{ success: boolean; message: string; error?: any }> => {
+    const cleanIdentifier = (identifier || '').trim();
+    const cleanPwd = (password || '').trim();
+
+    if (!cleanIdentifier || !cleanPwd) {
+      return { success: false, message: 'Please provide both administrator identifier and password.' };
+    }
+
+    try {
+      let resolvedEmail = cleanIdentifier;
+
+      // Resolve username to email if not containing '@'
+      if (!cleanIdentifier.includes('@')) {
+        if (cleanIdentifier.toLowerCase() === 'harconxs') {
+          resolvedEmail = 'hamza@harconxs.com';
+        } else {
+          const { data: admin, error: lookupError } = await supabase
+            .from('super_admins')
+            .select('email, is_active')
+            .ilike('username', cleanIdentifier)
+            .maybeSingle();
+
+          if (lookupError) {
+            console.warn('[AuthContext] Super admin lookup notice:', lookupError.message);
+          }
+
+          if (admin && admin.email) {
+            if (admin.is_active === false) {
+              return {
+                success: false,
+                message: 'Administrator account is inactive. Please contact system owner.'
+              };
+            }
+            resolvedEmail = admin.email;
+          }
+        }
+      }
+
+      const { user: authUser, session: authSession, error } = await supabaseSignIn(resolvedEmail, cleanPwd);
+
+      if (error || !authUser) {
+        return {
+          success: false,
+          message: error?.message || 'Invalid administrator credentials.',
+          error
+        };
+      }
+
+      const { role: resolvedRole, isAdmin: resolvedIsAdmin } = await resolveUserRole(authUser);
+
+      if (!resolvedIsAdmin) {
+        // Sign out immediately if not an authorized administrator
+        await supabaseSignOut();
+        setSession(null);
+        setUser(null);
+        setRole('anon');
+        setIsAdmin(false);
+
+        return {
+          success: false,
+          message: 'Access Denied: This account does not have administrator privileges.'
+        };
+      }
+
+      setSession(authSession);
+      setUser(authUser);
+      setRole(resolvedRole);
+      setIsAdmin(true);
+
+      return {
+        success: true,
+        message: 'Administrator authenticated successfully.'
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Administrator login failed.',
         error: err
       };
     }
@@ -323,6 +462,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return supabaseSignInWithGoogle();
   };
 
+  const loginWithOtp = async (phone: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ phone: phone.trim() });
+      if (error) {
+        return { success: false, message: error.message, error };
+      }
+      return { success: true, message: 'OTP sent to your phone.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to send OTP.', error: err };
+    }
+  };
+
+  const verifyOtp = async (phone: string, token: string) => {
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: phone.trim(),
+        token: token.trim(),
+        type: 'sms'
+      });
+      if (error || !data.user) {
+        return { success: false, message: error?.message || 'Invalid or expired OTP.', error };
+      }
+      return { success: true, message: 'OTP verified successfully.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to verify OTP.', error: err };
+    }
+  };
+
   const resetPassword = async (targetEmail: string) => {
     return supabaseResetPasswordForEmail(targetEmail);
   };
@@ -342,10 +509,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     role,
     isAdmin,
     login,
+    adminLogin,
     register,
     logout,
     refresh,
     loginWithGoogle,
+    loginWithOtp,
+    verifyOtp,
     resetPassword,
     updatePassword: updatePasswordHandler,
     resendVerification: resendVerificationHandler

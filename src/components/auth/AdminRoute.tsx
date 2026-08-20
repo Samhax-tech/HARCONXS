@@ -1,28 +1,39 @@
 import React, { useState } from 'react';
-import { useStore } from '../../context/StoreContext';
-import { Shield, Lock, ArrowRight, KeyRound } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Shield, Lock, KeyRound, Loader2, AlertCircle } from 'lucide-react';
 
 interface AdminRouteProps {
   children: React.ReactNode;
 }
 
 export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
-  const { isAdminAuthenticated, adminLogin, showToast } = useStore();
-  const [email, setEmail] = useState('');
+  const { isAdmin, loading, adminLogin, user } = useAuth();
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isAdminAuthenticated) {
+  if (loading) {
+    return (
+      <div className="bg-zinc-950 min-h-[85vh] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3 text-zinc-400">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+          <span className="text-xs font-mono uppercase tracking-wider">Verifying Administrator Privileges...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     const handleLogin = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!email.trim() || !password.trim()) {
-        setErrorMsg('Admin email and master key are required.');
+      if (!identifier.trim() || !password.trim()) {
+        setErrorMsg('Admin username/email and password are required.');
         return;
       }
       setIsSubmitting(true);
       setErrorMsg('');
-      const res = await adminLogin(email.trim(), password.trim());
+      const res = await adminLogin(identifier.trim(), password.trim());
       setIsSubmitting(false);
       if (!res.success) {
         setErrorMsg(res.message || 'Invalid administrator credentials.');
@@ -39,9 +50,16 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
           <div className="text-center space-y-2">
             <h2 className="text-xl font-bold font-serif text-white">HARCONXS Master Gateway</h2>
             <p className="text-xs text-zinc-400">
-              Role-protected administrative console. Enter master credentials or authorized Supabase admin session.
+              Role-protected administrative console. Enter authorized administrator credentials to access the Atelier backoffice.
             </p>
           </div>
+
+          {user && !isAdmin && (
+            <div className="p-3 bg-amber-950/40 border border-amber-800/80 rounded-xl text-xs text-amber-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+              <span>Signed in as ({user.email}), but this account lacks administrator authorization.</span>
+            </div>
+          )}
 
           {errorMsg && (
             <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs text-center font-mono">
@@ -54,8 +72,8 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
               <label className="block text-xs font-semibold text-zinc-300">Admin Username or Email</label>
               <input
                 type="text"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="admin@harconxs.com or username"
                 required
                 className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-xs focus:outline-none focus:border-amber-500 transition-colors font-mono"
@@ -63,7 +81,7 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-zinc-300">Master Administrator Password</label>
+              <label className="block text-xs font-semibold text-zinc-300">Administrator Password</label>
               <input
                 type="password"
                 value={password}

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
-import { UserPlus, Mail, Lock, User, Phone, CheckCircle2, Shield } from 'lucide-react';
-import { supabaseSignUp, supabaseSignInWithGoogle } from '../lib/supabase';
+import { UserPlus, Mail, Lock, User, Phone, Loader2 } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
-  const { userRegister, showToast, isUserLoggedIn } = useStore();
+  const { register, user, loading: authLoading } = useAuth();
+  const { showToast } = useStore();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
@@ -16,9 +17,11 @@ export const RegisterPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  if (isUserLoggedIn) {
-    navigate('/account', { replace: true });
-  }
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate('/account', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +37,10 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true);
     setErrorMsg('');
 
-    const res = await userRegister(fullName.trim(), email.trim(), phone.trim(), password.trim());
+    const res = await register(email.trim(), password.trim(), {
+      full_name: fullName.trim(),
+      phone: phone.trim()
+    });
     setIsLoading(false);
 
     if (res.success) {
@@ -148,11 +154,14 @@ export const RegisterPage: React.FC = () => {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || authLoading}
             className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-zinc-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 cursor-pointer transition-all mt-2"
           >
             {isLoading ? (
-              <span>Creating Account...</span>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Creating Account in Supabase...</span>
+              </>
             ) : (
               <>
                 <UserPlus className="w-4 h-4" />

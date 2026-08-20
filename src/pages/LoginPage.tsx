@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
-import { LogIn, Mail, Lock, Shield, ArrowRight, Sparkles } from 'lucide-react';
-import { supabaseSignInWithGoogle, supabaseSignIn } from '../lib/supabase';
+import { LogIn, Mail, Lock, Sparkles, Loader2 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { userLogin, showToast, isUserLoggedIn } = useStore();
+  const { login, loginWithGoogle, user, loading: authLoading } = useAuth();
+  const { showToast } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,22 +17,23 @@ export const LoginPage: React.FC = () => {
 
   const from = (location.state as any)?.from?.pathname || '/account';
 
-  if (isUserLoggedIn) {
-    navigate(from, { replace: true });
-  }
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate(from, { replace: true });
+    }
+  }, [user, authLoading, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setErrorMsg('Email and password are required.');
+      setErrorMsg('Email/username and password are required.');
       return;
     }
 
     setIsLoading(true);
     setErrorMsg('');
 
-    // Attempt Supabase / Store sign in
-    const result = await userLogin(email.trim(), password.trim());
+    const result = await login(email.trim(), password.trim());
     setIsLoading(false);
     if (result.success) {
       showToast('Welcome back to HARCONXS.');
@@ -43,7 +45,7 @@ export const LoginPage: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
-    const { error } = await supabaseSignInWithGoogle();
+    const { error } = await loginWithGoogle();
     setIsLoading(false);
     if (error) {
       showToast('Google OAuth initialization error. Proceeding with email login.');
@@ -98,20 +100,20 @@ export const LoginPage: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <div className="h-px bg-zinc-800 flex-1" />
-          <span className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">or sign in with email</span>
+          <span className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">or sign in with credentials</span>
           <div className="h-px bg-zinc-800 flex-1" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-zinc-300">Email Address</label>
+            <label className="block text-xs font-semibold text-zinc-300">Email Address or Username</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="connoisseur@example.com"
+                placeholder="connoisseur@example.com or admin username"
                 required
                 className="w-full pl-9 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-xs focus:outline-none focus:border-amber-500 transition-colors"
               />
@@ -140,11 +142,14 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || authLoading}
             className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-zinc-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 cursor-pointer transition-all mt-2"
           >
             {isLoading ? (
-              <span>Authenticating...</span>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Authenticating with Supabase...</span>
+              </>
             ) : (
               <>
                 <LogIn className="w-4 h-4" />
