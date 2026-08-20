@@ -17,7 +17,8 @@ import {
   ExternalLink,
   Search,
   Filter,
-  Check
+  Check,
+  Bot
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import {
@@ -31,6 +32,7 @@ import {
   getApiUsageLogs
 } from '../../services/apiCoreService';
 import { ApiKeyRecord, ApiScopeId, ApiUsageLog } from '../../types';
+import { BotApiIntegrationsGuide } from './BotApiIntegrationsGuide';
 
 export const AdminApiConsole: React.FC = () => {
   const { showToast } = useStore();
@@ -38,7 +40,7 @@ export const AdminApiConsole: React.FC = () => {
   // Local state for keys & telemetry
   const [keysList, setKeysList] = useState<ApiKeyRecord[]>(() => getStoredApiKeys());
   const [usageLogs, setUsageLogs] = useState<ApiUsageLog[]>(() => getApiUsageLogs());
-  const [activeTab, setActiveTab] = useState<'keys' | 'tester' | 'clients' | 'logs'>('tester');
+  const [activeTab, setActiveTab] = useState<'bots' | 'tester' | 'keys' | 'clients' | 'logs'>('bots');
 
   // Key creation state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -310,6 +312,18 @@ export const AdminApiConsole: React.FC = () => {
       {/* Navigation Subtabs */}
       <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
         <button
+          onClick={() => setActiveTab('bots')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all ${
+            activeTab === 'bots'
+              ? 'bg-amber-400 text-zinc-950 font-bold shadow-md shadow-amber-400/10'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+          }`}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span>Support Bots & API Docs (Telegram, Discord, WhatsApp, WordPress)</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('tester')}
           className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all ${
             activeTab === 'tester'
@@ -391,6 +405,9 @@ export const AdminApiConsole: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 0. MULTI-CLIENT BOT INTEGRATIONS & API DOCUMENTATION */}
+      {activeTab === 'bots' && <BotApiIntegrationsGuide />}
 
       {/* 1. INTERACTIVE LIVE TESTER TAB */}
       {activeTab === 'tester' && (

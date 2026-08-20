@@ -38,7 +38,9 @@ import {
   fetchKnowledgeCategoriesFromSupabase,
   fetchProductsFromSupabase,
   fetchPackagingOptionsFromSupabase,
-  fetchOrdersFromSupabase
+  fetchOrdersFromSupabase,
+  upsertSupportTicketInSupabase,
+  fetchSupportTicketsFromSupabase
 } from './supabaseService';
 
 // ==============================================================================
@@ -150,12 +152,13 @@ export const INITIAL_API_CLIENTS: ApiClient[] = [
     name: 'HARCONXS Telegram Support Bot',
     clientCode: 'HARCONXS-TELEGRAM',
     clientType: 'internal_bot',
-    description: 'Official Telegram Bot for Customer Inquiries, Order Tracking & Custom Gifting',
+    description: 'Official Telegram Bot for Catalog Search, FAQs, Safe Order Tracking & Customer Support',
     isActive: true,
-    rateLimitPerMinute: 90,
+    rateLimitPerMinute: 120,
     defaultScopes: [
       'products:read',
       'orders:read',
+      'support:read',
       'support:write',
       'chat:use',
       'custom_orders:read',
@@ -168,17 +171,42 @@ export const INITIAL_API_CLIENTS: ApiClient[] = [
   },
   {
     id: 'client_discord',
-    name: 'HARCONXS Discord Community Bot',
+    name: 'HARCONXS Discord Support Bot',
     clientCode: 'HARCONXS-DISCORD',
     clientType: 'internal_bot',
-    description: 'Official Discord Bot for Community Support, VIP Drops & Atelier Updates',
+    description: 'Official Discord Bot for Community Helpdesk, Product Discovery & Order Verification',
     isActive: true,
-    rateLimitPerMinute: 90,
+    rateLimitPerMinute: 120,
     defaultScopes: [
       'products:read',
       'orders:read',
+      'support:read',
       'support:write',
       'chat:use',
+      'custom_orders:read',
+      'custom_orders:write',
+      'faq:read',
+      'knowledge:read'
+    ],
+    createdAt: '2026-08-01T00:00:00Z',
+    updatedAt: '2026-08-19T00:00:00Z'
+  },
+  {
+    id: 'client_whatsapp',
+    name: 'HARCONXS WhatsApp Support Bot',
+    clientCode: 'HARCONXS-WHATSAPP',
+    clientType: 'internal_bot',
+    description: 'Official WhatsApp Business Concierge for Automated AI Inquiries & Order Status',
+    isActive: true,
+    rateLimitPerMinute: 120,
+    defaultScopes: [
+      'products:read',
+      'orders:read',
+      'support:read',
+      'support:write',
+      'chat:use',
+      'custom_orders:read',
+      'custom_orders:write',
       'faq:read',
       'knowledge:read'
     ],
@@ -190,13 +218,16 @@ export const INITIAL_API_CLIENTS: ApiClient[] = [
     name: 'HARCONXS WordPress Bridge Plugin',
     clientCode: 'HARCONXS-WORDPRESS',
     clientType: 'internal_app',
-    description: 'Official WordPress / WooCommerce Catalog Sync & Support Widget',
+    description: 'Official WordPress Customer Support Bridge, Live Chat Widget & Knowledge Base Sync',
     isActive: true,
-    rateLimitPerMinute: 120,
+    rateLimitPerMinute: 150,
     defaultScopes: [
       'products:read',
-      'faq:read',
+      'orders:read',
+      'support:read',
+      'support:write',
       'chat:use',
+      'faq:read',
       'knowledge:read'
     ],
     createdAt: '2026-08-01T00:00:00Z',
@@ -496,9 +527,9 @@ const DEFAULT_SEEDED_API_KEYS: ApiKeyRecord[] = [
     name: 'Telegram Bot Production Token',
     keyPrefix: 'hx_live_tel_9b...41cd',
     keyHash: 'f4b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b866',
-    scopes: ['products:read', 'orders:read', 'support:write', 'chat:use', 'custom_orders:read', 'faq:read', 'knowledge:read'],
+    scopes: ['products:read', 'orders:read', 'support:read', 'support:write', 'chat:use', 'custom_orders:read', 'custom_orders:write', 'faq:read', 'knowledge:read'],
     status: 'active',
-    rateLimit: 90,
+    rateLimit: 120,
     usageCount: 128,
     lastUsedAt: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
     createdAt: '2026-08-05T00:00:00Z'
@@ -506,16 +537,44 @@ const DEFAULT_SEEDED_API_KEYS: ApiKeyRecord[] = [
   {
     id: 'key_internal_discord_default',
     clientId: 'client_discord',
-    clientName: 'HARCONXS Discord Community Bot',
+    clientName: 'HARCONXS Discord Support Bot',
     name: 'Discord Bot Production Token',
     keyPrefix: 'hx_live_dsc_3c...11ef',
     keyHash: 'd2b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b877',
-    scopes: ['products:read', 'orders:read', 'support:write', 'chat:use', 'faq:read', 'knowledge:read'],
+    scopes: ['products:read', 'orders:read', 'support:read', 'support:write', 'chat:use', 'custom_orders:read', 'custom_orders:write', 'faq:read', 'knowledge:read'],
     status: 'active',
-    rateLimit: 90,
+    rateLimit: 120,
     usageCount: 65,
     lastUsedAt: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
     createdAt: '2026-08-10T00:00:00Z'
+  },
+  {
+    id: 'key_internal_whatsapp_default',
+    clientId: 'client_whatsapp',
+    clientName: 'HARCONXS WhatsApp Support Bot',
+    name: 'WhatsApp Bot Production Token',
+    keyPrefix: 'hx_live_wsp_5a...77ab',
+    keyHash: 'c1b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b888',
+    scopes: ['products:read', 'orders:read', 'support:read', 'support:write', 'chat:use', 'custom_orders:read', 'custom_orders:write', 'faq:read', 'knowledge:read'],
+    status: 'active',
+    rateLimit: 120,
+    usageCount: 89,
+    lastUsedAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+    createdAt: '2026-08-12T00:00:00Z'
+  },
+  {
+    id: 'key_internal_wordpress_default',
+    clientId: 'client_wordpress',
+    clientName: 'HARCONXS WordPress Bridge Plugin',
+    name: 'WordPress Plugin Live Bridge Token',
+    keyPrefix: 'hx_live_wp_8e...22cd',
+    keyHash: 'b3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b899',
+    scopes: ['products:read', 'orders:read', 'support:read', 'support:write', 'chat:use', 'faq:read', 'knowledge:read'],
+    status: 'active',
+    rateLimit: 150,
+    usageCount: 210,
+    lastUsedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+    createdAt: '2026-08-14T00:00:00Z'
   }
 ];
 
@@ -1540,13 +1599,14 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
   // 2. Authenticate all protected internal routes
   let requiredScope: ApiScopeId = 'faq:read';
   if (normalizedPath.startsWith('/products')) requiredScope = 'products:read';
+  else if (normalizedPath === '/search') requiredScope = 'products:read';
   else if (normalizedPath.startsWith('/orders')) requiredScope = 'orders:read';
   else if (normalizedPath.startsWith('/support')) requiredScope = method === 'POST' ? 'support:write' : 'support:read';
   else if (normalizedPath.startsWith('/chat')) requiredScope = 'chat:use';
   else if (normalizedPath.startsWith('/custom-orders')) requiredScope = method === 'POST' ? 'custom_orders:write' : 'custom_orders:read';
   else if (normalizedPath.startsWith('/couple-websites')) requiredScope = 'couple_websites:read';
   else if (normalizedPath.startsWith('/bot-services')) requiredScope = 'bot_services:read';
-  else if (normalizedPath.startsWith('/knowledge')) requiredScope = 'knowledge:read';
+  else if (normalizedPath.startsWith('/knowledge') || normalizedPath.startsWith('/faq')) requiredScope = 'knowledge:read';
 
   const auth = await authenticateInternalRequest(authHeader, requiredScope);
 
@@ -1726,12 +1786,120 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
     }
   }
 
-  // ROUTE 3: GET /api/v1/orders/:id
+  // ROUTE 3A: POST & GET /api/v1/orders/verify-lookup & /api/v1/orders/track
+  else if (normalizedPath === '/orders/verify-lookup' || normalizedPath === '/orders/track') {
+    const orderNumberQuery = (options.body?.orderNumber || options.query?.['orderNumber'] || options.query?.['id'] || '').trim();
+    const emailOrPhone = (options.body?.customerEmail || options.body?.email || options.body?.phone || options.query?.['email'] || options.query?.['phone'] || '').trim().toLowerCase();
+
+    // Fetch live orders from memory or Supabase
+    let allOrders = orders;
+    if (isSupabaseConfigured) {
+      try {
+        const dbOrders = await fetchOrdersFromSupabase();
+        if (dbOrders && dbOrders.length > 0) allOrders = dbOrders;
+      } catch {}
+    }
+
+    if (!orderNumberQuery) {
+      statusCode = 400;
+      responseBody = {
+        error: {
+          code: 'MISSING_ORDER_NUMBER',
+          message: 'Parameter "orderNumber" (e.g. HX-88210) is required for order tracking.',
+          requestId
+        }
+      };
+    } else {
+      const order = allOrders.find(o =>
+        o.orderNumber.toLowerCase() === orderNumberQuery.toLowerCase() ||
+        o.id.toLowerCase() === orderNumberQuery.toLowerCase() ||
+        (o.trackingNumber && o.trackingNumber.toLowerCase() === orderNumberQuery.toLowerCase())
+      );
+
+      if (!order) {
+        statusCode = 404;
+        responseBody = {
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: `Order "${orderNumberQuery}" could not be located in HARCONXS order database.`,
+            requestId
+          }
+        };
+      } else {
+        // Safe patron verification: verify email or phone match unless requester has admin:all scope
+        const isAdmin = auth.scopes?.includes('admin:all');
+        const orderEmail = (order.customerEmail || '').toLowerCase();
+        const orderPhone = ((order as any).customerPhone || (order.shippingAddress as any)?.phone || '').replace(/\D/g, '');
+        const cleanQueryPhone = emailOrPhone.replace(/\D/g, '');
+
+        const isVerified = isAdmin || (
+          emailOrPhone && (
+            orderEmail === emailOrPhone ||
+            (cleanQueryPhone.length >= 7 && orderPhone.includes(cleanQueryPhone))
+          )
+        );
+
+        if (!isVerified) {
+          statusCode = 403;
+          responseBody = {
+            error: {
+              code: 'ORDER_VERIFICATION_REQUIRED',
+              message: 'For customer privacy and security, order tracking requires the email address or phone number used at checkout.',
+              hint: 'Provide "customerEmail" or "phone" matching the order record.',
+              requestId
+            }
+          };
+        } else {
+          // Mask customer name for privacy in shared bot channels (e.g. "H**** S.")
+          const nameParts = (order.customerName || 'Customer').split(' ');
+          const maskedName = nameParts.map(part => part.length > 1 ? `${part[0]}${'*'.repeat(Math.min(part.length - 1, 4))}` : part).join(' ');
+
+          responseBody = {
+            success: true,
+            verified: true,
+            data: {
+              orderNumber: order.orderNumber,
+              customerMasked: maskedName,
+              status: order.status,
+              carrier: order.carrier || 'BlueDart Express',
+              trackingNumber: order.trackingNumber || 'Awaiting courier scan',
+              trackingUrl: order.trackingUrl || `https://harconxsshop.com/account/orders`,
+              estimatedDelivery: order.deliveryDate || order.estimatedDelivery || '2-4 business days',
+              itemCount: order.items.length,
+              items: order.items.map(i => ({
+                productName: i.product?.name || 'Handcrafted Atelier Item',
+                quantity: i.quantity,
+                customization: i.personalization || null
+              })),
+              currentMilestone: order.timeline && order.timeline.length > 0
+                ? order.timeline[order.timeline.length - 1]
+                : { status: order.status, note: 'Order is being processed with precision.', timestamp: order.createdAt },
+              timeline: order.timeline || [],
+              createdAt: order.createdAt
+            }
+          };
+        }
+      }
+    }
+  }
+
+  // ROUTE 3B: GET /api/v1/orders/:id
   else if (normalizedPath.startsWith('/orders/')) {
     const orderIdOrNumber = normalizedPath.replace('/orders/', '').trim();
-    const order = orders.find(o => o.id === orderIdOrNumber || o.orderNumber === orderIdOrNumber || o.trackingNumber === orderIdOrNumber);
+    let allOrders = orders;
+    if (isSupabaseConfigured) {
+      try {
+        const dbOrders = await fetchOrdersFromSupabase();
+        if (dbOrders && dbOrders.length > 0) allOrders = dbOrders;
+      } catch {}
+    }
+    const order = allOrders.find(o => o.id === orderIdOrNumber || o.orderNumber === orderIdOrNumber || o.trackingNumber === orderIdOrNumber);
 
     if (order) {
+      const emailQuery = (options.query?.['email'] || '').toLowerCase();
+      const isAdmin = auth.scopes?.includes('admin:all');
+      const isVerified = isAdmin || (emailQuery && order.customerEmail.toLowerCase() === emailQuery);
+
       responseBody = {
         data: {
           id: order.id,
@@ -1743,13 +1911,13 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
           trackingUrl: order.trackingUrl,
           estimatedDelivery: order.estimatedDelivery,
           itemsCount: order.items.length,
-          subtotal: order.subtotal,
-          total: order.total,
+          subtotal: isVerified ? order.subtotal : undefined,
+          total: isVerified ? order.total : undefined,
           createdAt: order.createdAt,
           items: order.items.map(i => ({
             name: i.product?.name || 'Product',
             quantity: i.quantity,
-            price: i.product?.price || 0,
+            price: isVerified ? (i.product?.price || 0) : undefined,
             customization: i.personalization || null
           })),
           timeline: order.timeline || []
@@ -1768,6 +1936,13 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
       const ticketNumber = options.query?.['ticketNumber'];
 
       let resultTickets = supportTickets;
+      if (isSupabaseConfigured) {
+        try {
+          const dbTickets = await fetchSupportTicketsFromSupabase();
+          if (dbTickets && dbTickets.length > 0) resultTickets = dbTickets;
+        } catch {}
+      }
+
       if (email) resultTickets = resultTickets.filter(t => t.customerEmail.toLowerCase() === email.toLowerCase());
       if (ticketNumber) resultTickets = resultTickets.filter(t => t.ticketNumber === ticketNumber);
 
@@ -1781,14 +1956,15 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
         statusCode = 400;
         responseBody = { error: { code: 'VALIDATION_ERROR', message: 'customerEmail, subject and message are required.', requestId } };
       } else {
+        const clientOrigin = body.platform || auth.clientName || 'Internal Client';
         const newTicket: SupportTicket = {
           id: `tkt_${Date.now()}`,
           ticketNumber: `TK-${Math.floor(10000 + Math.random() * 90000)}`,
-          customerId: body.customerId || 'internal_bot_client',
-          customerName: body.customerName || 'Bot Customer',
+          customerId: body.customerId || `bot_${auth.clientId || 'client'}`,
+          customerName: body.customerName || 'Valued Patron',
           customerEmail: body.customerEmail,
-          subject: body.subject,
-          category: body.category || 'General',
+          subject: `[${clientOrigin}] ${body.subject}`,
+          category: body.category || 'General Inquiry',
           priority: body.priority || 'medium',
           status: 'Open',
           messages: [
@@ -1803,6 +1979,12 @@ export async function handleApiV1Request(options: ApiRequestOptions): Promise<Ap
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
+
+        if (isSupabaseConfigured) {
+          try {
+            await upsertSupportTicketInSupabase(newTicket);
+          } catch {}
+        }
 
         responseBody = {
           success: true,
