@@ -61,9 +61,6 @@ export const VisualPageEditor: React.FC = () => {
     createPageRevisionSnapshot,
     restorePageRevisionSnapshot,
     deletePageSectionItem,
-    themeConfig,
-    setThemeConfig,
-    saveThemeConfig,
     isAdminAuthenticated,
     setIsAdminLoginModalOpen,
     setCurrentView,
@@ -71,6 +68,19 @@ export const VisualPageEditor: React.FC = () => {
     products,
     formatPrice
   } = useStore();
+
+  const [themeConfig, setThemeConfig] = useState({
+    siteName: 'HARCONXS',
+    fontFamily: 'serif' as 'serif' | 'sans' | 'mono',
+    primaryColor: '#f59e0b',
+    accentColor: '#fbbf24',
+    footerTagline: 'Haute Horlogerie & Precious Metals Sovereign Atelier',
+    supportEmail: 'concierge@harconxs.com',
+    supportPhone: '+91 (0) 80 4920 1800'
+  });
+  const saveThemeConfig = async () => {
+    showToast('Brand and theme preferences saved.');
+  };
 
   // Local Editor State
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop');

@@ -152,7 +152,7 @@ export const CoupleWebsiteBuilder: React.FC = () => {
       Analytics.trackCoupleTemplateViewed({
         templateId: selectedTemplate.id,
         templateName: selectedTemplate.name,
-        category: selectedTemplate.category,
+        category: (selectedTemplate as any).themeCategory || 'luxury',
         price: selectedTemplate.price
       });
     }
@@ -278,7 +278,7 @@ export const CoupleWebsiteBuilder: React.FC = () => {
         {
           names: `${partner1Name} & ${partner2Name}`,
           message: `${subdomain}.harconxsshop.com`,
-          notes: `Theme: ${selectedTemplate.name} (${selectedTemplate.version || 'v2.0'})`
+          specialInstructions: `Theme: ${selectedTemplate.name} (${selectedTemplate.version || 'v2.0'})`
         },
         selectedTemplate.price
       );

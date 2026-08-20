@@ -30,28 +30,14 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true);
     setErrorMsg('');
 
-    // Attempt Supabase sign in
-    const supabaseRes = await supabaseSignIn(email.trim(), password.trim());
-    if (supabaseRes.user) {
-      userLogin(
-        supabaseRes.user.email || email.trim(),
-        supabaseRes.user.user_metadata?.name || email.split('@')[0],
-        supabaseRes.user.user_metadata?.role || 'customer'
-      );
-      setIsLoading(false);
+    // Attempt Supabase / Store sign in
+    const result = await userLogin(email.trim(), password.trim());
+    setIsLoading(false);
+    if (result.success) {
       showToast('Welcome back to HARCONXS.');
       navigate(from, { replace: true });
-      return;
-    }
-
-    // Fallback store login
-    const success = userLogin(email.trim(), email.split('@')[0], 'customer');
-    setIsLoading(false);
-    if (success) {
-      showToast('Signed in successfully.');
-      navigate(from, { replace: true });
     } else {
-      setErrorMsg(supabaseRes.error?.message || 'Invalid email or password.');
+      setErrorMsg(result.message || 'Invalid email or password.');
     }
   };
 

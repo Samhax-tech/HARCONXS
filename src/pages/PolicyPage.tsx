@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
+import { PolicyRecord, PolicySection } from '../types';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { FileText, ShieldCheck, Printer, ArrowRight, CheckCircle2 } from 'lucide-react';
 
@@ -24,14 +25,19 @@ export const PolicyPage: React.FC<PolicyPageProps> = ({ policy: propPolicy }) =>
     pathname.includes('contact') ? 'contact' : 'privacy'
   );
 
-  const matchedPolicy = policies.find(p => p.slug === activeSlug || p.id === activeSlug) || policies[0] || {
+  const matchedPolicy: PolicyRecord = policies.find(p => p.slug === activeSlug || p.id === activeSlug) || policies[0] || {
     id: 'pol-generic',
     title: 'Legal Policy',
     slug: activeSlug,
+    category: 'legal',
     version: '1.0.0',
     status: 'published',
     content: 'Policy content loading...',
-    lastUpdated: 'Recently'
+    sections: [],
+    requiresAdminApproval: false,
+    lastUpdated: 'Recently',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   const handlePrint = () => {

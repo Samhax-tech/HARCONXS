@@ -6,7 +6,7 @@ export type ProductBadge = 'Best Seller' | 'New' | 'Trending' | 'Limited' | 'Low
 export interface ProductVariant {
   id: string;
   sku: string;
-  name: string;
+  name?: string;
   productId?: string;
   productName?: string;
   barcode?: string;
@@ -25,7 +25,7 @@ export interface ProductVariant {
   compareAtPrice?: number;
   cost?: number;
   costPrice?: number;
-  inventory: number;
+  inventory?: number;
   stock?: number;
   weightGrams?: number;
   image?: string;
@@ -560,16 +560,19 @@ export interface BotPanelService {
 
 export type ApiScopeId = 
   | 'products:read'
+  | 'search:query'
   | 'orders:read'
   | 'support:read'
   | 'support:write'
   | 'chat:use'
+  | 'chat:interact'
   | 'custom_orders:read'
   | 'custom_orders:write'
   | 'faq:read'
   | 'couple_websites:read'
   | 'bot_services:read'
   | 'knowledge:read'
+  | 'system:health'
   | 'auth:handoff'
   | 'admin:all';
 
@@ -842,6 +845,7 @@ export interface AutomationRule {
 export interface PolicySection {
   heading: string;
   content: string;
+  body?: string;
 }
 
 export type ContentPublicationStatus = 'draft' | 'published' | 'scheduled';
@@ -875,6 +879,7 @@ export interface PolicyRecord {
   id: string;
   title: string;
   slug: string;
+  description?: string;
   category: 'legal' | 'customer_care' | 'company' | 'governance';
   status: ContentPublicationStatus;
   scheduledAt?: string | null;

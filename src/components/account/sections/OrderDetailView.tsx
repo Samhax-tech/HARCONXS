@@ -264,7 +264,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
             <p className="text-zinc-400">
               {order.shippingAddress?.city}, {order.shippingAddress?.state} {order.shippingAddress?.zip}
             </p>
-            <p className="text-zinc-500">{order.shippingAddress?.country} • {order.shippingAddress?.phone || order.customerPhone || 'N/A'}</p>
+            <p className="text-zinc-500">{order.shippingAddress?.country} • {order.customerPhone || 'N/A'}</p>
           </div>
 
           {order.trackingNumber && (

@@ -26,15 +26,15 @@ import { getBillingBaseUrl, buildSafeBillingUrl, generateSecureBillingHandoff, r
 import { createBillingHandoffTicket, verifyAndRedeemBillingHandoffTicket } from '../../services/apiCoreService';
 
 export const BillingAuthArchitectureGuide: React.FC = () => {
-  const { user, showToast } = useStore();
+  const { currentUser, showToast } = useStore();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<'nextjs' | 'express' | 'react' | 'curl'>('nextjs');
 
   // Interactive Test Simulator State
-  const [simUserId, setSimUserId] = useState(user?.id || 'usr_patron_88210');
-  const [simUserEmail, setSimUserEmail] = useState(user?.email || 'admin@hamza.harconxs.com');
-  const [simUserName, setSimUserName] = useState(user?.name || 'HARCONXS Master Admin');
-  const [simUserRole, setSimUserRole] = useState(user?.role || 'super_admin');
+  const [simUserId, setSimUserId] = useState(currentUser?.id || 'usr_patron_88210');
+  const [simUserEmail, setSimUserEmail] = useState(currentUser?.email || 'admin@hamza.harconxs.com');
+  const [simUserName, setSimUserName] = useState(currentUser?.name || 'HARCONXS Master Admin');
+  const [simUserRole, setSimUserRole] = useState('super_admin');
   const [simProductId, setSimProductId] = useState('bot_tg_vip');
   const [simPlanId, setSimPlanId] = useState('plan_tg_vip_monthly');
   const [simSlug, setSimSlug] = useState('telegram-vip-gateway');

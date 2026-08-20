@@ -167,7 +167,8 @@ export const ProductPage: React.FC = () => {
       return;
     }
 
-    addProductReview(product.id, {
+    addProductReview({
+      productId: product.id,
       userName: authorName,
       rating: newReviewRating,
       title: newReviewTitle.trim() || 'Exceptional Atelier Craftsmanship',
@@ -434,8 +435,9 @@ export const ProductPage: React.FC = () => {
               <div className="pt-2">
                 <PersonalizedProductBuilder
                   product={product}
+                  selectedPackaging={selectedPackaging}
+                  onPackagingChange={setSelectedPackaging}
                   onAddToCart={handleAddPersonalizedToCart}
-                  formatPrice={formatPrice}
                 />
               </div>
             ) : (

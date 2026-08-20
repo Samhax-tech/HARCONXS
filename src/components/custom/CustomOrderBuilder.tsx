@@ -341,7 +341,7 @@ export const CustomOrderBuilder: React.FC = () => {
   const handleSubmitCustomOrder = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const customerName = currentUser?.fullName || 'Distinguished Patron';
+    const customerName = currentUser?.name || 'Distinguished Patron';
     const customerEmail = currentUser?.email || 'patron@harconxs.com';
     const customerId = currentUser?.id || `cust-${Date.now()}`;
 

@@ -322,7 +322,7 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
           {/* MOBILE ORDERS CARDS (< md screens) */}
           <div className="md:hidden space-y-3">
             {orders
-              .filter(o => !searchQuery || (o.customer?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.id.toLowerCase().includes(searchQuery.toLowerCase()))
+              .filter(o => !searchQuery || (o.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.id.toLowerCase().includes(searchQuery.toLowerCase()))
               .filter(o => statusFilter === 'all' || o.status === statusFilter)
               .map(order => (
                 <div key={order.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
@@ -346,11 +346,11 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                   <div className="text-xs space-y-1 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800">
                     <div className="flex justify-between">
                       <span className="text-zinc-500">Client:</span>
-                      <span className="text-zinc-200 font-medium">{order.customer?.name || 'Private Client'}</span>
+                      <span className="text-zinc-200 font-medium">{order.customerName || 'Private Client'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-500">Total:</span>
-                      <span className="font-mono font-bold text-zinc-100">₹{(order.totalAmount || 0).toLocaleString()}</span>
+                      <span className="font-mono font-bold text-zinc-100">₹{(order.total || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-500">Items:</span>
@@ -364,10 +364,10 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                       value={order.status}
                       onChange={(e) => handleUpdateStatus(order.id, e.target.value as Order['status'])}
                       className={`text-xs px-2.5 py-1.5 min-h-[38px] rounded-lg font-medium border bg-zinc-950 focus:outline-none ${
-                        order.status === 'delivered' ? 'text-emerald-400 border-emerald-500/30' :
-                        order.status === 'shipped' ? 'text-blue-400 border-blue-500/30' :
-                        order.status === 'processing' ? 'text-amber-400 border-amber-500/30' :
-                        order.status === 'cancelled' ? 'text-red-400 border-red-500/30' :
+                        String(order.status).toLowerCase() === 'delivered' ? 'text-emerald-400 border-emerald-500/30' :
+                        String(order.status).toLowerCase() === 'shipped' ? 'text-blue-400 border-blue-500/30' :
+                        String(order.status).toLowerCase() === 'processing' ? 'text-amber-400 border-amber-500/30' :
+                        String(order.status).toLowerCase() === 'cancelled' ? 'text-red-400 border-red-500/30' :
                         'text-zinc-300 border-zinc-700'
                       }`}
                     >
@@ -398,7 +398,7 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
               </thead>
               <tbody className="divide-y divide-zinc-800">
                 {orders
-                  .filter(o => !searchQuery || (o.customer?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.id.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .filter(o => !searchQuery || (o.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.id.toLowerCase().includes(searchQuery.toLowerCase()))
                   .filter(o => statusFilter === 'all' || o.status === statusFilter)
                   .map(order => (
                     <tr key={order.id} className="hover:bg-zinc-800/40 transition-colors">
@@ -407,14 +407,14 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                         <div className="text-xs text-zinc-500">{new Date(order.createdAt).toLocaleDateString()}</div>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-medium text-zinc-100">{order.customer?.name || 'Private Client'}</div>
-                        <div className="text-xs text-zinc-400">{order.customer?.email || 'client@domain.com'}</div>
+                        <div className="font-medium text-zinc-100">{order.customerName || 'Private Client'}</div>
+                        <div className="text-xs text-zinc-400">{order.customerEmail || 'client@domain.com'}</div>
                       </td>
                       <td className="py-3 px-4 text-zinc-400">
                         {order.items?.length || 1} line item(s)
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-zinc-100">
-                        ₹{(order.totalAmount || 0).toLocaleString()}
+                        ₹{(order.total || 0).toLocaleString()}
                       </td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
@@ -426,10 +426,10 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                           value={order.status}
                           onChange={(e) => handleUpdateStatus(order.id, e.target.value as Order['status'])}
                           className={`text-xs px-2.5 py-1 rounded-lg font-medium border bg-zinc-950 focus:outline-none ${
-                            order.status === 'delivered' ? 'text-emerald-400 border-emerald-500/30' :
-                            order.status === 'shipped' ? 'text-blue-400 border-blue-500/30' :
-                            order.status === 'processing' ? 'text-amber-400 border-amber-500/30' :
-                            order.status === 'cancelled' ? 'text-red-400 border-red-500/30' :
+                            String(order.status).toLowerCase() === 'delivered' ? 'text-emerald-400 border-emerald-500/30' :
+                            String(order.status).toLowerCase() === 'shipped' ? 'text-blue-400 border-blue-500/30' :
+                            String(order.status).toLowerCase() === 'processing' ? 'text-amber-400 border-amber-500/30' :
+                            String(order.status).toLowerCase() === 'cancelled' ? 'text-red-400 border-red-500/30' :
                             'text-zinc-300 border-zinc-700'
                           }`}
                         >
@@ -483,8 +483,8 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
 
             <div className="flex items-center gap-2">
               <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                selectedOrder.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                selectedOrder.status === 'shipped' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                String(selectedOrder.status).toLowerCase() === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                String(selectedOrder.status).toLowerCase() === 'shipped' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
                 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
               }`}>
                 {selectedOrder.status}
@@ -501,31 +501,36 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                   Line Items ({selectedOrder.items?.length || 0})
                 </h4>
                 <div className="divide-y divide-zinc-800">
-                  {selectedOrder.items?.map((item, idx) => (
-                    <div key={idx} className="py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img src={item.imageUrl} alt={item.name} className="w-12 h-12 rounded-xl object-cover border border-zinc-700" />
-                        <div>
-                          <div className="font-medium text-zinc-100 text-sm">{item.name}</div>
-                          <div className="text-xs text-zinc-400 font-mono">Qty: {item.quantity} × ₹{item.price.toLocaleString()}</div>
-                          {item.customDetails && (
-                            <div className="text-[11px] text-amber-400/90 font-mono mt-0.5">
-                              Custom Engraving: {item.customDetails.engraving || 'N/A'}
-                            </div>
-                          )}
+                  {selectedOrder.items?.map((item, idx) => {
+                    const prod = item.product;
+                    const itemImg = prod?.images?.[0] || prod?.imageUrl || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=300';
+                    const itemPrice = item.customPrice ?? prod?.price ?? 0;
+                    return (
+                      <div key={idx} className="py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img src={itemImg} alt={prod?.name || 'Item'} className="w-12 h-12 rounded-xl object-cover border border-zinc-700" />
+                          <div>
+                            <div className="font-medium text-zinc-100 text-sm">{prod?.name || 'Artifact'}</div>
+                            <div className="text-xs text-zinc-400 font-mono">Qty: {item.quantity} × ₹{itemPrice.toLocaleString()}</div>
+                            {item.personalization && (
+                              <div className="text-[11px] text-amber-400/90 font-mono mt-0.5">
+                                Custom: {item.personalization.names || item.personalization.message || 'Customized'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="font-mono font-bold text-zinc-100">
+                          ₹{(itemPrice * item.quantity).toLocaleString()}
                         </div>
                       </div>
-                      <div className="font-mono font-bold text-zinc-100">
-                        ₹{(item.price * item.quantity).toLocaleString()}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="border-t border-zinc-800 pt-4 space-y-2 text-sm">
                   <div className="flex justify-between text-zinc-400">
                     <span>Subtotal:</span>
-                    <span className="font-mono">₹{(selectedOrder.totalAmount || 0).toLocaleString()}</span>
+                    <span className="font-mono">₹{(selectedOrder.subtotal || selectedOrder.total || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-zinc-400">
                     <span>Sovereign Insured Shipping:</span>
@@ -533,7 +538,7 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                   </div>
                   <div className="flex justify-between text-zinc-100 font-bold text-base border-t border-zinc-800 pt-2">
                     <span>Grand Total:</span>
-                    <span className="font-mono text-amber-400">₹{(selectedOrder.totalAmount || 0).toLocaleString()}</span>
+                    <span className="font-mono text-amber-400">₹{(selectedOrder.total || 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -547,9 +552,9 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                   Client Information
                 </h4>
                 <div className="text-sm space-y-1">
-                  <div className="font-medium text-zinc-100">{selectedOrder.customer?.name}</div>
-                  <div className="text-zinc-400 text-xs">{selectedOrder.customer?.email}</div>
-                  <div className="text-zinc-400 text-xs">{selectedOrder.customer?.phone}</div>
+                  <div className="font-medium text-zinc-100">{selectedOrder.customerName}</div>
+                  <div className="text-zinc-400 text-xs">{selectedOrder.customerEmail}</div>
+                  {selectedOrder.customerPhone && <div className="text-zinc-400 text-xs">{selectedOrder.customerPhone}</div>}
                 </div>
               </div>
 
@@ -560,7 +565,7 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                 </h4>
                 <div className="text-xs text-zinc-300 space-y-1">
                   <div>{selectedOrder.shippingAddress?.street}</div>
-                  <div>{selectedOrder.shippingAddress?.city}, {selectedOrder.shippingAddress?.state} {selectedOrder.shippingAddress?.postalCode}</div>
+                  <div>{selectedOrder.shippingAddress?.city}, {selectedOrder.shippingAddress?.state} {selectedOrder.shippingAddress?.zip}</div>
                   <div className="text-zinc-500">{selectedOrder.shippingAddress?.country || 'India'}</div>
                 </div>
               </div>
@@ -597,7 +602,58 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE RMA CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {returnsList.map(rma => (
+              <div key={rma.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="font-mono text-amber-400 font-bold text-sm">{rma.rmaNumber}</span>
+                    <p className="text-xs text-zinc-400 font-mono mt-0.5">Order #{rma.orderNumber}</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-mono uppercase ${
+                    rma.status === 'refunded' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                    rma.status === 'inspected' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                    'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                  }`}>
+                    {rma.status}
+                  </span>
+                </div>
+
+                <div className="bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/80 space-y-2 text-xs">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Client</span>
+                    <span className="font-medium text-zinc-200">{rma.customerName}</span>
+                    <span className="text-zinc-500 text-[11px] block font-mono">{rma.customerEmail}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Items & Reason</span>
+                    {rma.items.map((it, idx) => (
+                      <div key={idx} className="text-zinc-300">
+                        {it.productName} <span className="text-zinc-400">({it.reason.replace('_', ' ')})</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-2 border-t border-zinc-800/60 flex items-center justify-between">
+                    <span className="text-zinc-400 text-xs">Refund Amount</span>
+                    <span className="font-mono font-bold text-amber-400 text-sm">₹{rma.requestedRefundAmount.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {rma.status !== 'refunded' && (
+                  <button
+                    onClick={() => handleProcessRefund(rma)}
+                    className="w-full py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px]"
+                  >
+                    Approve Refund
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP RMA TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -642,7 +698,7 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
                       {rma.status !== 'refunded' && (
                         <button
                           onClick={() => handleProcessRefund(rma)}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 transition-colors"
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 transition-colors cursor-pointer"
                         >
                           Approve Refund
                         </button>
@@ -665,7 +721,47 @@ export const OrdersAdminSection: React.FC<OrdersAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE REFUNDS CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {refundsList.map(ref => (
+              <div key={ref.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="font-mono font-bold text-amber-400 text-sm">{ref.refundNumber}</span>
+                    <p className="text-xs text-zinc-400 font-mono mt-0.5">Order #{ref.orderNumber}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono uppercase">
+                    {ref.status}
+                  </span>
+                </div>
+
+                <div className="bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/80 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-500 text-[10px]">Client</span>
+                    <span className="font-medium text-zinc-200">{ref.customerName}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-500 text-[10px]">Refund Amount</span>
+                    <span className="font-mono font-bold text-red-400 text-sm">-₹{ref.amount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
+                    <span className="text-zinc-500 text-[10px]">Gateway</span>
+                    <div className="text-right font-mono text-xs text-zinc-300">
+                      <div>{ref.gateway}</div>
+                      <div className="text-[10px] text-zinc-500">{ref.gatewayTransactionId}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-500 text-[10px]">Initiated By</span>
+                    <span className="text-zinc-400 text-xs">{ref.initiatedBy}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP REFUNDS TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>

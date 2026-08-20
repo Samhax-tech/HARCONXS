@@ -214,22 +214,22 @@ export const CustomOrdersAdminSection: React.FC<CustomOrdersAdminSectionProps> =
           {/* MOBILE CUSTOM ORDERS CARDS (< md screens) */}
           <div className="md:hidden space-y-3">
             {customOrders
-              .filter(co => !searchQuery || (co.customer?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || co.id.toLowerCase().includes(searchQuery.toLowerCase()))
+              .filter(co => !searchQuery || (co.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) || co.id.toLowerCase().includes(searchQuery.toLowerCase()))
               .map(order => (
                 <div key={order.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="font-mono font-bold text-amber-400 text-sm">{order.id}</div>
-                      <div className="text-xs text-zinc-300 font-medium">{order.customer?.name || 'Patron'}</div>
+                      <div className="text-xs text-zinc-300 font-medium">{order.customerName || 'Patron'}</div>
                     </div>
                     <span className="text-xs font-mono font-bold text-zinc-100 bg-zinc-800 px-2.5 py-1 rounded-lg">
-                      ₹{(order.estimatedBudget || 25000).toLocaleString()}
+                      {order.quote ? `₹${order.quote.amount.toLocaleString()}` : (order.budgetRange || 'Flexible')}
                     </span>
                   </div>
 
                   <div className="text-xs space-y-1 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800">
-                    <div className="text-zinc-300 font-medium">{order.metal || '18K Sovereign Gold'}</div>
-                    <div className="text-zinc-400 text-[11px]">{order.engraving ? `Engraving: "${order.engraving}"` : 'No Engraving'}</div>
+                    <div className="text-zinc-300 font-medium">{order.productType || 'Custom Atelier Commission'}</div>
+                    <div className="text-zinc-400 text-[11px]">{order.personalText?.engravingPlacement ? `Engraving: "${order.personalText.engravingPlacement}"` : (order.preferredStyle ? `Style: ${order.preferredStyle}` : 'Standard Custom')}</div>
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
@@ -238,11 +238,11 @@ export const CustomOrdersAdminSection: React.FC<CustomOrdersAdminSectionProps> =
                       onChange={(e) => handleUpdateCustomStatus(order.id, e.target.value as CustomOrder['status'])}
                       className="text-xs px-2.5 py-1.5 min-h-[38px] rounded-lg font-medium border bg-zinc-950 border-amber-400/30 text-amber-400 focus:outline-none"
                     >
-                      <option value="pending">1. Pending Review</option>
-                      <option value="quote_sent">2. Quote Dispatched</option>
-                      <option value="in_production">3. In Atelier Casting</option>
-                      <option value="completed">4. Polished & Inspected</option>
-                      <option value="rejected">Declined</option>
+                      <option value="REQUESTED">1. Pending Review</option>
+                      <option value="QUOTED">2. Quote Dispatched</option>
+                      <option value="PRODUCTION">3. In Atelier Casting</option>
+                      <option value="DELIVERED">4. Polished & Inspected</option>
+                      <option value="REJECTED">Declined</option>
                     </select>
                     <button
                       onClick={() => {
@@ -274,20 +274,20 @@ export const CustomOrdersAdminSection: React.FC<CustomOrdersAdminSectionProps> =
               </thead>
               <tbody className="divide-y divide-zinc-800">
                 {customOrders
-                  .filter(co => !searchQuery || (co.customer?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || co.id.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .filter(co => !searchQuery || (co.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) || co.id.toLowerCase().includes(searchQuery.toLowerCase()))
                   .map(order => (
                     <tr key={order.id} className="hover:bg-zinc-800/40">
                       <td className="py-3 px-4 font-mono font-bold text-amber-400">{order.id}</td>
                       <td className="py-3 px-4">
-                        <div className="font-medium text-zinc-100">{order.customer?.name}</div>
-                        <div className="text-xs text-zinc-500">{order.customer?.email}</div>
+                        <div className="font-medium text-zinc-100">{order.customerName}</div>
+                        <div className="text-xs text-zinc-500">{order.customerEmail}</div>
                       </td>
                       <td className="py-3 px-4 text-xs">
-                        <div className="text-zinc-200">{order.metal || '18K Sovereign Gold'}</div>
-                        <div className="text-zinc-400">{order.engraving ? `Engraved: "${order.engraving}"` : 'No Engraving'}</div>
+                        <div className="text-zinc-200">{order.productType || 'Custom Commission'}</div>
+                        <div className="text-zinc-400">{order.personalText?.engravingPlacement ? `Engraved: "${order.personalText.engravingPlacement}"` : (order.preferredStyle || 'Standard Custom')}</div>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-zinc-100">
-                        ₹{(order.estimatedBudget || 25000).toLocaleString()}
+                        {order.quote ? `₹${order.quote.amount.toLocaleString()}` : (order.budgetRange || 'Flexible')}
                       </td>
                       <td className="py-3 px-4">
                         <select
@@ -295,11 +295,11 @@ export const CustomOrdersAdminSection: React.FC<CustomOrdersAdminSectionProps> =
                           onChange={(e) => handleUpdateCustomStatus(order.id, e.target.value as CustomOrder['status'])}
                           className="text-xs px-2.5 py-1 rounded-lg font-medium border bg-zinc-950 border-amber-400/30 text-amber-400 focus:outline-none"
                         >
-                          <option value="pending">1. Pending Review</option>
-                          <option value="quote_sent">2. Quote Dispatched</option>
-                          <option value="in_production">3. In Atelier Casting</option>
-                          <option value="completed">4. Polished & Inspected</option>
-                          <option value="rejected">Declined</option>
+                          <option value="REQUESTED">1. Pending Review</option>
+                          <option value="QUOTED">2. Quote Dispatched</option>
+                          <option value="PRODUCTION">3. In Atelier Casting</option>
+                          <option value="DELIVERED">4. Polished & Inspected</option>
+                          <option value="REJECTED">Declined</option>
                         </select>
                       </td>
                       <td className="py-3 px-4 text-right">

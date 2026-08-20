@@ -539,7 +539,7 @@ export const CustomOrderPortal: React.FC = () => {
                 )}
 
                 {/* Quote Action Buttons */}
-                {activeOrder.quote.status === 'pending' && (
+                {(activeOrder.quote.status === 'pending_review' || (activeOrder.quote.status as string) === 'pending') && (
                   <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-amber-400/20">
                     <button
                       onClick={() => setIsRevisionModalOpen(true)}
@@ -789,9 +789,9 @@ export const CustomOrderPortal: React.FC = () => {
                           {isCustomer && (
                             <span className="flex items-center gap-0.5">
                               {msg.isRead ? (
-                                <CheckCheck className="w-3.5 h-3.5 text-zinc-900" title="Read by artisan" />
+                                <span title="Read by artisan"><CheckCheck className="w-3.5 h-3.5 text-zinc-900" /></span>
                               ) : (
-                                <Check className="w-3 h-3 text-zinc-900/60" title="Sent via Supabase Realtime" />
+                                <span title="Sent via Supabase Realtime"><Check className="w-3.5 h-3.5 text-zinc-900/60" /></span>
                               )}
                             </span>
                           )}

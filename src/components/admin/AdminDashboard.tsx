@@ -117,7 +117,7 @@ export const AdminDashboard: React.FC = () => {
   }
 
   // Aggregated Stats
-  const totalRevenue = orders.reduce((acc, o) => acc + (o.total || o.totalAmount || 0), 0) || 148500;
+  const totalRevenue = orders.reduce((acc, o) => acc + (o.total || 0), 0) || 148500;
   const totalProfit = Math.round(totalRevenue * 0.68);
   const activeOrdersCount = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
 
@@ -715,7 +715,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="text-zinc-400">{o.customerName} • {o.items.length} items</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono font-bold text-amber-400">{formatPrice(o.total || o.totalAmount || 0)}</div>
+                      <div className="font-mono font-bold text-amber-400">{formatPrice(o.total || 0)}</div>
                       <span className="text-[10px] text-emerald-400 font-mono uppercase">{o.status}</span>
                     </div>
                   </div>

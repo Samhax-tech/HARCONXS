@@ -11,7 +11,7 @@ interface Props {
 }
 
 export const PrivateBillingModal: React.FC<Props> = ({ service, selectedPlanId, isOpen, onClose }) => {
-  const { formatPrice, showToast, user } = useStore();
+  const { formatPrice, showToast, currentUser } = useStore();
 
   const [activeTab, setActiveTab] = useState<'checkout' | 'invoices' | 'tokens'>('checkout');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -152,7 +152,7 @@ export const PrivateBillingModal: React.FC<Props> = ({ service, selectedPlanId, 
                     <span>Panel Provisioned Successfully!</span>
                   </div>
                   <p className="text-xs text-emerald-200 leading-relaxed">
-                    Your credentials have been dispatched to <strong>{user.email}</strong>. You can now access your private bot dashboard or copy your secret webhook tokens.
+                    Your credentials have been dispatched to <strong>{currentUser?.email || 'your registered email'}</strong>. You can now access your private bot dashboard or copy your secret webhook tokens.
                   </p>
                 </div>
               ) : (

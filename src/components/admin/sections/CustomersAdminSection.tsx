@@ -34,7 +34,7 @@ export const CustomersAdminSection: React.FC<CustomersAdminSectionProps> = ({
   subSection,
   onNavigateSubSection
 }) => {
-  const { reviews, products, addProductReview, deleteProductReview, moderateReview, approveReview, rejectReview, showToast } = useStore();
+  const { reviews, products, addProductReview, deleteProductReview, moderateReview, showToast } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState<string>('all');

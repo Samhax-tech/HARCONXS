@@ -202,7 +202,7 @@ export const AiChatAssistant: React.FC = () => {
           ticketOffer: {
             offer: true,
             subject: `Inquiry: ${query.substring(0, 40)}`,
-            category: 'General Inquiry',
+            category: 'General',
             reason: 'Connection interruption fallback'
           }
         }

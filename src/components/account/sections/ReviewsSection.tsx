@@ -59,14 +59,14 @@ export const ReviewsSection: React.FC = () => {
 
   userOrders.forEach(ord => {
     ord.items.forEach(it => {
-      const pid = it.productId || it.id;
-      const matchedProd = products.find(p => p.id === pid) || null;
+      const pid = it.product?.id || it.id;
+      const matchedProd = it.product || products.find(p => p.id === pid) || null;
       if (!userReviews.some(r => r.productId === pid)) {
         purchasedProductsMap.set(pid, {
           product: matchedProd,
           orderId: ord.id,
-          title: it.title || it.name,
-          image: it.image || '/images/default.jpg'
+          title: it.product?.name || 'Patron Commission Piece',
+          image: it.product?.images?.[0] || '/images/default.jpg'
         });
       }
     });

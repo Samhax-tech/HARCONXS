@@ -369,7 +369,27 @@ export const SettingsAdminSection: React.FC<SettingsAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE TAX CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {taxSlabs.map(slab => (
+              <div key={slab.code} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-amber-400 font-mono font-bold text-sm">{slab.code}</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    {slab.rate}% GST
+                  </span>
+                </div>
+                <h4 className="font-semibold text-zinc-100 text-xs">{slab.category}</h4>
+                <div className="text-[11px] text-zinc-400 bg-zinc-950/60 p-2 rounded-xl border border-zinc-800/80">
+                  <span className="text-zinc-500">Applies To: </span>
+                  {slab.appliesTo}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP TAX TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -546,7 +566,44 @@ export const SettingsAdminSection: React.FC<SettingsAdminSectionProps> = ({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE RBAC PERMISSIONS CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {ADMIN_PERMISSIONS_LIST.map(permDef => {
+              const isGranted = (rolePermissionsMatrix[selectedMatrixRole] || []).includes(permDef.key);
+              return (
+                <div key={permDef.key} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-mono text-xs font-bold text-amber-400">{permDef.key}</div>
+                      <div className="text-xs text-zinc-200 font-semibold mt-0.5">{permDef.label}</div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-400 shrink-0">
+                      {permDef.category}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-zinc-400 leading-relaxed bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/80">
+                    {permDef.description}
+                  </p>
+
+                  <button
+                    disabled={selectedMatrixRole === 'super_admin'}
+                    onClick={() => handleTogglePermission(selectedMatrixRole, permDef.key)}
+                    className={`w-full py-2.5 rounded-xl text-xs font-mono font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px] ${
+                      isGranted
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                        : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
+                    }`}
+                  >
+                    {isGranted ? 'STATE: GRANTED (CLICK TO REVOKE)' : 'STATE: DENIED (CLICK TO GRANT)'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* DESKTOP RBAC PERMISSIONS TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -575,7 +632,7 @@ export const SettingsAdminSection: React.FC<SettingsAdminSectionProps> = ({
                         <button
                           disabled={selectedMatrixRole === 'super_admin'}
                           onClick={() => handleTogglePermission(selectedMatrixRole, permDef.key)}
-                          className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-colors ${
+                          className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-colors cursor-pointer ${
                             isGranted ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
                           }`}
                         >
@@ -600,7 +657,39 @@ export const SettingsAdminSection: React.FC<SettingsAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE AUDIT LOGS CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {auditLogs.map(log => (
+              <div key={log.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-amber-400 font-bold text-xs">{log.action}</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                    log.status === 'ALLOWED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                  }`}>
+                    {log.status}
+                  </span>
+                </div>
+
+                <div className="bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/80 space-y-1.5 text-xs font-mono">
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-500">Admin</span>
+                    <span className="text-zinc-200 font-bold">{log.adminEmail}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-500">Resource</span>
+                    <span className="text-zinc-300">{log.resourceType}:{log.resourceId}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1 border-t border-zinc-800/60">
+                    <span>IP: {log.ipAddress}</span>
+                    <span>{new Date(log.createdAt).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP AUDIT LOGS TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>

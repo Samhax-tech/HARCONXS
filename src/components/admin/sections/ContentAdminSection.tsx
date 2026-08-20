@@ -61,7 +61,7 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
   const { 
     showToast, 
     products, 
-    updateProductInCatalog, 
+    updateProduct, 
     activePageRecord,
     policies: storePolicies,
     updatePolicyRecord,
@@ -69,6 +69,8 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
     approveAndPublishPolicy,
     schedulePolicy
   } = useStore();
+
+  const updateProductInCatalog = updateProduct;
 
   // Pages list
   const [pagesList, setPagesList] = useState([
@@ -149,7 +151,7 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
       setPolicyEditSummary(activePolicy.description || '');
       setPolicySections(
         activePolicy.sections && activePolicy.sections.length > 0
-          ? activePolicy.sections.map(s => ({ heading: s.heading, body: s.body }))
+          ? activePolicy.sections.map(s => ({ heading: s.heading, body: s.body || s.content || '' }))
           : [{ heading: 'General Provisions', body: activePolicy.content || '' }]
       );
     }
@@ -163,9 +165,10 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
       await draftPolicyVersion(activePolicy.id, {
         title: policyEditTitle,
         content: policyEditContent,
-        sections: policySections.map((s, idx) => ({ id: `sec-${idx + 1}`, heading: s.heading, body: s.body })),
+        sections: policySections.map((s) => ({ heading: s.heading, content: s.body || '', body: s.body })),
         version: nextVerNum,
         changeSummary: policyEditSummary || 'Administrative draft updates',
+        createdBy: 'Administrator',
         isAiDrafted: false
       });
       showToast(`Policy draft v${nextVerNum} created for review.`);
@@ -199,9 +202,10 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
       await draftPolicyVersion(activePolicy.id, {
         title: `${activePolicy.title} (AI Draft Revision)`,
         content: fullDraftContent,
-        sections: enrichedClauses.map((s, idx) => ({ id: `ai-sec-${idx + 1}`, heading: s.heading, body: s.body })),
+        sections: enrichedClauses.map((s) => ({ heading: s.heading, content: s.body || '', body: s.body })),
         version: aiGeneratedVersion,
         changeSummary: `AI-assisted legal draft: ${aiDraftPrompt}`,
+        createdBy: 'AI Governance Assistant',
         isAiDrafted: true
       });
 
@@ -402,7 +406,40 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
             </p>
           </div>
 
-          <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
+          {/* MOBILE PAGES CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {pagesList.map((pg) => (
+              <div key={pg.id} className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-zinc-100 text-sm">{pg.title}</h4>
+                    <span className="font-mono text-xs text-zinc-400">/{pg.slug}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                    pg.status === 'published' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                  }`}>
+                    {pg.status}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-zinc-400 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/80 font-mono">
+                  <span>{pg.sectionsCount} modules</span>
+                  <span>Updated: {new Date(pg.updatedAt).toLocaleDateString()}</span>
+                </div>
+
+                <button
+                  onClick={() => onOpenPageBuilder(pg.slug)}
+                  className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px]"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Launch Visual Page Studio</span>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP PAGES TABLE (>= md screens) */}
+          <div className="hidden md:block rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <table className="w-full text-left text-sm text-zinc-300">
               <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                 <tr>
@@ -718,7 +755,68 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+                    {/* MOBILE POLICY VERSIONS CARDS (< md screens) */}
+                    <div className="md:hidden space-y-3">
+                      {(activePolicy.versions || [
+                        {
+                          id: `ver-default`,
+                          policyId: activePolicy.id,
+                          version: activePolicy.version || 'v2.4.0',
+                          title: activePolicy.title,
+                          content: activePolicy.content,
+                          status: activePolicy.status,
+                          changeSummary: 'Initial sovereign baseline policy release',
+                          createdBy: 'Super Administrator',
+                          createdAt: activePolicy.updatedAt || new Date().toISOString(),
+                          isAiDrafted: false
+                        }
+                      ]).map((ver) => (
+                        <div key={ver.id} className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="font-mono font-bold text-amber-400 text-sm">{ver.version}</span>
+                              <div className="text-xs font-medium text-zinc-200 mt-0.5">{ver.changeSummary || ver.title}</div>
+                              {ver.isAiDrafted && (
+                                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.2 text-[10px] font-mono rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                  <Bot className="w-2.5 h-2.5" /> AI Drafted
+                                </span>
+                              )}
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                              ver.status === 'published'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                : ver.status === 'scheduled'
+                                ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30'
+                                : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                            }`}>
+                              {ver.status}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs text-zinc-400 font-mono bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/80">
+                            <span>{ver.approvedBy ? `By ${ver.approvedBy}` : (ver.createdBy || 'Editor')}</span>
+                            <span>{new Date(ver.createdAt).toLocaleDateString()}</span>
+                          </div>
+
+                          {ver.status !== 'published' ? (
+                            <button
+                              onClick={() => handleApproveVersion(ver.id)}
+                              className="w-full py-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px]"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Approve &amp; Publish</span>
+                            </button>
+                          ) : (
+                            <div className="text-[11px] text-emerald-400 font-mono flex items-center justify-center gap-1 py-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Active Live Version
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* DESKTOP POLICY VERSIONS TABLE (>= md screens) */}
+                    <div className="hidden md:block rounded-xl border border-zinc-800 overflow-hidden">
                       <table className="w-full text-left text-sm text-zinc-300">
                         <thead className="bg-zinc-950 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                           <tr>

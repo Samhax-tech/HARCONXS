@@ -28,7 +28,7 @@ export const ContinueToBillingButton: React.FC<ContinueToBillingButtonProps> = (
   className = '',
   children
 }) => {
-  const { user } = useStore();
+  const { currentUser } = useStore();
 
   const params: BillingRedirectParams = {
     productId,
@@ -36,11 +36,11 @@ export const ContinueToBillingButton: React.FC<ContinueToBillingButtonProps> = (
     slug,
     billingCycle,
     source,
-    userContext: user ? {
-      userId: user.id,
-      userEmail: user.email,
-      userName: user.name,
-      userRole: user.role
+    userContext: currentUser ? {
+      userId: currentUser.id,
+      userEmail: currentUser.email,
+      userName: currentUser.name,
+      userRole: 'customer'
     } : undefined
   };
 

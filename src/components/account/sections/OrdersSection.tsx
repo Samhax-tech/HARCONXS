@@ -45,7 +45,7 @@ export const OrdersSection: React.FC<OrdersSectionProps> = ({
   const filteredOrders = userOrders.filter(ord => {
     const matchesSearch =
       ord.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ord.items.some(it => it.title?.toLowerCase().includes(searchTerm.toLowerCase()) || it.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      ord.items.some(it => it.product?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (ord.trackingNumber && ord.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase()));
 
     if (!matchesSearch) return false;
@@ -102,7 +102,7 @@ export const OrdersSection: React.FC<OrdersSectionProps> = ({
   const handleReorder = (order: Order) => {
     order.items.forEach(item => {
       if (item.product) {
-        addToCart(item.product, item.quantity, item.variant, item.packaging, item.personalization);
+        addToCart(item.product, item.quantity, item.variant?.id, item.packaging, item.personalization);
       }
     });
     showToast(`Added ${order.items.length} items from ${order.orderNumber} to your bag!`);

@@ -1533,7 +1533,7 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
                       <label className="block text-xs font-medium text-zinc-300 mb-1">Product Condition</label>
                       <select
                         value={productForm.condition || 'new'}
-                        onChange={(e) => setProductForm(prev => ({ ...prev, condition: e.target.value }))}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, condition: e.target.value as Product['condition'] }))}
                         className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400 cursor-pointer"
                       >
                         <option value="new">New Condition (Brand New)</option>

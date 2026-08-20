@@ -115,9 +115,8 @@ export const CheckoutPage: React.FC = () => {
       try {
         const quote = await calculateServerOrderQuote({
           items: cart,
-          appliedCoupon: appliedCoupon || undefined,
-          country: 'India',
-          paymentMethod: paymentType
+          couponCode: appliedCoupon?.code,
+          carrier: 'BlueDart Priority'
         });
         if (!isCancelled) {
           setServerQuote(quote);
@@ -187,9 +186,8 @@ export const CheckoutPage: React.FC = () => {
         customerEmail: email,
         customerPhone: phone,
         items: cart,
-        appliedCoupon: appliedCoupon || undefined,
+        couponCode: appliedCoupon?.code,
         paymentMethod: paymentMethodMap[paymentType],
-        paymentGateway: paymentType === 'upi' ? 'Cashfree UPI' : (paymentType === 'card' ? 'Stripe Gateway' : 'COD Agent'),
         shippingAddress: {
           fullName,
           street,

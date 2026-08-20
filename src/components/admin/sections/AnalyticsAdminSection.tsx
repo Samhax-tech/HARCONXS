@@ -462,14 +462,56 @@ export const AnalyticsAdminSection: React.FC<AnalyticsAdminSectionProps> = ({
       {/* ========================================================================= */}
       {activeTab === 'products' && (
         <div className="space-y-6">
-          {/* Top Products Table */}
+          {/* Top Products Table & Mobile Cards */}
           <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 overflow-hidden shadow-xl">
             <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
               <h4 className="font-serif font-bold text-zinc-100 text-base">Top Performing Products</h4>
               <span className="text-xs text-zinc-400 font-mono">Ranked by Engagement & Velocity</span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* MOBILE TOP PRODUCTS CARDS (< md screens) */}
+            <div className="md:hidden p-4 space-y-3">
+              {metrics.topProducts.map((p, idx) => (
+                <div key={p.id} className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-zinc-800 text-[10px] text-amber-400 flex items-center justify-center font-mono font-bold shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <h5 className="font-semibold text-zinc-100 text-xs">{p.name}</h5>
+                        <span className="text-[10px] text-zinc-400 uppercase font-mono">{p.category}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-amber-400 shrink-0">
+                      ₹{p.revenue.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/80 text-center font-mono text-[11px]">
+                    <div>
+                      <span className="text-zinc-500 text-[9px] block">Views</span>
+                      <span className="text-zinc-300 font-bold">{p.views.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 text-[9px] block">Bag</span>
+                      <span className="text-zinc-300 font-bold">{p.addToCartCount.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 text-[9px] block">Orders</span>
+                      <span className="text-emerald-400 font-bold">{p.purchasesCount}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 text-[9px] block">Conv.</span>
+                      <span className="text-amber-400 font-bold">{p.conversionRate}%</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* DESKTOP TOP PRODUCTS TABLE (>= md screens) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-zinc-300">
                 <thead className="bg-zinc-950 border-b border-zinc-800 text-zinc-400 uppercase tracking-wider font-mono">
                   <tr>
@@ -717,7 +759,31 @@ export const AnalyticsAdminSection: React.FC<AnalyticsAdminSectionProps> = ({
             </span>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* MOBILE TELEMETRY CARDS (< md screens) */}
+          <div className="md:hidden space-y-3">
+            {metrics.recentEvents.slice(0, 20).map((ev) => (
+              <div key={ev.id} className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2 font-mono text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-amber-400 border border-zinc-700">
+                    {ev.eventName}
+                  </span>
+                  <span className="text-[10px] text-zinc-500">
+                    {new Date(ev.createdAt).toLocaleTimeString()}
+                  </span>
+                </div>
+                <div className="text-[11px] text-zinc-400">
+                  <span className="text-zinc-500">Hash: </span>
+                  {ev.anonymousId}
+                </div>
+                <div className="p-2 rounded-lg bg-zinc-900/80 border border-zinc-800/80 text-[10px] text-zinc-300 font-sans break-all">
+                  {JSON.stringify(ev.properties)}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP TELEMETRY TABLE (>= md screens) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs text-zinc-300">
               <thead className="bg-zinc-950 border-b border-zinc-800 text-zinc-400 uppercase tracking-wider font-mono">
                 <tr>

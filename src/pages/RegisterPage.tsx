@@ -5,7 +5,7 @@ import { UserPlus, Mail, Lock, User, Phone, CheckCircle2, Shield } from 'lucide-
 import { supabaseSignUp, supabaseSignInWithGoogle } from '../lib/supabase';
 
 export const RegisterPage: React.FC = () => {
-  const { userLogin, showToast, isUserLoggedIn } = useStore();
+  const { userRegister, showToast, isUserLoggedIn } = useStore();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
@@ -34,18 +34,14 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true);
     setErrorMsg('');
 
-    const supabaseRes = await supabaseSignUp(email.trim(), password.trim(), { full_name: fullName.trim(), phone: phone.trim() });
+    const res = await userRegister(fullName.trim(), email.trim(), phone.trim(), password.trim());
     setIsLoading(false);
 
-    if (supabaseRes.user) {
-      userLogin(email.trim(), fullName.trim(), 'customer');
+    if (res.success) {
       showToast('Account registered successfully! Welcome to HARCONXS.');
       navigate('/account', { replace: true });
     } else {
-      // Fallback local registration
-      userLogin(email.trim(), fullName.trim(), 'customer');
-      showToast('Account created successfully.');
-      navigate('/account', { replace: true });
+      setErrorMsg(res.message || 'Registration failed.');
     }
   };
 

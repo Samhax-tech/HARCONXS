@@ -17,6 +17,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Helper function to check if user has admin role
+CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE id = user_id AND role IN ('super_admin', 'manager')
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- ==============================================================================
 -- 1. ACCESS CONTROL: ROLES & PERMISSIONS
 -- ==============================================================================

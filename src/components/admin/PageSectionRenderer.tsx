@@ -250,7 +250,7 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    {p.isBestSeller && (
+                    {((p as any).isBestSeller || p.isFeatured) && (
                       <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-amber-500 text-zinc-950 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-md">
                         <Flame className="w-3 h-3" /> Best Seller
                       </span>
@@ -338,13 +338,13 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
                 >
                   <div className="h-40 rounded-xl bg-zinc-950 overflow-hidden relative">
                     <img 
-                      src={tmpl.previewThumbnail || 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=500&q=80'} 
+                      src={tmpl.previewImage || 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=500&q=80'} 
                       alt={tmpl.name}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                     />
                     <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-zinc-900/90 text-amber-300 text-[10px] font-bold">
-                      {tmpl.tier}
+                      {tmpl.themeCategory}
                     </span>
                   </div>
                   <h4 className="font-bold text-zinc-100 text-sm">{tmpl.name}</h4>
@@ -381,12 +381,12 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                      {bot.tier}
+                      {bot.platform}
                     </span>
-                    <span className="font-bold text-zinc-100 text-sm">₹{bot.monthlyPriceInr}/mo</span>
+                    <span className="font-bold text-zinc-100 text-sm">₹{bot.plans?.[0]?.price || 499}/mo</span>
                   </div>
                   <h4 className="font-bold text-zinc-100 text-base">{bot.name}</h4>
-                  <p className="text-xs text-zinc-400">{bot.tagline}</p>
+                  <p className="text-xs text-zinc-400">{bot.shortDesc}</p>
                 </div>
               ))}
             </div>

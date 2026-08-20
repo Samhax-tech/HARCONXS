@@ -406,7 +406,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ categoryOverride, filterOver
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => {
-                          addToCart(product, undefined, 1);
+                          addToCart(product, 1);
                           showToast(`Added ${product.name} to cart.`);
                         }}
                         className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-xs rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
@@ -498,7 +498,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ categoryOverride, filterOver
                     </button>
                     <button
                       onClick={() => {
-                        addToCart(product, undefined, 1);
+                        addToCart(product, 1);
                         showToast(`Added ${product.name} to bag.`);
                       }}
                       className="flex-1 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors"

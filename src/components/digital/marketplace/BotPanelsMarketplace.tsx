@@ -306,7 +306,7 @@ export const BotPanelsMarketplace: React.FC = () => {
                         <span className="flex items-center gap-1">
                           <Cpu className="w-3 h-3 text-sky-400" /> {svc.hostingInfo.ram} RAM
                         </span>
-                        <span>{svc.hostingInfo.uptimeSla} SLA</span>
+                        <span>{svc.hostingInfo.uptime || '99.9%'} SLA</span>
                       </div>
                     )}
 
