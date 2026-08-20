@@ -10,6 +10,9 @@ import {
 import { fetchProductsFromSupabase } from '../services/supabaseService';
 import { INITIAL_PRODUCTS } from '../data/initialData';
 
+import { executeServerEmailDispatch, generateEmailForNotification } from './emailDispatcher';
+import { recordEmailLogInSupabase } from '../services/supabaseService';
+
 export const apiRouter = express.Router();
 
 // Middleware: Parse JSON bodies safely
@@ -30,6 +33,107 @@ apiRouter.use((req: Request, res: Response, next: NextFunction) => {
   }
 
   next();
+});
+
+/**
+ * Server-Side Notification & Email Dispatch Endpoints
+ * All private email credentials remain securely on the server
+ */
+apiRouter.post(['/api/v1/notifications/email-dispatch', '/api/v1/emails/send', '/v1/notifications/email-dispatch'], async (req: Request, res: Response) => {
+  try {
+    const { type, recipientEmail, recipientName, subject, data, userId } = req.body || {};
+
+    if (!type || !recipientEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: "type" and "recipientEmail" are mandatory.'
+      });
+    }
+
+    const payload = {
+      type,
+      recipientEmail,
+      recipientName: recipientName || recipientEmail.split('@')[0],
+      subject,
+      data: data || {},
+      userId
+    };
+
+    const result = await executeServerEmailDispatch(payload);
+
+    // Save to Supabase email_logs asynchronously if service is available
+    try {
+      await recordEmailLogInSupabase({
+        id: result.emailId,
+        type: result.type as any,
+        recipientEmail: result.recipientEmail,
+        recipientName: result.recipientName,
+        subject: result.subject,
+        previewSnippet: result.previewSnippet,
+        htmlContent: result.htmlContent,
+        sentAt: result.sentAt,
+        status: result.status,
+        orderNumber: result.orderNumber,
+        trackingNumber: result.trackingNumber,
+        carrier: result.carrier,
+        metadata: result.metadata
+      });
+    } catch (dbErr) {
+      console.warn('[NotificationApi] Supabase log fallback notice:', dbErr);
+    }
+
+    return res.status(200).json(result);
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || 'Server error while dispatching transactional notification.'
+    });
+  }
+});
+
+apiRouter.post(['/api/v1/notifications/preview-template', '/v1/notifications/preview-template'], (req: Request, res: Response) => {
+  try {
+    const { type, recipientEmail, recipientName, data } = req.body || {};
+    const generated = generateEmailForNotification({
+      type: type || 'ACCOUNT_CREATED',
+      recipientEmail: recipientEmail || 'customer@example.com',
+      recipientName: recipientName || 'Valued Patron',
+      data: data || {}
+    });
+    return res.status(200).json({
+      success: true,
+      ...generated
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+apiRouter.get(['/api/v1/notifications/templates', '/v1/notifications/templates'], (req: Request, res: Response) => {
+  const supportedEvents = [
+    { type: 'ACCOUNT_CREATED', category: 'account', label: 'Account Creation', description: 'Triggered when a new user registers on HARCONXS' },
+    { type: 'EMAIL_VERIFICATION', category: 'account', label: 'Email Verification', description: 'Triggered to send 6-digit security verification PIN' },
+    { type: 'ORDER_CREATED', category: 'orders', label: 'Order Created', description: 'Triggered immediately when an order is placed' },
+    { type: 'PAYMENT_SUCCESSFUL', category: 'orders', label: 'Payment Successful', description: 'Triggered when payment is authorized & tax invoice generated' },
+    { type: 'ORDER_PROCESSING', category: 'orders', label: 'Order Processing', description: 'Triggered when fiber laser engraving & bench fabrication starts' },
+    { type: 'ORDER_SHIPPED', category: 'orders', label: 'Order Shipped', description: 'Triggered when package is handed to BlueDart / FedEx with AWB' },
+    { type: 'ORDER_DELIVERED', category: 'orders', label: 'Order Delivered', description: 'Triggered when package delivery is confirmed' },
+    { type: 'REFUND_PROCESSED', category: 'orders', label: 'Refund Processed', description: 'Triggered when finance approves and issues refund credit' },
+    { type: 'CUSTOM_ORDER_MESSAGE', category: 'custom', label: 'Custom Order Message', description: 'Triggered when master artisan replies with CAD design proof' },
+    { type: 'CUSTOM_QUOTE_ISSUED', category: 'custom', label: 'Custom Quote Issued', description: 'Triggered when official bespoke pricing quote is ready' },
+    { type: 'QUOTE_ACCEPTED', category: 'custom', label: 'Quote Accepted', description: 'Triggered when patron approves bespoke quote & fabrication' },
+    { type: 'COUPLE_WEBSITE_PURCHASE', category: 'websites', label: 'Couple Website Purchase', description: 'Triggered when couple sanctuary subdomain is provisioned' },
+    { type: 'WEBSITE_PUBLISHED', category: 'websites', label: 'Website Published', description: 'Triggered when couple sanctuary goes live to the world' },
+    { type: 'SUPPORT_REPLY', category: 'support', label: 'Support Reply', description: 'Triggered when customer concierge replies to a support ticket' },
+    { type: 'API_KEY_CREATED', category: 'security', label: 'API Key Created', description: 'Triggered when new developer programmatic key is issued' },
+    { type: 'API_KEY_REVOKED', category: 'security', label: 'API Key Revoked', description: 'Triggered when developer key is permanently invalidated' }
+  ];
+
+  res.status(200).json({
+    success: true,
+    totalSupported: supportedEvents.length,
+    events: supportedEvents
+  });
 });
 
 /**

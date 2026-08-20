@@ -123,6 +123,8 @@ export const App: React.FC = () => {
             <Route path="/account/couple-websites/:id" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
             <Route path="/account/support" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
             <Route path="/account/notifications" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/settings" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+            <Route path="/account/invoices" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
 
             {/* Admin Portal & Visual Page Editor (Protected by Supabase Auth + RBAC) */}
             <Route path="/edit-page" element={<AdminRoute><EditPageStudio /></AdminRoute>} />

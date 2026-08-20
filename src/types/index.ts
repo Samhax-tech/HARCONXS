@@ -451,6 +451,9 @@ export interface CoupleGuestbookEntry {
 export interface CoupleWebsiteProject {
   id: string;
   customerId: string;
+  ownerId?: string;
+  ownerEmail?: string;
+  title?: string;
   subdomain: string;
   templateId: string;
   templateName?: string;
@@ -944,11 +947,79 @@ export interface SocialLinksConfig {
   whatsapp: string;
 }
 
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export type NotificationCategory = 
+  | 'account' 
+  | 'orders' 
+  | 'custom' 
+  | 'custom_orders'
+  | 'websites' 
+  | 'couple_websites'
+  | 'support' 
+  | 'security'
+  | 'account_security'
+  | 'marketing'
+  | 'system';
+
+export type NotificationType =
+  | 'ACCOUNT_CREATED'
+  | 'EMAIL_VERIFICATION'
+  | 'ORDER_CREATED'
+  | 'PAYMENT_SUCCESSFUL'
+  | 'ORDER_PROCESSING'
+  | 'ORDER_SHIPPED'
+  | 'ORDER_DELIVERED'
+  | 'REFUND_PROCESSED'
+  | 'CUSTOM_ORDER_MESSAGE'
+  | 'CUSTOM_QUOTE_ISSUED'
+  | 'QUOTE_ACCEPTED'
+  | 'COUPLE_WEBSITE_PURCHASE'
+  | 'WEBSITE_PUBLISHED'
+  | 'SUPPORT_REPLY'
+  | 'API_KEY_CREATED'
+  | 'API_KEY_REVOKED';
+
+export interface AppNotification {
+  id: string;
+  userId?: string;
+  recipientEmail?: string;
+  recipientName?: string;
+  type: NotificationType;
+  category: NotificationCategory;
+  title: string;
+  message: string;
+  data?: Record<string, any>;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+  emailSent?: boolean;
+  emailDispatched?: boolean;
+  emailId?: string;
+  emailTemplateId?: string;
+  priority?: NotificationPriority;
+  actionUrl?: string;
+  actionLabel?: string;
+  actionView?: string;
+}
+
 export type EmailNotificationType = 
   | 'account_created'
+  | 'email_verification'
   | 'order_confirmed'
+  | 'payment_successful'
+  | 'order_processing'
   | 'shipping_update'
+  | 'order_delivered'
+  | 'refund_processed'
+  | 'custom_order_message'
   | 'custom_order_quote'
+  | 'quote_accepted'
+  | 'couple_website_purchase'
+  | 'website_published'
+  | 'support_reply'
+  | 'api_key_created'
+  | 'api_key_revoked'
   | 'delivery_success';
 
 export interface EmailNotification {
@@ -960,7 +1031,7 @@ export interface EmailNotification {
   previewSnippet: string;
   htmlContent: string;
   sentAt: string;
-  status: 'delivered' | 'sent' | 'queued';
+  status: 'delivered' | 'sent' | 'queued' | 'simulated';
   orderNumber?: string;
   trackingNumber?: string;
   carrier?: string;
@@ -1415,5 +1486,7 @@ export interface AuditLogRecord {
   userAgent?: string;
   createdAt: string;
 }
+
+
 
 

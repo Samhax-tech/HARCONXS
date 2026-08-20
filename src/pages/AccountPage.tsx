@@ -16,13 +16,20 @@ export const AccountPage: React.FC = () => {
   }, [id, pathname, setSelectedTrackingOrderId]);
 
   let activeTabName = 'Account Overview';
-  if (pathname.includes('/orders')) activeTabName = 'My Orders';
-  if (pathname.includes('/wishlist')) activeTabName = 'Wishlist';
-  if (pathname.includes('/custom-orders')) activeTabName = 'Custom Commissions';
-  if (pathname.includes('/couple-websites')) activeTabName = 'Couple Websites';
-  if (pathname.includes('/support')) activeTabName = 'Support Tickets';
-  if (pathname.includes('/notifications')) activeTabName = 'Notifications';
-  if (pathname.includes('/profile') || pathname.includes('/security')) activeTabName = 'Security & Profile';
+  if (pathname.includes('/orders/') && id) activeTabName = `Order #${id}`;
+  else if (pathname.includes('/orders')) activeTabName = 'Orders';
+  else if (pathname.includes('/wishlist')) activeTabName = 'Wishlist';
+  else if (pathname.includes('/addresses')) activeTabName = 'Addresses';
+  else if (pathname.includes('/reviews')) activeTabName = 'My Reviews';
+  else if (pathname.includes('/custom-orders/') && id) activeTabName = `Custom Order #${id}`;
+  else if (pathname.includes('/custom-orders')) activeTabName = 'Custom Orders';
+  else if (pathname.includes('/couple-websites/') && id) activeTabName = `Couple Website #${id}`;
+  else if (pathname.includes('/couple-websites')) activeTabName = 'Couple Websites';
+  else if (pathname.includes('/support')) activeTabName = 'Support Tickets';
+  else if (pathname.includes('/notifications')) activeTabName = 'Notifications & Dispatches';
+  else if (pathname.includes('/settings')) activeTabName = 'Settings & Security';
+  else if (pathname.includes('/invoices')) activeTabName = 'Invoices & Billing';
+  else if (pathname.includes('/profile')) activeTabName = 'Profile';
 
   return (
     <div className="bg-zinc-950 min-h-screen">

@@ -8,10 +8,25 @@ function expressApiPlugin(): Plugin {
     name: 'express-api-plugin',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url && (req.url.startsWith('/api') || req.url.startsWith('/api/'))) {
+        if (
+          req.url &&
+          (req.url.startsWith('/api') ||
+            req.url.startsWith('/sitemap.xml') ||
+            req.url.startsWith('/robots.txt') ||
+            req.url.startsWith('/feeds/'))
+        ) {
           try {
             const { apiRouter } = await import('./src/server/apiRouter');
-            apiRouter(req as any, res as any, next);
+            const originalUrl = req.url;
+            if (req.url === '/api' || req.url === '/api/') {
+              req.url = '/';
+            } else if (req.url.startsWith('/api/')) {
+              req.url = req.url.slice(4);
+            }
+            apiRouter(req as any, res as any, (err?: any) => {
+              req.url = originalUrl;
+              next(err);
+            });
           } catch (err) {
             next(err);
           }

@@ -19,6 +19,7 @@ import {
   ReviewReportSubmission,
   BillingInvoice,
   EmailNotification,
+  AppNotification,
   ThemeConfig,
   DiscountCoupon,
   KnowledgeCategory,
@@ -3019,4 +3020,167 @@ export async function approveAndPublishPolicyInSupabase(
     return { success: false, message: err?.message || 'Publish approval failed.' };
   }
 }
+
+// ==============================================================================
+// 20. HARCONXS IN-APP NOTIFICATIONS & TRANSACTIONAL EMAIL LOGS
+// ==============================================================================
+
+export async function fetchNotificationsFromSupabase(userId?: string): Promise<AppNotification[] | null> {
+  try {
+    let query = supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (userId) {
+      query = query.or(`user_id.eq.${userId},user_id.is.null`);
+    }
+
+    const { data, error } = await query;
+    if (error || !data || data.length === 0) return null;
+
+    return data.map((row: any) => ({
+      id: row.id,
+      userId: row.user_id || undefined,
+      type: row.type,
+      category: row.category || 'account',
+      title: row.title,
+      message: row.message,
+      data: typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {}),
+      isRead: Boolean(row.is_read),
+      readAt: row.read_at || null,
+      createdAt: row.created_at || new Date().toISOString(),
+      emailSent: Boolean(row.email_sent),
+      emailId: row.email_id || undefined,
+      priority: row.priority || 'normal',
+      actionUrl: row.action_url || undefined,
+      actionLabel: row.action_label || undefined,
+      actionView: row.action_view || undefined
+    }));
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertNotificationInSupabase(notif: AppNotification): Promise<boolean> {
+  try {
+    const payload = {
+      id: notif.id,
+      user_id: notif.userId || null,
+      type: notif.type,
+      category: notif.category,
+      title: notif.title,
+      message: notif.message,
+      data: notif.data ? (typeof notif.data === 'object' ? notif.data : JSON.parse(notif.data)) : {},
+      is_read: notif.isRead,
+      read_at: notif.readAt || null,
+      created_at: notif.createdAt,
+      email_sent: notif.emailSent || false,
+      email_id: notif.emailId || null,
+      priority: notif.priority || 'normal',
+      action_url: notif.actionUrl || null,
+      action_label: notif.actionLabel || null,
+      action_view: notif.actionView || null
+    };
+
+    const { error } = await supabase.from('notifications').upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function markNotificationReadInSupabase(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('id', id);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function markAllNotificationsReadInSupabase(userId?: string): Promise<boolean> {
+  try {
+    let query = supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('is_read', false);
+
+    if (userId) {
+      query = query.or(`user_id.eq.${userId},user_id.is.null`);
+    }
+
+    const { error } = await query;
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteNotificationFromSupabase(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('notifications').delete().eq('id', id);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function recordEmailLogInSupabase(log: EmailNotification): Promise<boolean> {
+  try {
+    const payload = {
+      id: log.id,
+      type: log.type,
+      recipient_email: log.recipientEmail,
+      recipient_name: log.recipientName,
+      subject: log.subject,
+      preview_snippet: log.previewSnippet,
+      html_content: log.htmlContent,
+      sent_at: log.sentAt,
+      status: log.status,
+      order_number: log.orderNumber || null,
+      tracking_number: log.trackingNumber || null,
+      carrier: log.carrier || null,
+      metadata: log.metadata || {}
+    };
+
+    const { error } = await supabase.from('email_logs').upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchEmailLogsFromSupabase(): Promise<EmailNotification[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('email_logs')
+      .select('*')
+      .order('sent_at', { ascending: false });
+
+    if (error || !data || data.length === 0) return null;
+
+    return data.map((row: any) => ({
+      id: row.id,
+      type: row.type,
+      recipientEmail: row.recipient_email,
+      recipientName: row.recipient_name,
+      subject: row.subject,
+      previewSnippet: row.preview_snippet,
+      htmlContent: row.html_content,
+      sentAt: row.sent_at,
+      status: row.status,
+      orderNumber: row.order_number,
+      trackingNumber: row.tracking_number,
+      carrier: row.carrier,
+      metadata: row.metadata
+    }));
+  } catch {
+    return null;
+  }
+}
+
 

@@ -30,6 +30,9 @@ import {
   YouTubeVideoItem,
   SocialLinksConfig,
   EmailNotification,
+  AppNotification,
+  NotificationType,
+  NotificationCategory,
   SupabaseConfigStatus,
   BillingInvoice,
   ThemeConfig,
@@ -57,9 +60,19 @@ import {
   INITIAL_YOUTUBE_VIDEOS,
   INITIAL_SOCIAL_LINKS,
   INITIAL_EMAIL_NOTIFICATIONS,
+  INITIAL_NOTIFICATIONS,
   INITIAL_BILLING_INVOICES,
   INITIAL_THEME_CONFIG
 } from '../data/initialData';
+import {
+  triggerNotification,
+  TriggerNotificationParams,
+  fetchNotificationsFromSupabase,
+  upsertNotificationInSupabase,
+  markNotificationReadInSupabase,
+  markAllNotificationsReadInSupabase,
+  deleteNotificationFromSupabase
+} from '../services/notificationService';
 import {
   generateAccountCreatedEmail,
   generateOrderConfirmedEmail,
@@ -152,14 +165,17 @@ import {
 export type CurrencyCode = 'INR';
 
 export interface UserAddress {
+  id?: string;
   fullName: string;
   street: string;
+  apartment?: string;
   city: string;
   state: string;
   zip: string;
   country: string;
   phone?: string;
   isDefault: boolean;
+  addressType?: 'shipping' | 'billing';
 }
 
 export interface UserProfile {
@@ -379,7 +395,21 @@ interface StoreContextType {
   userOtpLogin: (phone: string, otp: string) => { success: boolean; message: string };
   userLogout: () => Promise<void>;
   updateUser: (data: Partial<UserProfile>) => void;
+  addUserAddress: (address: UserAddress) => void;
+  updateUserAddress: (index: number, address: Partial<UserAddress>) => void;
+  deleteUserAddress: (index: number) => void;
+  setDefaultUserAddress: (index: number) => void;
   redeemLoyaltyPoints: (points: number) => boolean;
+
+  // In-App Notification Center & Transactional Dispatch (Supabase Synced)
+  notifications: AppNotification[];
+  unreadNotificationsCount: number;
+  addNotification: (notification: AppNotification) => void;
+  dispatchNotification: (params: TriggerNotificationParams) => Promise<AppNotification>;
+  markNotificationAsRead: (id: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  clearAllReadNotifications: () => Promise<void>;
 
   // Email Notifications Center
   emailNotifications: EmailNotification[];
@@ -585,6 +615,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Email Notifications State
   const [emailNotifications, setEmailNotifications] = useState<EmailNotification[]>(INITIAL_EMAIL_NOTIFICATIONS);
+
+  // In-App Notifications State (Supabase Persisted)
+  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+  const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
   const [selectedTrackingOrderId, setSelectedTrackingOrderId] = useState<string>('ord-1001');
 
@@ -1022,9 +1056,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast(`Account created! A verification link has been sent to ${email.trim()}.`);
     executePendingAuth();
 
-    // Trigger Account Created Email
-    const welcomeEmail = generateAccountCreatedEmail(newUser.name, newUser.email, newUser.loyaltyPoints);
-    addEmailNotification(welcomeEmail);
+    // Trigger Account Created In-App Notification & Server Email
+    dispatchNotification({
+      type: 'ACCOUNT_CREATED',
+      recipientEmail: newUser.email,
+      recipientName: newUser.name,
+      userId: newUser.id,
+      data: { loyaltyPoints: newUser.loyaltyPoints },
+      priority: 'high'
+    });
+
+    // Also trigger email verification notification
+    dispatchNotification({
+      type: 'EMAIL_VERIFICATION',
+      recipientEmail: newUser.email,
+      recipientName: newUser.name,
+      userId: newUser.id,
+      data: { verificationCode: Math.floor(100000 + Math.random() * 900000).toString() },
+      priority: 'high'
+    });
 
     return { success: true, message: 'Account created successfully.' };
   };
@@ -1081,6 +1131,64 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!currentUser) return;
     setCurrentUser(prev => prev ? { ...prev, ...data } : null);
     showToast('Profile updated.');
+  };
+
+  const addUserAddress = (newAddress: UserAddress) => {
+    if (!currentUser) return;
+    const addressWithId = {
+      ...newAddress,
+      id: newAddress.id || `addr-${Date.now()}`
+    };
+    const isFirst = (currentUser.addresses || []).length === 0;
+    const updatedAddresses = isFirst || addressWithId.isDefault
+      ? [
+          { ...addressWithId, isDefault: true },
+          ...(currentUser.addresses || []).map(a => ({ ...a, isDefault: false }))
+        ]
+      : [...(currentUser.addresses || []), addressWithId];
+
+    setCurrentUser(prev => prev ? { ...prev, addresses: updatedAddresses } : null);
+    showToast('Address added to your address book.');
+  };
+
+  const updateUserAddress = (index: number, updatedFields: Partial<UserAddress>) => {
+    if (!currentUser || !currentUser.addresses[index]) return;
+    const isSettingDefault = updatedFields.isDefault === true;
+    const updatedAddresses = currentUser.addresses.map((addr, idx) => {
+      if (idx === index) {
+        return { ...addr, ...updatedFields };
+      }
+      if (isSettingDefault) {
+        return { ...addr, isDefault: false };
+      }
+      return addr;
+    });
+
+    setCurrentUser(prev => prev ? { ...prev, addresses: updatedAddresses } : null);
+    showToast('Address updated.');
+  };
+
+  const deleteUserAddress = (index: number) => {
+    if (!currentUser) return;
+    const filtered = currentUser.addresses.filter((_, idx) => idx !== index);
+    // If we deleted the default and there are remaining addresses, set the first as default
+    const hasDefault = filtered.some(a => a.isDefault);
+    const finalAddresses = !hasDefault && filtered.length > 0
+      ? filtered.map((a, idx) => idx === 0 ? { ...a, isDefault: true } : a)
+      : filtered;
+
+    setCurrentUser(prev => prev ? { ...prev, addresses: finalAddresses } : null);
+    showToast('Address removed.');
+  };
+
+  const setDefaultUserAddress = (index: number) => {
+    if (!currentUser || !currentUser.addresses[index]) return;
+    const updatedAddresses = currentUser.addresses.map((addr, idx) => ({
+      ...addr,
+      isDefault: idx === index
+    }));
+    setCurrentUser(prev => prev ? { ...prev, addresses: updatedAddresses } : null);
+    showToast('Default delivery address updated.');
   };
 
   const redeemLoyaltyPoints = (points: number) => {
@@ -1826,9 +1934,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCart([]);
       setAppliedCoupon(null);
 
-      // Trigger Order Confirmed Email Notification
-      const orderEmail = generateOrderConfirmedEmail(result.order);
-      addEmailNotification(orderEmail);
+      // Trigger In-App Notifications & Server Email Dispatches
+      dispatchNotification({
+        type: 'ORDER_CREATED',
+        recipientEmail: result.order.customerEmail,
+        recipientName: result.order.customerName,
+        userId: result.order.customerId,
+        data: {
+          orderNumber: result.order.orderNumber,
+          total: result.order.total,
+          itemsCount: result.order.items.length
+        },
+        priority: 'high'
+      });
+
+      dispatchNotification({
+        type: 'PAYMENT_SUCCESSFUL',
+        recipientEmail: result.order.customerEmail,
+        recipientName: result.order.customerName,
+        userId: result.order.customerId,
+        data: {
+          orderNumber: result.order.orderNumber,
+          amount: result.order.total,
+          paymentMethod: result.order.paymentMethod
+        },
+        priority: 'high'
+      });
 
       trackAnalyticsEvent('purchase', {
         orderNumber: result.order.orderNumber,
@@ -1901,6 +2032,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         recordAuditLog('admin', 'process_refund', 'order', orderId, null, { amount, reason, restockInventory });
+
+        // Trigger Refund Processed Notification & Server Email
+        if (targetOrder) {
+          dispatchNotification({
+            type: 'REFUND_PROCESSED',
+            recipientEmail: targetOrder.customerEmail,
+            recipientName: targetOrder.customerName,
+            userId: targetOrder.customerId,
+            data: {
+              orderNumber: targetOrder.orderNumber,
+              refundAmount: amount,
+              reason: reason
+            },
+            priority: 'urgent'
+          });
+        }
+
         showToast(`Refund processed for order ${targetOrder?.orderNumber || orderId}.`);
         return { success: true };
       } else {
@@ -1963,13 +2111,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
 
         if (updatedOrderObj) {
+          const typedOrder = updatedOrderObj as Order;
           const shippingEmail = generateShippingUpdateEmail(
-            updatedOrderObj,
+            typedOrder,
             status,
             carrier,
             trackingNumber
           );
           addEmailNotification(shippingEmail);
+
+          const notifType: NotificationType = status === 'Delivered' 
+            ? 'ORDER_DELIVERED' 
+            : status === 'Shipped' || status === 'Out for Delivery'
+            ? 'ORDER_SHIPPED'
+            : 'ORDER_PROCESSING';
+
+          dispatchNotification({
+            type: notifType,
+            recipientEmail: typedOrder.customerEmail,
+            recipientName: typedOrder.customerName,
+            userId: typedOrder.customerId,
+            data: {
+              orderNumber: typedOrder.orderNumber,
+              carrier,
+              trackingNumber,
+              trackingUrl,
+              deliveryDate,
+              status
+            },
+            priority: status === 'Delivered' ? 'high' : 'normal'
+          });
         }
 
         recordAuditLog('admin', 'update_logistics', 'order', orderId, null, { carrier, trackingNumber, status });
@@ -2071,16 +2242,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     if (updatedOrderObj) {
-      updateOrderStatusInSupabase(orderId, status, carrier, trackingNumber, (updatedOrderObj as Order).timeline);
+      const typedOrder = updatedOrderObj as Order;
+      updateOrderStatusInSupabase(orderId, status, carrier, trackingNumber, typedOrder.timeline);
       recordAuditLog('admin', 'update_order_status', 'order', orderId, null, { status, carrier, trackingNumber });
       
       const shippingEmail = generateShippingUpdateEmail(
-        updatedOrderObj,
+        typedOrder,
         status,
         carrier,
         trackingNumber
       );
       addEmailNotification(shippingEmail);
+
+      const notifType: NotificationType = status === 'Delivered'
+        ? 'ORDER_DELIVERED'
+        : status === 'Shipped' || status === 'Out for Delivery'
+        ? 'ORDER_SHIPPED'
+        : 'ORDER_PROCESSING';
+
+      dispatchNotification({
+        type: notifType,
+        recipientEmail: typedOrder.customerEmail,
+        recipientName: typedOrder.customerName,
+        userId: typedOrder.customerId,
+        data: {
+          orderNumber: typedOrder.orderNumber,
+          carrier: carrier || typedOrder.carrier,
+          trackingNumber: trackingNumber || typedOrder.trackingNumber,
+          status
+        },
+        priority: status === 'Delivered' ? 'high' : 'normal'
+      });
     }
 
     showToast(`Order status updated to ${status}. Email update dispatched!`);
@@ -2183,6 +2375,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Broadcast to Supabase Realtime channel for instant sub-second delivery
     await broadcastCustomOrderMessage(customOrderId, newMsg, updatedAllMessages, targetOrder);
+
+    // Trigger In-App Notification & Server Email if message is from artisan/admin to customer
+    if (isFromAdmin && targetOrder) {
+      dispatchNotification({
+        type: 'CUSTOM_ORDER_MESSAGE',
+        recipientEmail: targetOrder.customerEmail,
+        recipientName: targetOrder.customerName,
+        userId: targetOrder.customerId,
+        data: {
+          requestNumber: targetOrder.requestNumber,
+          senderName: newMsg.senderName,
+          messagePreview: text.substring(0, 100),
+          customOrderId: targetOrder.id
+        },
+        priority: 'high'
+      });
+    }
   };
 
   const markCustomOrderMessagesAsRead = async (
@@ -2276,6 +2485,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             updatedAt: nowIso
           };
           upsertCustomOrderInSupabase(updated);
+
+          // Dispatch notification to customer
+          dispatchNotification({
+            type: 'CUSTOM_QUOTE_ISSUED',
+            recipientEmail: co.customerEmail,
+            recipientName: co.customerName,
+            userId: co.customerId,
+            data: {
+              requestNumber: co.requestNumber,
+              quoteAmount: quoteData.amount,
+              turnaroundDays: quoteData.turnaroundDays,
+              customOrderId: co.id
+            },
+            priority: 'urgent'
+          });
+
           return updated;
         }
         return co;
@@ -2312,6 +2537,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             updatedAt: nowIso
           };
           upsertCustomOrderInSupabase(updated);
+
+          if (accept) {
+            dispatchNotification({
+              type: 'QUOTE_ACCEPTED',
+              recipientEmail: co.customerEmail,
+              recipientName: co.customerName,
+              userId: co.customerId,
+              data: {
+                requestNumber: co.requestNumber,
+                quoteAmount: co.quote.amount,
+                customOrderId: co.id
+              },
+              priority: 'high'
+            });
+          }
+
           return updated;
         }
         return co;
@@ -2455,6 +2696,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCoupleWebsites(prev => [newProject, ...prev]);
     upsertCoupleWebsiteInSupabase(newProject);
     trackAnalyticsEvent('create_couple_website', { subdomain: newProject.subdomain });
+
+    // Trigger In-App Notification & Server Email
+    dispatchNotification({
+      type: 'COUPLE_WEBSITE_PURCHASE',
+      recipientEmail: newProject.ownerEmail || currentUser?.email,
+      recipientName: `${newProject.partner1Name} & ${newProject.partner2Name}`,
+      userId: newProject.ownerId || currentUser?.id,
+      data: {
+        websiteTitle: newProject.title,
+        subdomain: newProject.subdomain,
+        templateName: newProject.templateId
+      },
+      priority: 'high'
+    });
+
     showToast(`Sanctuary website live: ${newProject.subdomain}.harconxsshop.com`);
     return newProject;
   };
@@ -2484,6 +2740,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
     if (targetProject) {
       await upsertCoupleWebsiteInSupabase(targetProject);
+
+      if (isPublished) {
+        dispatchNotification({
+          type: 'WEBSITE_PUBLISHED',
+          recipientEmail: (targetProject as CoupleWebsiteProject).ownerEmail || currentUser?.email,
+          recipientName: `${(targetProject as CoupleWebsiteProject).partner1Name} & ${(targetProject as CoupleWebsiteProject).partner2Name}`,
+          userId: (targetProject as CoupleWebsiteProject).ownerId || currentUser?.id,
+          data: {
+            websiteTitle: (targetProject as CoupleWebsiteProject).title,
+            subdomain: (targetProject as CoupleWebsiteProject).subdomain,
+            liveUrl: `https://${(targetProject as CoupleWebsiteProject).subdomain}.harconxsshop.com`
+          },
+          priority: 'high'
+        });
+      }
+
       showToast(isPublished ? 'Website published to live internet.' : 'Website unpublished (Draft mode).');
       return true;
     }
@@ -2563,13 +2835,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setApiKeys(prev => [record, ...prev]);
     upsertApiKeyInSupabase(record);
     recordAuditLog('admin', 'create_api_key', 'api_key', record.id);
+
+    // Trigger API Key Created Notification & Email
+    dispatchNotification({
+      type: 'API_KEY_CREATED',
+      recipientEmail: currentUser?.email || 'admin@hamza.harconxs.com',
+      recipientName: currentUser?.name || 'Administrator',
+      userId: currentUser?.id,
+      data: {
+        keyName: name,
+        keyPrefix: prefix,
+        scopes: permissions
+      },
+      priority: 'high'
+    });
+
     showToast(`API token "${name}" generated.`);
     return { record, secretKey };
   };
 
   const revokeApiKey = (id: string) => {
+    let targetKey: ApiKeyRecord | undefined;
     setApiKeys(prev => prev.map(k => {
       if (k.id === id) {
+        targetKey = k;
         const updated = { ...k, status: 'revoked' as const };
         upsertApiKeyInSupabase(updated);
         return updated;
@@ -2577,6 +2866,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return k;
     }));
     recordAuditLog('admin', 'revoke_api_key', 'api_key', id);
+
+    // Trigger API Key Revoked Notification & Email
+    if (targetKey) {
+      dispatchNotification({
+        type: 'API_KEY_REVOKED',
+        recipientEmail: currentUser?.email || 'admin@hamza.harconxs.com',
+        recipientName: currentUser?.name || 'Administrator',
+        userId: currentUser?.id,
+        data: {
+          keyName: targetKey.name,
+          keyPrefix: targetKey.prefix
+        },
+        priority: 'urgent'
+      });
+    }
+
     showToast('API Key revoked.');
   };
 
@@ -2619,8 +2924,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const replyToTicket = (ticketId: string, text: string, sender: 'customer' | 'support') => {
+    let targetTicket: SupportTicket | undefined;
     setTickets(prev => prev.map(t => {
       if (t.id === ticketId) {
+        targetTicket = t;
         const updated = {
           ...t,
           status: (sender === 'support' ? 'Waiting' : 'In Progress') as any,
@@ -2641,6 +2948,68 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       return t;
     }));
+
+    // Trigger Notification to customer if support replied
+    if (sender === 'support' && targetTicket) {
+      dispatchNotification({
+        type: 'SUPPORT_REPLY',
+        recipientEmail: targetTicket.customerEmail,
+        recipientName: targetTicket.customerName,
+        userId: targetTicket.customerId,
+        data: {
+          ticketNumber: targetTicket.ticketNumber,
+          subject: targetTicket.subject,
+          replyPreview: text.substring(0, 120),
+          ticketId: targetTicket.id
+        },
+        priority: 'high'
+      });
+    }
+  };
+
+  // In-App Notification Center & Transactional Dispatch (Supabase Synced)
+  const addNotification = (notif: AppNotification) => {
+    setNotifications(prev => [notif, ...prev.filter(n => n.id !== notif.id)]);
+    upsertNotificationInSupabase(notif);
+  };
+
+  const dispatchNotification = async (params: TriggerNotificationParams): Promise<AppNotification> => {
+    const result = await triggerNotification({
+      ...params,
+      userId: params.userId || currentUser?.id,
+      recipientEmail: params.recipientEmail || currentUser?.email,
+      recipientName: params.recipientName || currentUser?.name
+    });
+
+    setNotifications(prev => [result.notification, ...prev.filter(n => n.id !== result.notification.id)]);
+    return result.notification;
+  };
+
+  const markNotificationAsRead = async (id: string): Promise<void> => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n));
+    await markNotificationReadInSupabase(id);
+  };
+
+  const markAllNotificationsAsRead = async (): Promise<void> => {
+    const now = new Date().toISOString();
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true, readAt: n.readAt || now })));
+    await markAllNotificationsReadInSupabase(currentUser?.id);
+    showToast('All notifications marked as read.');
+  };
+
+  const deleteNotification = async (id: string): Promise<void> => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    await deleteNotificationFromSupabase(id);
+    showToast('Notification removed.');
+  };
+
+  const clearAllReadNotifications = async (): Promise<void> => {
+    const readIds = notifications.filter(n => n.isRead).map(n => n.id);
+    setNotifications(prev => prev.filter(n => !n.isRead));
+    for (const id of readIds) {
+      await deleteNotificationFromSupabase(id);
+    }
+    showToast('Read notifications cleared.');
   };
 
   // Automations & Policies CMS Governance Engine
@@ -3035,7 +3404,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         userOtpLogin,
         userLogout,
         updateUser,
+        addUserAddress,
+        updateUserAddress,
+        deleteUserAddress,
+        setDefaultUserAddress,
         redeemLoyaltyPoints,
+        notifications,
+        unreadNotificationsCount,
+        addNotification,
+        dispatchNotification,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        deleteNotification,
+        clearAllReadNotifications,
         emailNotifications,
         addEmailNotification,
         selectedTrackingOrderId,

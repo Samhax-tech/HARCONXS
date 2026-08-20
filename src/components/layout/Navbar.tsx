@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingBag, Heart, Sparkles, Menu, X, LogIn, Truck, Shield, User } from 'lucide-react';
+import { Search, ShoppingBag, Heart, Sparkles, Menu, X, LogIn, Truck, Shield, User, Bell, CheckCheck, ChevronRight, Clock } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 export const Navbar: React.FC = () => {
@@ -16,14 +16,35 @@ export const Navbar: React.FC = () => {
     currentUser,
     openAuthModalWithAction,
     setIsCommandPaletteOpen,
-    setIsAiChatOpen
+    setIsAiChatOpen,
+    notifications,
+    unreadNotificationsCount,
+    markNotificationAsRead,
+    markAllNotificationsAsRead
   } = useStore();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationTrayOpen, setIsNotificationTrayOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
+
+  // Close notification popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotificationTrayOpen(false);
+      }
+    };
+    if (isNotificationTrayOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isNotificationTrayOpen]);
 
   const handleAdminToggle = () => {
     if (isAdminAuthenticated) {
@@ -103,6 +124,105 @@ export const Navbar: React.FC = () => {
           {/* Strict Currency Display (INR ₹) */}
           <div className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-mono text-amber-400 select-none">
             <span className="font-bold">₹ INR</span>
+          </div>
+
+          {/* In-App Notification Center Dropdown */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setIsNotificationTrayOpen(!isNotificationTrayOpen)}
+              className="relative p-2 text-zinc-300 hover:text-amber-400 transition-colors rounded-lg hover:bg-zinc-900 cursor-pointer"
+              title="Notifications"
+              aria-label="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-amber-500 text-[10px] font-bold text-zinc-950 rounded-full flex items-center justify-center animate-pulse">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown Quick Tray */}
+            {isNotificationTrayOpen && (
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                {/* Header */}
+                <div className="p-3.5 bg-zinc-900/90 border-b border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-serif text-sm font-bold text-zinc-100">Notifications</span>
+                    {unreadNotificationsCount > 0 && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        {unreadNotificationsCount} unread
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {unreadNotificationsCount > 0 && (
+                      <button
+                        onClick={markAllNotificationsAsRead}
+                        className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Notification Items List (Top 4 latest) */}
+                <div className="max-h-80 overflow-y-auto divide-y divide-zinc-900">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-zinc-500">
+                      <Bell className="w-6 h-6 mx-auto mb-2 text-zinc-600" />
+                      No notifications yet
+                    </div>
+                  ) : (
+                    notifications.slice(0, 5).map(notif => (
+                      <div
+                        key={notif.id}
+                        onClick={() => {
+                          if (!notif.isRead) markNotificationAsRead(notif.id);
+                          if (notif.actionUrl) {
+                            setIsNotificationTrayOpen(false);
+                            navigate(notif.actionUrl);
+                          }
+                        }}
+                        className={`p-3.5 text-xs transition cursor-pointer hover:bg-zinc-900/80 flex items-start gap-3 ${
+                          !notif.isRead ? 'bg-zinc-900/40' : 'opacity-80'
+                        }`}
+                      >
+                        {!notif.isRead && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <h5 className={`truncate font-semibold ${!notif.isRead ? 'text-zinc-100' : 'text-zinc-300'}`}>
+                              {notif.title}
+                            </h5>
+                            <span className="text-[10px] text-zinc-500 whitespace-nowrap shrink-0 font-mono">
+                              {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-zinc-400 line-clamp-2 text-[11px]">
+                            {notif.message}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer Link to /account/notifications */}
+                <div className="p-2.5 bg-zinc-900/90 border-t border-zinc-800 text-center">
+                  <Link
+                    to="/account/notifications"
+                    onClick={() => setIsNotificationTrayOpen(false)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-amber-400 hover:text-amber-300 transition"
+                  >
+                    <span>Open Full Notification Center</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Wishlist */}
