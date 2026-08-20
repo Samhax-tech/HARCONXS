@@ -4,6 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { ProductVariant, PackagingOption, PersonalizationConfig, Product } from '../types';
 import { PersonalizedProductBuilder } from '../components/personalizer/PersonalizedProductBuilder';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
+import { SeoHead } from '../components/common/SeoHead';
 import {
   Star,
   Heart,
@@ -204,9 +205,14 @@ export const ProductPage: React.FC = () => {
 
   return (
     <div className="bg-zinc-950 min-h-screen py-8 text-zinc-200">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      <SeoHead
+        product={product}
+        reviews={productReviews}
+        breadcrumbs={[
+          { name: 'Shop', url: '/shop' },
+          { name: product.category.toUpperCase(), url: `/category/${product.category}` },
+          { name: product.name, url: `/product/${product.slug}` }
+        ]}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">

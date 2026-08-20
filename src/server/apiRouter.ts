@@ -1,5 +1,14 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { handleApiV1Request, ApiRequestOptions, sanitizeLogData } from '../services/apiCoreService';
+import {
+  getLiveSitemapXml,
+  generateRobotsTxt,
+  getLiveMerchantFeedXml,
+  generateGoogleMerchantCenterFeedTsv,
+  DEFAULT_SITE_URL
+} from '../services/seoService';
+import { fetchProductsFromSupabase } from '../services/supabaseService';
+import { INITIAL_PRODUCTS } from '../data/initialData';
 
 export const apiRouter = express.Router();
 
@@ -21,6 +30,64 @@ apiRouter.use((req: Request, res: Response, next: NextFunction) => {
   }
 
   next();
+});
+
+/**
+ * 1. Production SEO: Sitemap.xml
+ */
+apiRouter.get(['/sitemap.xml', '/api/v1/seo/sitemap.xml', '/seo/sitemap.xml'], async (req: Request, res: Response) => {
+  try {
+    const origin = req.protocol + '://' + (req.get('host') || 'harconxs.com');
+    const xml = await getLiveSitemapXml(origin);
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+    return res.status(200).send(xml);
+  } catch (err: any) {
+    return res.status(500).type('text/plain').send('Error generating sitemap.xml');
+  }
+});
+
+/**
+ * 2. Production SEO: Robots.txt
+ */
+apiRouter.get(['/robots.txt', '/api/v1/seo/robots.txt', '/seo/robots.txt'], (req: Request, res: Response) => {
+  const origin = req.protocol + '://' + (req.get('host') || 'harconxs.com');
+  const txt = generateRobotsTxt(origin);
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return res.status(200).send(txt);
+});
+
+/**
+ * 3. Production Google Merchant Center Product Feed (XML / RSS 2.0)
+ */
+apiRouter.get(['/feeds/google-merchant.xml', '/api/v1/feeds/google-merchant.xml', '/api/v1/feeds/google-merchant'], async (req: Request, res: Response) => {
+  try {
+    const origin = req.protocol + '://' + (req.get('host') || 'harconxs.com');
+    const feedXml = await getLiveMerchantFeedXml(origin);
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=1800');
+    return res.status(200).send(feedXml);
+  } catch (err: any) {
+    return res.status(500).type('text/plain').send('Error generating Google Merchant Center XML feed');
+  }
+});
+
+/**
+ * 4. Google Merchant Center Feed (TSV spreadsheet export)
+ */
+apiRouter.get(['/feeds/google-merchant.tsv', '/api/v1/feeds/google-merchant.tsv'], async (req: Request, res: Response) => {
+  try {
+    const origin = req.protocol + '://' + (req.get('host') || 'harconxs.com');
+    const dbProducts = await fetchProductsFromSupabase();
+    const prods = (dbProducts && dbProducts.length > 0) ? dbProducts : INITIAL_PRODUCTS;
+    const tsv = generateGoogleMerchantCenterFeedTsv(prods, origin);
+    res.setHeader('Content-Type', 'text/tab-separated-values; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="harconxs_merchant_feed.tsv"');
+    return res.status(200).send(tsv);
+  } catch (err: any) {
+    return res.status(500).type('text/plain').send('Error generating Google Merchant Center TSV feed');
+  }
 });
 
 /**

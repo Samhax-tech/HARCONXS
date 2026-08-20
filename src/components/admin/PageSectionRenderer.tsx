@@ -24,6 +24,7 @@ import {
 interface PageSectionRendererProps {
   section: PageSection;
   previewMode?: boolean;
+  isLiveStorefront?: boolean;
   onSelectSection?: (section: PageSection) => void;
   isSelected?: boolean;
 }
@@ -31,6 +32,7 @@ interface PageSectionRendererProps {
 export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
   section,
   previewMode = false,
+  isLiveStorefront = false,
   onSelectSection,
   isSelected = false
 }) => {
@@ -44,15 +46,21 @@ export const PageSectionRenderer: React.FC<PageSectionRendererProps> = ({
     botPanelServices 
   } = useStore();
 
-  if (!section.is_visible) {
-    if (previewMode) return null;
+  const isVisible = section.is_visible !== false && !section.isHidden && section.is_hidden !== true;
+
+  // On customer storefront or in clean preview mode: completely hide inactive sections without any placeholder
+  if (!isVisible) {
+    if (isLiveStorefront || previewMode || !onSelectSection) {
+      return null;
+    }
+    // Only in the admin editor studio with click handlers do we show the draft indicator
     return (
       <div 
         id={`hidden-${section.id}`}
         onClick={() => onSelectSection?.(section)}
         className="p-3 bg-zinc-900/60 border border-dashed border-zinc-700/60 rounded-xl text-xs text-zinc-500 text-center cursor-pointer hover:border-amber-500/50 transition-colors"
       >
-        <span className="font-mono text-zinc-400">[{section.section_type}]</span> {section.name} (Hidden on storefront)
+        <span className="font-mono text-zinc-400">[{section.section_type || section.sectionType}]</span> {section.name || 'Section'} (Hidden on storefront)
       </div>
     );
   }

@@ -112,6 +112,33 @@ export interface Product {
   downloadUrl?: string;
   featured?: boolean;
   createdAt: string;
+  
+  // Production SEO & OpenGraph Fields
+  seoTitle?: string;
+  seoDescription?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  canonicalUrl?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogImageUrl?: string;
+  
+  // Google Merchant Center & Catalog Catalog Attributes
+  gtin?: string;
+  barcode?: string;
+  mpn?: string;
+  googleProductCategory?: string;
+  condition?: 'new' | 'refurbished' | 'used';
+  availability?: 'in_stock' | 'out_of_stock' | 'preorder' | 'backorder';
+  gender?: 'unisex' | 'male' | 'female';
+  ageGroup?: 'adult' | 'all_ages' | 'teen';
+  material?: string;
+  color?: string;
+  size?: string;
+  customLabel0?: string;
+  customLabel1?: string;
+  customLabel2?: string;
 }
 
 export interface PackagingOption {
