@@ -112,6 +112,13 @@ export interface Product {
   downloadUrl?: string;
   featured?: boolean;
   createdAt: string;
+
+  // Convenience aliases
+  costPrice?: number;
+  stock?: number;
+  inStock?: boolean;
+  description?: string;
+  imageUrl?: string;
   
   // Production SEO & OpenGraph Fields
   seoTitle?: string;
@@ -829,15 +836,68 @@ export interface AutomationRule {
   lastRun?: string;
 }
 
-export interface SystemPolicy {
+export interface PolicySection {
+  heading: string;
+  content: string;
+}
+
+export type ContentPublicationStatus = 'draft' | 'published' | 'scheduled';
+
+export interface PolicyVersion {
+  id: string;
+  policyId: string;
+  version: string;
+  title: string;
+  content: string;
+  sections?: PolicySection[];
+  status: 'draft' | 'published' | 'archived';
+  changeSummary?: string;
+  createdBy: string;
+  isAiDrafted: boolean;
+  requiresApproval: boolean;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  createdAt: string;
+  // DB aliases
+  policy_id?: string;
+  version_number?: string;
+  is_ai_drafted?: boolean;
+  requires_approval?: boolean;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  created_at?: string;
+}
+
+export interface PolicyRecord {
   id: string;
   title: string;
   slug: string;
+  category: 'legal' | 'customer_care' | 'company' | 'governance';
+  status: ContentPublicationStatus;
+  scheduledAt?: string | null;
   version: string;
   lastUpdated: string;
   content: string;
+  sections?: PolicySection[];
+  requiresAdminApproval: boolean;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  versions?: PolicyVersion[];
+  // DB aliases
+  scheduled_at?: string | null;
+  requires_admin_approval?: boolean;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  published_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
-export type PolicyDocument = SystemPolicy;
+
+export type SystemPolicy = PolicyRecord;
+export type PolicyDocument = PolicyRecord;
 
 export interface PopupBannerConfig {
   enabled: boolean;
@@ -1020,7 +1080,8 @@ export interface PageRecord {
   id: string;
   slug: string;
   title: string;
-  status: 'draft' | 'published';
+  status: ContentPublicationStatus;
+  scheduledAt?: string | null;
   meta?: {
     description?: string;
     keywords?: string;
@@ -1032,6 +1093,7 @@ export interface PageRecord {
   createdAt: string;
   updatedAt: string;
   // DB aliases:
+  scheduled_at?: string | null;
   published_at?: string | null;
   created_at?: string;
   updated_at?: string;

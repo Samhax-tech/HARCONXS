@@ -96,6 +96,8 @@ export const App: React.FC = () => {
             <Route path="/terms" element={<PolicyPage policy="terms" />} />
             <Route path="/refund-policy" element={<PolicyPage policy="refund" />} />
             <Route path="/shipping-policy" element={<PolicyPage policy="shipping" />} />
+            <Route path="/custom-orders-policy" element={<PolicyPage policy="custom-order" />} />
+            <Route path="/cookie-policy" element={<PolicyPage policy="cookie" />} />
 
             {/* Authentication */}
             <Route path="/login" element={<LoginPage />} />

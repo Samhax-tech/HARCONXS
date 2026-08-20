@@ -1598,36 +1598,278 @@ export const INITIAL_AUTOMATION_RULES: AutomationRule[] = [
 
 export const INITIAL_SYSTEM_POLICIES: SystemPolicy[] = [
   {
+    id: 'pol-about',
+    title: 'About HARCONXS Atelier & Heritage',
+    slug: 'about',
+    category: 'company',
+    status: 'published',
+    version: '2.1.0',
+    lastUpdated: 'February 19, 2026',
+    content: `HARCONXS is a luxury design house and sovereign e-commerce atelier dedicated to timeless love keepsakes, bespoke laser-engraved jewellery, digital couple memory sanctuaries, and high-performance automation bot panels. Founded with a vision to merge old-world artisanal craftsmanship with next-generation digital experiences, every piece and digital sanctuary is crafted to celebrate sovereign bonds.`,
+    sections: [
+      {
+        heading: 'Our Origin & Vision',
+        content: 'Founded in Bangalore with ateliers extending across Mumbai and Singapore, HARCONXS was born from a desire to create romantic keepsakes and digital monuments that stand the test of time. We believe genuine love deserves timeless tangible craftsmanship and modern digital vaults.'
+      },
+      {
+        heading: 'Sovereign Craftsmanship Standards',
+        content: 'Every physical jewellery piece is cast from responsibly sourced 18K solid gold, 950 platinum, or aerospace-grade titanium. Our micron-precision fiber laser ateliers engrave coordinates, celestial star charts, and custom soundwaves with sub-millimeter precision.'
+      },
+      {
+        heading: 'Digital Sanctuaries & Bot Infrastructure',
+        content: 'Beyond physical heirlooms, HARCONXS pioneers interactive couple portals and high-uptime Telegram & Discord bot automation panels, delivering an all-encompassing romantic and enterprise commerce ecosystem.'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'HARCONXS Legal & Brand Director',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
+  },
+  {
+    id: 'pol-faq',
+    title: 'FAQ & Client Help Center',
+    slug: 'faq',
+    category: 'customer_care',
+    status: 'published',
+    version: '3.4.0',
+    lastUpdated: 'February 19, 2026',
+    content: `Find immediate answers to common inquiries regarding bespoke custom jewellery, CAD design proofing, air express delivery across India, lifetime couple website deployment, and enterprise bot panel subscriptions.`,
+    sections: [
+      {
+        heading: 'Custom Orders & 3D CAD Approvals',
+        content: 'How does bespoke commissioning work? After submitting your custom order brief with photos, our master jeweler Julian prepares a photorealistic 3D CAD rendering within 24 hours. Production commences only once you click "Accept Quote & Proof".'
+      },
+      {
+        heading: 'Shipping & Armored Transit Insurance',
+        content: 'All high-value dispatches travel via BlueDart Air Express / FedEx with 100% comprehensive transit insurance in tamper-proof wax-sealed luxury velvet boxes.'
+      },
+      {
+        heading: 'Couple Websites & Subdomains',
+        content: 'Couple websites are deployed instantly to our high-speed global CDN edge. You can link custom domains, upload unlimited 4K photos, stream romantic playlists, and configure secret password vaults.'
+      },
+      {
+        heading: 'Bot Panels & Pterodactyl Cloud',
+        content: 'Our automated Telegram & Discord commerce bots operate with 99.95% SLA uptime on dedicated Docker micro-containers with zero idle sleeping.'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'Chief Customer Officer',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
+  },
+  {
     id: 'pol-privacy',
-    title: 'Privacy Policy',
+    title: 'Privacy & Data Protection Policy',
     slug: 'privacy',
+    category: 'legal',
+    status: 'published',
     version: '2.3.0',
-    lastUpdated: 'August 16, 2026',
-    content: `HARCONXS SHOP is committed to protecting your personal data and digital privacy. We employ end-to-end TLS 1.3 encryption, zero-knowledge storage for user-uploaded private photos and bespoke messages, and never monetize or sell personal identifiers to third-party data brokers. For custom orders, your reference photos and messages are strictly accessible only by the assigned artisan for fabrication purposes and are permanently archived or deleted upon customer request.`
+    lastUpdated: 'February 19, 2026',
+    content: `HARCONXS SHOP is committed to protecting your personal data, biometric engraving files, and digital privacy under GDPR, CCPA, and India DPDP Act 2023. We employ end-to-end TLS 1.3 encryption, zero-knowledge storage for user-uploaded private photos and bespoke messages, and never monetize or sell personal identifiers to third-party data brokers. For custom orders, your reference photos and messages are strictly accessible only by the assigned artisan for fabrication purposes and are permanently archived or deleted upon customer request.`,
+    sections: [
+      {
+        heading: 'Information We Collect',
+        content: 'We collect customer identity details (name, email, verified phone), shipping addresses, custom personalization inputs (names, dates, coordinates), and payment tokens processed through PCI-DSS Level 1 compliant gateways (Stripe, Razorpay).'
+      },
+      {
+        heading: 'Zero-Knowledge Private Photos Vault',
+        content: 'Private photos uploaded for custom engraving, crystal 3D cubes, and couple websites are stored in private encrypted object storage buckets. They are never crawled, indexed by search engines, or used for AI model training.'
+      },
+      {
+        heading: 'Right to Rectification & Erasure',
+        content: 'Patrons may request complete deletion of their account history, addresses, and uploaded media at any time by contacting privacy@harconxs.com or through the Account Security portal.'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'Lead Legal Counsel',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
   },
   {
     id: 'pol-terms',
-    title: 'Terms of Service',
+    title: 'Terms of Sovereign Service',
     slug: 'terms',
+    category: 'legal',
+    status: 'published',
     version: '3.1.0',
-    lastUpdated: 'August 16, 2026',
-    content: `By accessing HARCONXS SHOP, ordering custom personalized goods, subscribing to bot dashboards, or generating couple websites, you agree to our standard terms of service. All digital templates and generated couple subdomains are guaranteed 99.9% uptime. Custom physical products undergo rigorous quality inspection prior to dispatch.`
+    lastUpdated: 'February 19, 2026',
+    content: `By accessing HARCONXS SHOP, ordering custom personalized goods, subscribing to bot dashboards, or generating couple websites, you agree to our standard terms of service. All digital templates and generated couple subdomains are guaranteed 99.9% uptime. Custom physical products undergo rigorous quality inspection prior to dispatch.`,
+    sections: [
+      {
+        heading: 'Binding Commercial Agreement',
+        content: 'Placing an order on HARCONXS constitutes a binding purchase agreement. All physical products undergo 3-stage artisanal inspection before handover to secured couriers.'
+      },
+      {
+        heading: 'Intellectual Property Rights',
+        content: 'All CAD models, bespoke design aesthetics, website themes, and bot panel microservices remain the exclusive intellectual property of HARCONXS Atelier.'
+      },
+      {
+        heading: 'Limitation of Liability',
+        content: 'HARCONXS shall not be held liable for courier transit delays caused by customs clearance, extreme weather events, or incorrect shipping addresses provided by the patron.'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'General Counsel',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
   },
   {
-    id: 'pol-custom',
-    title: 'Custom Orders & Personalization Policy',
-    slug: 'custom-orders',
-    version: '1.8.0',
-    lastUpdated: 'August 16, 2026',
-    content: `Because custom and personalized products are manufactured uniquely for you (including custom engraved coordinates, names, bespoke music boxes, and custom domain couple portals), cancellations or modifications must be submitted within 12 hours of placing the order before laser engraving or fabrication commences. If an item arrives damaged or with an engraving discrepancy from your submitted brief, we provide an immediate free remake or full refund.`
+    id: 'pol-refund',
+    title: 'Refund & Returns Policy',
+    slug: 'refund',
+    category: 'legal',
+    status: 'published',
+    version: '2.5.0',
+    lastUpdated: 'February 19, 2026',
+    content: `We stand behind the sovereign quality of our craftsmanship with a 100% satisfaction guarantee. Standard non-personalized catalogue items are eligible for returns within 30 days of delivery. For personalized pieces, if there is any defect in materials or craftsmanship, we provide an immediate complimentary remake or 100% refund.`,
+    sections: [
+      {
+        heading: '30-Day Guarantee on Standard Items',
+        content: 'Standard rings, unengraved pendants, and luxury gift boxes can be returned in unworn condition with original velvet packaging within 30 days for a full refund.'
+      },
+      {
+        heading: 'Bespoke & Personalized Guarantee',
+        content: 'If a custom engraved piece arrives with any typographical error or damage, we provide priority rush remake within 48 hours or a full refund including shipping.'
+      },
+      {
+        heading: 'Refund Settlement Timeline',
+        content: 'Approved refunds are credited back to the original payment source (Credit/Debit Card, UPI, NetBanking) within 3 to 5 business days.'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'Director of Commerce & Operations',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
   },
   {
     id: 'pol-shipping',
-    title: 'Shipping & Delivery Policy',
+    title: 'Shipping & Insured Delivery Policy',
     slug: 'shipping',
+    category: 'legal',
+    status: 'published',
     version: '2.0.0',
-    lastUpdated: 'August 16, 2026',
-    content: `We ship worldwide with dedicated fast delivery across India via BlueDart, Delhivery, DTDC, and Express Post. Standard items dispatch within 24-48 business hours. Metro cities (Mumbai, Delhi NCR, Bangalore, Hyderabad, Chennai, Kolkata) receive delivery in 2-3 business days. Personalized items require 2-3 business days of precision laser engraving in our atelier before dispatch. Tracking numbers with live WhatsApp and SMS milestone updates are provided instantly.`
+    lastUpdated: 'February 19, 2026',
+    content: `We ship worldwide with dedicated fast delivery across India via BlueDart, Delhivery, DTDC, and Express Post. Standard items dispatch within 24-48 business hours. Metro cities (Mumbai, Delhi NCR, Bangalore, Hyderabad, Chennai, Kolkata) receive delivery in 2-3 business days. Personalized items require 2-3 business days of precision laser engraving in our atelier before dispatch. Tracking numbers with live WhatsApp and SMS milestone updates are provided instantly.`,
+    sections: [
+      {
+        heading: 'Dispatch Timelines & Atelier Production',
+        content: 'In-stock pieces ship within 24 hours. Custom laser engraving requires 48 hours of artisan handcrafting and optical inspection prior to sealed packaging.'
+      },
+      {
+        heading: '100% Comprehensive Cargo Insurance',
+        content: 'All packages are insured against loss, theft, or damage during transit until delivery confirmation signature is recorded.'
+      },
+      {
+        heading: 'Global International Delivery',
+        content: 'We deliver internationally to USA, UK, UAE, Canada, Australia, and EU with DDP (Delivered Duty Paid) shipping via DHL Express (3-5 days).'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'Head of Global Logistics',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
+  },
+  {
+    id: 'pol-custom-order',
+    title: 'Custom Order & Bespoke Atelier Policy',
+    slug: 'custom-order',
+    category: 'legal',
+    status: 'published',
+    version: '1.8.0',
+    lastUpdated: 'February 19, 2026',
+    content: `Because custom and personalized products are manufactured uniquely for you (including custom engraved coordinates, names, bespoke music boxes, and custom domain couple portals), cancellations or modifications must be submitted within 12 hours of placing the order before laser engraving or fabrication commences. If an item arrives damaged or with an engraving discrepancy from your submitted brief, we provide an immediate free remake or full refund.`,
+    sections: [
+      {
+        heading: 'Quotation & 3D Proof Approval',
+        content: 'Our senior master jeweler generates official quotations and CAD renders for every custom commission. Your approval in the Client Portal locks the design into fabrication.'
+      },
+      {
+        heading: 'Changes & Cancellations Window',
+        content: 'You may request revisions to typography, dates, or metal finish within 12 hours of quotation confirmation before diamond-cutting and laser etching begin.'
+      },
+      {
+        heading: 'Artisanal Discrepancy Protection',
+        content: 'In the rare event of an engraving divergence from the approved brief, HARCONXS will recast and re-engrave your piece with priority air delivery at zero extra cost.'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'Master Jeweler & Atelier Head',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
+  },
+  {
+    id: 'pol-cookie',
+    title: 'Cookie Policy & Tracking Consent',
+    slug: 'cookie',
+    category: 'legal',
+    status: 'published',
+    version: '1.4.0',
+    lastUpdated: 'February 19, 2026',
+    content: `HARCONXS uses essential, functional, and performance cookies to maintain secure authenticated patron sessions, preserve shopping cart states, remember currency preferences (INR/USD/EUR/GBP), and deliver personalized gift recommendations. We do not sell tracking cookies to data advertisers.`,
+    sections: [
+      {
+        heading: 'Essential & Session Cookies',
+        content: 'Strictly necessary cookies enable secure shopping cart checkout, customer authentication tokens, and CSRF protection.'
+      },
+      {
+        heading: 'Preference & Customization Cookies',
+        content: 'Stores your selected currency preference, dark/light theme mode, and recently viewed heirloom pieces for easy comparison.'
+      },
+      {
+        heading: 'Managing Your Cookie Consent',
+        content: 'Patrons can modify cookie permissions or flush local storage at any time directly through browser preferences or our privacy settings panel.'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'Data Privacy Officer',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
+  },
+  {
+    id: 'pol-contact',
+    title: 'Contact Information & Legal Notice',
+    slug: 'contact',
+    category: 'company',
+    status: 'published',
+    version: '2.0.0',
+    lastUpdated: 'February 19, 2026',
+    content: `HARCONXS ATELIER & COMMERCE PRIVATE LIMITED\nRegistered Head Office: Sovereign Tower, Level 8, Indiranagar, Bangalore, Karnataka 560038, India.\nEmail: concierge@harconxs.com | support@harconxs.com\nDirect Concierge Line: +91 98201 88412\nOperating Hours: Monday – Saturday, 09:00 – 21:00 IST\nDedicated 24/7 VIP Telegram Concierge: @HarconxsConciergeBot`,
+    sections: [
+      {
+        heading: 'Executive Atelier & Customer Concierge',
+        content: 'For inquiries regarding existing orders, CAD approvals, or custom bridal commissions, contact our concierge desk at concierge@harconxs.com.'
+      },
+      {
+        heading: 'Legal, Compliance & Press Notices',
+        content: 'Official legal correspondence and media queries may be directed to legal@harconxs.com or via registered post to our Bangalore headquarters.'
+      },
+      {
+        heading: 'Enterprise API & Bot Partnerships',
+        content: 'For developer tokens, automated bot integrations, and bulk corporate gifting, reach our tech partnerships team at dev@harconxs.com.'
+      }
+    ],
+    requiresAdminApproval: true,
+    approvedBy: 'Managing Director',
+    approvedAt: '2026-02-19T10:00:00Z',
+    publishedAt: '2026-02-19T10:00:00Z',
+    createdAt: '2025-01-01T00:00:00Z',
+    updatedAt: '2026-02-19T10:00:00Z'
   }
 ];
 

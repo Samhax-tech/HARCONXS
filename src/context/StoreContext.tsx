@@ -21,6 +21,9 @@ import {
   DiscountCoupon,
   AutomationRule,
   SystemPolicy,
+  PolicyRecord,
+  PolicyVersion,
+  PolicySection,
   CategoryType,
   PopupBannerConfig,
   BillingPortalConfig,
@@ -135,7 +138,11 @@ import {
   publishPageInSupabase,
   fetchPageRevisionsFromSupabase,
   createPageRevisionInSupabase,
-  deletePageSectionFromSupabase
+  deletePageSectionFromSupabase,
+  fetchPoliciesFromSupabase,
+  upsertPolicyInSupabase,
+  createPolicyVersionInSupabase,
+  approveAndPublishPolicyInSupabase
 } from '../services/supabaseService';
 import {
   INITIAL_HOME_PAGE_RECORD,
@@ -210,6 +217,8 @@ interface StoreContextType {
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  bulkAddProducts: (productsList: Product[]) => Promise<{ success: boolean; count: number; error?: string }>;
+  bulkDeleteProducts: (productIds: string[]) => Promise<{ success: boolean; count: number; error?: string }>;
   reviews: ProductReview[];
   addProductReview: (review: Partial<ProductReview>) => Promise<{ success: boolean; message: string; review?: ProductReview }>;
   updateProductReview: (reviewId: string, review: Partial<ProductReview>) => Promise<boolean>;
@@ -337,11 +346,26 @@ interface StoreContextType {
   createTicket: (subject: string, category: SupportTicket['category'], initialMessage: string, customerName?: string, customerEmail?: string) => SupportTicket;
   replyToTicket: (ticketId: string, text: string, sender: 'customer' | 'support') => void;
 
-  // Automations & Policies
+  // Automations & Policies CMS
   automations: AutomationRule[];
   toggleAutomation: (id: string) => void;
-  policies: SystemPolicy[];
+  policies: PolicyRecord[];
   updatePolicy: (id: string, content: string, version: string) => void;
+  updatePolicyRecord: (policy: PolicyRecord) => Promise<boolean>;
+  draftPolicyVersion: (
+    policyId: string,
+    versionData: {
+      version: string;
+      title: string;
+      content: string;
+      sections?: PolicySection[];
+      changeSummary: string;
+      createdBy: string;
+      isAiDrafted?: boolean;
+    }
+  ) => Promise<PolicyVersion | null>;
+  approveAndPublishPolicy: (policyId: string, versionId: string, approvedBy?: string) => Promise<{ success: boolean; message: string }>;
+  schedulePolicy: (policyId: string, scheduledAt: string) => Promise<boolean>;
 
   // User Accounts & Authentication
   currentUser: UserProfile | null;
@@ -660,7 +684,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           dbThemeConfig,
           dbPackaging,
           dbPageRecord,
-          dbRevisions
+          dbRevisions,
+          dbPolicies
         ] = await Promise.allSettled([
           fetchProductsFromSupabase(),
           fetchOrdersFromSupabase(),
@@ -674,13 +699,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           fetchThemeConfigFromSupabase(),
           fetchPackagingOptionsFromSupabase(),
           fetchPageWithSectionsFromSupabase('home'),
-          fetchPageRevisionsFromSupabase('page_home')
+          fetchPageRevisionsFromSupabase('page_home'),
+          fetchPoliciesFromSupabase()
         ]);
 
         if (!isMounted) return;
 
         if (dbProducts.status === 'fulfilled' && dbProducts.value && dbProducts.value.length > 0) {
           setProducts(dbProducts.value);
+        }
+        if (dbPolicies.status === 'fulfilled' && dbPolicies.value && dbPolicies.value.length > 0) {
+          setPolicies(dbPolicies.value);
         }
         if (dbPackaging.status === 'fulfilled' && dbPackaging.value && dbPackaging.value.length > 0) {
           setPackagingOptions(dbPackaging.value);
@@ -1705,6 +1734,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const bulkAddProducts = async (productsList: Product[]): Promise<{ success: boolean; count: number; error?: string }> => {
+    if (!productsList || productsList.length === 0) {
+      return { success: false, count: 0, error: 'No products provided for import.' };
+    }
+
+    try {
+      setProducts(prev => [...productsList, ...prev]);
+      for (const prod of productsList) {
+        await upsertProductInSupabase(prod);
+      }
+      recordAuditLog('admin', 'bulk_import_products', 'catalog', `Imported ${productsList.length} products`);
+      showToast(`Successfully imported ${productsList.length} products to catalog!`);
+      return { success: true, count: productsList.length };
+    } catch (err: any) {
+      return { success: false, count: 0, error: err?.message || 'Bulk product creation failed.' };
+    }
+  };
+
+  const bulkDeleteProducts = async (productIds: string[]): Promise<{ success: boolean; count: number; error?: string }> => {
+    if (!productIds || productIds.length === 0) {
+      return { success: false, count: 0, error: 'No product IDs selected for deletion.' };
+    }
+
+    try {
+      setProducts(prev => prev.filter(p => !productIds.includes(p.id)));
+      for (const id of productIds) {
+        await deleteProductInSupabase(id);
+      }
+      recordAuditLog('admin', 'bulk_delete_products', 'catalog', `Deleted ${productIds.length} products`);
+      showToast(`Removed ${productIds.length} products from catalog.`);
+      return { success: true, count: productIds.length };
+    } catch (err: any) {
+      return { success: false, count: 0, error: err?.message || 'Bulk deletion failed.' };
+    }
+  };
+
   // Orders, Verification & Fulfillment
   const refetchOrders = async () => {
     setIsLoadingOrders(true);
@@ -2578,15 +2643,129 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
   };
 
-  // Automations & Policies
+  // Automations & Policies CMS Governance Engine
   const toggleAutomation = (id: string) => {
     setAutomations(prev => prev.map(a => a.id === id ? { ...a, isActive: !a.isActive } : a));
     showToast('Automation workflow toggled.');
   };
 
-  const updatePolicy = (id: string, content: string, version: string) => {
-    setPolicies(prev => prev.map(p => p.id === id ? { ...p, content, version, lastUpdated: 'Today' } : p));
+  const updatePolicy = async (id: string, content: string, version: string) => {
+    const formattedDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    let updatedTarget: PolicyRecord | null = null;
+    setPolicies(prev => prev.map(p => {
+      if (p.id === id) {
+        updatedTarget = { ...p, content, version, lastUpdated: formattedDate, updatedAt: new Date().toISOString() };
+        return updatedTarget;
+      }
+      return p;
+    }));
+
+    if (updatedTarget) {
+      await upsertPolicyInSupabase(updatedTarget);
+    }
     showToast('Legal policy published.');
+  };
+
+  const updatePolicyRecord = async (policy: PolicyRecord): Promise<boolean> => {
+    setPolicies(prev => prev.map(p => p.id === policy.id ? policy : p));
+    const ok = await upsertPolicyInSupabase(policy);
+    if (ok) {
+      recordAuditLog('admin', 'update_policy', 'policy', policy.id, null, policy);
+      showToast(`Policy "${policy.title}" synchronized with Supabase.`);
+      return true;
+    }
+    showToast(`Policy "${policy.title}" updated locally.`);
+    return true;
+  };
+
+  const draftPolicyVersion = async (
+    policyId: string,
+    versionData: {
+      version: string;
+      title: string;
+      content: string;
+      sections?: PolicySection[];
+      changeSummary: string;
+      createdBy: string;
+      isAiDrafted?: boolean;
+    }
+  ): Promise<PolicyVersion | null> => {
+    const createdVer = await createPolicyVersionInSupabase(policyId, versionData);
+    if (createdVer) {
+      setPolicies(prev => prev.map(p => {
+        if (p.id === policyId) {
+          const versions = [createdVer, ...(p.versions || [])];
+          return { ...p, versions };
+        }
+        return p;
+      }));
+      if (versionData.isAiDrafted) {
+        showToast('🤖 AI Policy Draft saved as pending review. Administrator approval required to publish.');
+      } else {
+        showToast(`Draft version v${versionData.version} created for review.`);
+      }
+    }
+    return createdVer;
+  };
+
+  const approveAndPublishPolicy = async (
+    policyId: string,
+    versionId: string,
+    approvedBy: string = 'Super Administrator'
+  ): Promise<{ success: boolean; message: string }> => {
+    const res = await approveAndPublishPolicyInSupabase(policyId, versionId, approvedBy);
+    if (res.success) {
+      const dbPols = await fetchPoliciesFromSupabase();
+      if (dbPols && dbPols.length > 0) {
+        setPolicies(dbPols);
+      } else {
+        // Local state fallback update
+        setPolicies(prev => prev.map(p => {
+          if (p.id === policyId) {
+            const ver = p.versions?.find(v => v.id === versionId);
+            if (ver) {
+              const updatedVersions = (p.versions || []).map(v => 
+                v.id === versionId ? { ...v, status: 'published' as const, approvedBy, approvedAt: new Date().toISOString() } : { ...v, status: 'archived' as const }
+              );
+              return {
+                ...p,
+                title: ver.title,
+                content: ver.content,
+                sections: ver.sections,
+                version: ver.version,
+                status: 'published' as const,
+                scheduledAt: null,
+                approvedBy,
+                approvedAt: new Date().toISOString(),
+                publishedAt: new Date().toISOString(),
+                lastUpdated: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                versions: updatedVersions
+              };
+            }
+          }
+          return p;
+        }));
+      }
+      recordAuditLog(approvedBy, 'approve_publish_policy', 'policy', policyId, null, { versionId });
+      showToast(res.message);
+    } else {
+      showToast(res.message);
+    }
+    return res;
+  };
+
+  const schedulePolicy = async (policyId: string, scheduledAt: string): Promise<boolean> => {
+    setPolicies(prev => prev.map(p => {
+      if (p.id === policyId) {
+        const updated = { ...p, status: 'scheduled' as const, scheduledAt, updatedAt: new Date().toISOString() };
+        upsertPolicyInSupabase(updated);
+        return updated;
+      }
+      return p;
+    }));
+    recordAuditLog('admin', 'schedule_policy_release', 'policy', policyId, null, { scheduledAt });
+    showToast(`Policy scheduled for live publication at ${new Date(scheduledAt).toLocaleString()}`);
+    return true;
   };
 
   // Private Website Visual Editor Methods (Supabase Persisted)
@@ -2747,6 +2926,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addProduct,
         updateProduct,
         deleteProduct,
+        bulkAddProducts,
+        bulkDeleteProducts,
         reviews,
         addProductReview,
         updateProductReview,
@@ -2839,6 +3020,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleAutomation,
         policies,
         updatePolicy,
+        updatePolicyRecord,
+        draftPolicyVersion,
+        approveAndPublishPolicy,
+        schedulePolicy,
         currentUser,
         isUserLoggedIn,
         isAuthModalOpen,

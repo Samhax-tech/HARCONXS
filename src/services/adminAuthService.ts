@@ -32,6 +32,8 @@ export type AdminPermission =
   | 'customers:delete'
   | 'addresses:manage'
   | 'reviews:moderate'
+  | 'reviews:create'
+  | 'reviews:delete'
   | 'support:manage'
   // Custom Orders
   | 'custom_orders:view'
@@ -109,6 +111,8 @@ export const ADMIN_PERMISSIONS_LIST: PermissionDefinition[] = [
   { key: 'customers:delete', label: 'Delete Customers', category: 'Customers', description: 'Remove customer accounts.' },
   { key: 'addresses:manage', label: 'Manage Addresses', category: 'Customers', description: 'Manage saved shipping and billing addresses.' },
   { key: 'reviews:moderate', label: 'Moderate Reviews', category: 'Customers', description: 'Approve, reject, or feature client reviews.' },
+  { key: 'reviews:create', label: 'Create Reviews', category: 'Customers', description: 'Add new verified client reviews directly.' },
+  { key: 'reviews:delete', label: 'Delete Reviews', category: 'Customers', description: 'Permanently remove reviews.' },
   { key: 'support:manage', label: 'Support Helpdesk', category: 'Customers', description: 'Answer support tickets and manage inquiries.' },
 
   // Custom Atelier
@@ -165,7 +169,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
   super_admin: [
     'catalog:view', 'catalog:create', 'catalog:edit', 'catalog:delete', 'categories:manage', 'variants:manage', 'inventory:manage',
     'orders:view', 'orders:edit', 'orders:cancel', 'returns:manage', 'refunds:manage', 'shipping:manage',
-    'customers:view', 'customers:edit', 'customers:delete', 'addresses:manage', 'reviews:moderate', 'support:manage',
+    'customers:view', 'customers:edit', 'customers:delete', 'addresses:manage', 'reviews:moderate', 'reviews:create', 'reviews:delete', 'support:manage',
     'custom_orders:view', 'custom_orders:quote', 'custom_orders:chat', 'custom_orders:status', 'packaging:manage',
     'couple_sites:manage', 'templates:manage', 'bot_panels:manage', 'bot_services:manage',
     'api:view_keys', 'api:generate_keys', 'api:revoke_keys', 'api:view_logs',
@@ -177,7 +181,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
   admin: [
     'catalog:view', 'catalog:create', 'catalog:edit', 'categories:manage', 'variants:manage', 'inventory:manage',
     'orders:view', 'orders:edit', 'returns:manage', 'refunds:manage', 'shipping:manage',
-    'customers:view', 'customers:edit', 'addresses:manage', 'reviews:moderate', 'support:manage',
+    'customers:view', 'customers:edit', 'addresses:manage', 'reviews:moderate', 'reviews:create', 'reviews:delete', 'support:manage',
     'custom_orders:view', 'custom_orders:quote', 'custom_orders:chat', 'custom_orders:status', 'packaging:manage',
     'couple_sites:manage', 'templates:manage', 'bot_panels:manage', 'bot_services:manage',
     'api:view_keys', 'api:generate_keys', 'api:revoke_keys', 'api:view_logs',
@@ -189,7 +193,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
   manager: [
     'catalog:view', 'catalog:create', 'catalog:edit', 'categories:manage', 'variants:manage', 'inventory:manage',
     'orders:view', 'orders:edit', 'returns:manage', 'shipping:manage',
-    'customers:view', 'customers:edit', 'reviews:moderate', 'support:manage',
+    'customers:view', 'customers:edit', 'reviews:moderate', 'reviews:create', 'reviews:delete', 'support:manage',
     'custom_orders:view', 'custom_orders:quote', 'custom_orders:chat', 'custom_orders:status', 'packaging:manage',
     'couple_sites:manage', 'templates:manage', 'bot_panels:manage',
     'marketing:coupons', 'marketing:affiliates', 'marketing:gift_cards', 'marketing:loyalty',

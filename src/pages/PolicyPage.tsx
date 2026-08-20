@@ -5,7 +5,7 @@ import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { FileText, ShieldCheck, Printer, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 interface PolicyPageProps {
-  policy?: 'privacy' | 'terms' | 'refund' | 'shipping';
+  policy?: 'privacy' | 'terms' | 'refund' | 'shipping' | 'custom-order' | 'cookie' | 'about' | 'faq' | 'contact' | string;
 }
 
 export const PolicyPage: React.FC<PolicyPageProps> = ({ policy: propPolicy }) => {
@@ -16,10 +16,23 @@ export const PolicyPage: React.FC<PolicyPageProps> = ({ policy: propPolicy }) =>
     pathname.includes('privacy') ? 'privacy' :
     pathname.includes('terms') ? 'terms' :
     pathname.includes('refund') ? 'refund' :
-    pathname.includes('shipping') ? 'shipping' : 'privacy'
+    pathname.includes('shipping') ? 'shipping' :
+    pathname.includes('custom-orders') || pathname.includes('custom-order') ? 'custom-order' :
+    pathname.includes('cookie') ? 'cookie' :
+    pathname.includes('about') ? 'about' :
+    pathname.includes('faq') ? 'faq' :
+    pathname.includes('contact') ? 'contact' : 'privacy'
   );
 
-  const matchedPolicy = policies.find(p => p.slug === activeSlug || p.id === activeSlug) || policies[0];
+  const matchedPolicy = policies.find(p => p.slug === activeSlug || p.id === activeSlug) || policies[0] || {
+    id: 'pol-generic',
+    title: 'Legal Policy',
+    slug: activeSlug,
+    version: '1.0.0',
+    status: 'published',
+    content: 'Policy content loading...',
+    lastUpdated: 'Recently'
+  };
 
   const handlePrint = () => {
     window.print();
@@ -37,12 +50,16 @@ export const PolicyPage: React.FC<PolicyPageProps> = ({ policy: propPolicy }) =>
         />
 
         {/* Policy Tab Switcher */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
           {[
             { slug: 'privacy', path: '/privacy-policy', label: 'Privacy Policy' },
             { slug: 'terms', path: '/terms', label: 'Terms of Service' },
             { slug: 'refund', path: '/refund-policy', label: 'Refund & Returns' },
-            { slug: 'shipping', path: '/shipping-policy', label: 'Shipping Policy' },
+            { slug: 'shipping', path: '/shipping-policy', label: 'Shipping & Delivery' },
+            { slug: 'custom-order', path: '/custom-orders-policy', label: 'Custom Orders Policy' },
+            { slug: 'cookie', path: '/cookie-policy', label: 'Cookie Policy' },
+            { slug: 'about', path: '/about', label: 'About HARCONXS' },
+            { slug: 'contact', path: '/contact', label: 'Contact & Grievance' },
           ].map(p => (
             <Link
               key={p.slug}

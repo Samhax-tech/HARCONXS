@@ -23,11 +23,20 @@ import {
   AlertCircle,
   FileCode,
   Smartphone,
-  Monitor
+  Monitor,
+  Clock,
+  Calendar,
+  AlertTriangle,
+  History,
+  Bot,
+  FileCheck,
+  ArrowRight,
+  Send,
+  Trash2
 } from 'lucide-react';
 import { useStore } from '../../../context/StoreContext';
 import { enforceServerSidePermission } from '../../../services/adminAuthService';
-import { Product } from '../../../types';
+import { Product, PolicyRecord, PolicyVersion, ContentPublicationStatus } from '../../../types';
 import {
   generateGoogleMerchantCenterFeedXml,
   generateGoogleMerchantCenterFeedTsv,
@@ -49,7 +58,17 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
   onNavigateSubSection,
   onOpenPageBuilder
 }) => {
-  const { showToast, products, updateProductInCatalog, activePageRecord } = useStore();
+  const { 
+    showToast, 
+    products, 
+    updateProductInCatalog, 
+    activePageRecord,
+    policies: storePolicies,
+    updatePolicyRecord,
+    draftPolicyVersion,
+    approveAndPublishPolicy,
+    schedulePolicy
+  } = useStore();
 
   // Pages list
   const [pagesList, setPagesList] = useState([
@@ -109,12 +128,122 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
     }
   ]);
 
-  // Policies
-  const [policies, setPolicies] = useState({
-    tos: `HARCONXS TERMS OF SOVEREIGN SERVICE\n\n1. Atelier Commissions: All bespoke custom jewelry is crafted specifically to client specifications upon deposit confirmation.\n2. Intellectual Property: All CAD models, website themes, and bot panel architectures remain protected by HARCONXS Atelier.`,
-    privacy: `HARCONXS PRIVACY & DATA POLICY\n\nWe respect the sovereignty and confidentiality of our patrons. Personal identifiable information, addresses, and custom engravings are cryptographically protected and never sold to third parties.`,
-    shipping: `SOVEREIGN INSURED SHIPPING POLICY\n\nComplimentary insured air shipping applies to all qualifying orders across India and international destinations. Dispatches feature tamper-proof velvet security packaging.`
-  });
+  // Policy CMS State & Governance
+  const [selectedPolicySlug, setSelectedPolicySlug] = useState<string>('privacy');
+  const [activePolicyTab, setActivePolicyTab] = useState<'editor' | 'versions' | 'ai-draft' | 'preview'>('editor');
+  const [policyEditTitle, setPolicyEditTitle] = useState<string>('');
+  const [policyEditContent, setPolicyEditContent] = useState<string>('');
+  const [policyEditSummary, setPolicyEditSummary] = useState<string>('');
+  const [policySections, setPolicySections] = useState<Array<{ heading: string; body: string }>>([]);
+  const [aiDraftPrompt, setAiDraftPrompt] = useState<string>('');
+  const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
+  const [scheduleDatetime, setScheduleDatetime] = useState<string>('');
+
+  // Synchronize local policy editor when selected policy changes
+  const activePolicy = storePolicies.find(p => p.slug === selectedPolicySlug) || storePolicies[0];
+
+  useEffect(() => {
+    if (activePolicy) {
+      setPolicyEditTitle(activePolicy.title || '');
+      setPolicyEditContent(activePolicy.content || '');
+      setPolicyEditSummary(activePolicy.description || '');
+      setPolicySections(
+        activePolicy.sections && activePolicy.sections.length > 0
+          ? activePolicy.sections.map(s => ({ heading: s.heading, body: s.body }))
+          : [{ heading: 'General Provisions', body: activePolicy.content || '' }]
+      );
+    }
+  }, [activePolicy?.id, selectedPolicySlug]);
+
+  const handleSavePolicyDraft = async () => {
+    if (!activePolicy) return;
+    try {
+      await enforceServerSidePermission('content:policies', 'store_policy', activePolicy.slug);
+      const nextVerNum = `2.${(activePolicy.versions?.length || 0) + 1}.0`;
+      await draftPolicyVersion(activePolicy.id, {
+        title: policyEditTitle,
+        content: policyEditContent,
+        sections: policySections.map((s, idx) => ({ id: `sec-${idx + 1}`, heading: s.heading, body: s.body })),
+        version: nextVerNum,
+        changeSummary: policyEditSummary || 'Administrative draft updates',
+        isAiDrafted: false
+      });
+      showToast(`Policy draft v${nextVerNum} created for review.`);
+    } catch (err: any) {
+      showToast(err.message || 'Permission Denied: Policy drafting requires admin role.');
+    }
+  };
+
+  const handleAiDraftLegal = async () => {
+    if (!activePolicy) return;
+    if (!aiDraftPrompt.trim()) {
+      showToast('Please describe the legal revisions or compliance updates required.');
+      return;
+    }
+    setIsAiGenerating(true);
+    try {
+      await enforceServerSidePermission('content:policies', 'store_policy', activePolicy.slug);
+      
+      // Simulate/Generate AI Clause Drafting with strict Governance Compliance Note
+      const aiGeneratedVersion = `2.${(activePolicy.versions?.length || 0) + 1}.0-ai-draft`;
+      const enrichedClauses = [
+        ...policySections,
+        {
+          heading: `Regulatory Compliance & Governance (${aiDraftPrompt.slice(0, 30)}...)`,
+          body: `Pursuant to administrative update directive: "${aiDraftPrompt}". HARCONXS Haute Joaillerie and its digital sovereign infrastructure strictly safeguard patron confidentiality, escrowed transactions, and transit logistics under international high-value trade regulations.`
+        }
+      ];
+
+      const fullDraftContent = enrichedClauses.map(s => `## ${s.heading}\n\n${s.body}`).join('\n\n');
+
+      await draftPolicyVersion(activePolicy.id, {
+        title: `${activePolicy.title} (AI Draft Revision)`,
+        content: fullDraftContent,
+        sections: enrichedClauses.map((s, idx) => ({ id: `ai-sec-${idx + 1}`, heading: s.heading, body: s.body })),
+        version: aiGeneratedVersion,
+        changeSummary: `AI-assisted legal draft: ${aiDraftPrompt}`,
+        isAiDrafted: true
+      });
+
+      setPolicySections(enrichedClauses);
+      setPolicyEditContent(fullDraftContent);
+      setAiDraftPrompt('');
+      setActivePolicyTab('versions');
+      showToast('🤖 AI Policy Draft saved as pending review. Administrator approval strictly required before publishing.');
+    } catch (err: any) {
+      showToast(err.message || 'Error generating AI legal draft.');
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
+
+  const handleApproveVersion = async (versionId: string) => {
+    if (!activePolicy) return;
+    try {
+      await enforceServerSidePermission('content:policies', 'store_policy', activePolicy.slug);
+      const res = await approveAndPublishPolicy(activePolicy.id, versionId, 'Super Administrator');
+      if (res.success) {
+        showToast('✅ Policy version approved and published live to Supabase storefront!');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Permission Denied: Approving policy requires administrator role.');
+    }
+  };
+
+  const handleScheduleRelease = async (versionId: string) => {
+    if (!activePolicy || !scheduleDatetime) {
+      showToast('Please select a valid scheduled publication date and time.');
+      return;
+    }
+    try {
+      await enforceServerSidePermission('content:policies', 'store_policy', activePolicy.slug);
+      await schedulePolicy(activePolicy.id, scheduleDatetime);
+      showToast(`📅 Policy release scheduled for ${new Date(scheduleDatetime).toLocaleString()}.`);
+      setScheduleDatetime('');
+    } catch (err: any) {
+      showToast(err.message || 'Permission Denied: Scheduling policy requires administrator role.');
+    }
+  };
 
   // SEO Config
   const [seoConfig, setSeoConfig] = useState({
@@ -359,44 +488,427 @@ export const ContentAdminSection: React.FC<ContentAdminSectionProps> = ({
         </div>
       )}
 
-      {/* 4. POLICIES SUBSECTION */}
+      {/* 4. HARCONXS POLICIES & LEGAL CMS SUBSECTION */}
       {subSection === 'policies' && (
         <div className="space-y-6">
-          <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-serif font-bold text-zinc-100">Terms of Sovereign Service</h4>
-              <button
-                onClick={() => handleSavePolicy('tos')}
-                className="px-3 py-1.5 rounded-lg bg-amber-400 text-zinc-950 font-bold text-xs cursor-pointer"
-              >
-                Save Policy
-              </button>
+          {/* Header & Policy Selector */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-900 border border-zinc-800">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-amber-400" />
+                <h3 className="font-serif font-bold text-zinc-100 text-base">HARCONXS Legal Policy Governance Studio</h3>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Manage legal terms, privacy covenants, policies, and draft revisions. AI drafting is strictly gated behind administrator approval before publishing live to Supabase.
+              </p>
             </div>
-            <textarea
-              rows={4}
-              value={policies.tos}
-              onChange={(e) => setPolicies(prev => ({ ...prev, tos: e.target.value }))}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs font-mono focus:border-amber-400"
-            />
+
+            {/* Document Selector */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-zinc-300 whitespace-nowrap">Selected Document:</label>
+              <select
+                value={selectedPolicySlug}
+                onChange={(e) => setSelectedPolicySlug(e.target.value)}
+                className="px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-amber-400 font-semibold text-xs focus:border-amber-400 cursor-pointer"
+              >
+                {storePolicies.map(p => (
+                  <option key={p.id} value={p.slug}>
+                    {p.title} ({p.status.toUpperCase()})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-serif font-bold text-zinc-100">Privacy &amp; Data Confidentiality</h4>
-              <button
-                onClick={() => handleSavePolicy('privacy')}
-                className="px-3 py-1.5 rounded-lg bg-amber-400 text-zinc-950 font-bold text-xs cursor-pointer"
-              >
-                Save Policy
-              </button>
+          {activePolicy && (
+            <div className="space-y-6">
+              {/* Document Overview Bar */}
+              <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <span className="text-zinc-500 block">Publication Status</span>
+                  <span className={`inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full font-mono text-[11px] font-bold uppercase ${
+                    activePolicy.status === 'published' 
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
+                      : activePolicy.status === 'scheduled'
+                      ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30'
+                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                  }`}>
+                    {activePolicy.status === 'published' && <CheckCircle2 className="w-3 h-3" />}
+                    {activePolicy.status === 'scheduled' && <Clock className="w-3 h-3" />}
+                    {activePolicy.status === 'draft' && <AlertTriangle className="w-3 h-3" />}
+                    {activePolicy.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-zinc-500 block">Active Live Version</span>
+                  <span className="font-mono font-bold text-amber-400 text-sm mt-0.5 block">
+                    {activePolicy.version || 'v2.0.0'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-zinc-500 block">Last Approved By</span>
+                  <span className="font-medium text-zinc-200 mt-0.5 block truncate">
+                    {activePolicy.approvedBy || 'Super Administrator'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-zinc-500 block">Storefront URL</span>
+                  <a
+                    href={`/policies?tab=${activePolicy.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-amber-400 hover:underline inline-flex items-center gap-1 font-mono text-[11px] mt-0.5"
+                  >
+                    <span>/policies?tab={activePolicy.slug}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Sub-Navigation Tabs */}
+              <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
+                <button
+                  onClick={() => setActivePolicyTab('editor')}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+                    activePolicyTab === 'editor' ? 'bg-amber-400 text-zinc-950 shadow' : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Document Editor</span>
+                </button>
+                <button
+                  onClick={() => setActivePolicyTab('versions')}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+                    activePolicyTab === 'versions' ? 'bg-amber-400 text-zinc-950 shadow' : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>Version History &amp; Approval ({activePolicy.versions?.length || 1})</span>
+                </button>
+                <button
+                  onClick={() => setActivePolicyTab('ai-draft')}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+                    activePolicyTab === 'ai-draft' ? 'bg-amber-400 text-zinc-950 shadow' : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <Bot className="w-3.5 h-3.5 text-amber-500" />
+                  <span>AI Legal Drafter (Gated)</span>
+                </button>
+                <button
+                  onClick={() => setActivePolicyTab('preview')}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+                    activePolicyTab === 'preview' ? 'bg-amber-400 text-zinc-950 shadow' : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Live Storefront Preview</span>
+                </button>
+              </div>
+
+              {/* 1. DOCUMENT EDITOR */}
+              {activePolicyTab === 'editor' && (
+                <div className="space-y-5">
+                  <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-serif font-bold text-zinc-100 text-sm">Policy Header Details</h4>
+                      <button
+                        onClick={handleSavePolicyDraft}
+                        className="px-4 py-2 rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs hover:bg-amber-300 transition-colors shadow flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Save Draft Version</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Document Formal Title</label>
+                        <input
+                          type="text"
+                          value={policyEditTitle}
+                          onChange={(e) => setPolicyEditTitle(e.target.value)}
+                          className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:border-amber-400 font-serif"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Executive Summary / Scope</label>
+                        <input
+                          type="text"
+                          value={policyEditSummary}
+                          onChange={(e) => setPolicyEditSummary(e.target.value)}
+                          className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:border-amber-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section List Builder */}
+                  <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-serif font-bold text-zinc-100 text-sm">Policy Clauses &amp; Sections</h4>
+                        <p className="text-xs text-zinc-400">Structured legal clauses displayed dynamically with high-contrast formatting on storefront.</p>
+                      </div>
+                      <button
+                        onClick={() => setPolicySections(prev => [...prev, { heading: 'New Legal Clause', body: '' }])}
+                        className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Add Section</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {policySections.map((sec, idx) => (
+                        <div key={idx} className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 flex-1">
+                              <span className="w-5 h-5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-mono flex items-center justify-center font-bold">
+                                {idx + 1}
+                              </span>
+                              <input
+                                type="text"
+                                value={sec.heading}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setPolicySections(prev => prev.map((s, i) => i === idx ? { ...s, heading: val } : s));
+                                }}
+                                placeholder="Section Heading"
+                                className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs font-semibold focus:border-amber-400"
+                              />
+                            </div>
+                            <button
+                              onClick={() => setPolicySections(prev => prev.filter((_, i) => i !== idx))}
+                              className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 cursor-pointer"
+                              title="Delete section"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={sec.body}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPolicySections(prev => prev.map((s, i) => i === idx ? { ...s, body: val } : s));
+                            }}
+                            placeholder="Clause body markdown or legal text..."
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs leading-relaxed focus:border-amber-400"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. VERSION HISTORY & GOVERNANCE AUDIT */}
+              {activePolicyTab === 'versions' && (
+                <div className="space-y-4">
+                  <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="font-serif font-bold text-zinc-100 text-base flex items-center gap-2">
+                          <History className="w-4 h-4 text-amber-400" />
+                          <span>Policy Version Control &amp; Approval Gate</span>
+                        </h4>
+                        <p className="text-xs text-zinc-400">
+                          Legal policy changes require explicit administrator sign-off before publication. AI and editor drafts remain in DRAFT status until approved.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+                      <table className="w-full text-left text-sm text-zinc-300">
+                        <thead className="bg-zinc-950 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
+                          <tr>
+                            <th className="py-3 px-4">Version</th>
+                            <th className="py-3 px-4">Summary &amp; Origin</th>
+                            <th className="py-3 px-4">Status</th>
+                            <th className="py-3 px-4">Author / Approver</th>
+                            <th className="py-3 px-4">Created Date</th>
+                            <th className="py-3 px-4 text-right">Approval Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800/80">
+                          {(activePolicy.versions || [
+                            {
+                              id: `ver-default`,
+                              policyId: activePolicy.id,
+                              version: activePolicy.version || 'v2.4.0',
+                              title: activePolicy.title,
+                              content: activePolicy.content,
+                              status: activePolicy.status,
+                              changeSummary: 'Initial sovereign baseline policy release',
+                              createdBy: 'Super Administrator',
+                              createdAt: activePolicy.updatedAt || new Date().toISOString(),
+                              isAiDrafted: false
+                            }
+                          ]).map((ver) => (
+                            <tr key={ver.id} className="hover:bg-zinc-800/30 transition-colors">
+                              <td className="py-3 px-4 font-mono font-bold text-amber-400 text-xs">
+                                {ver.version}
+                              </td>
+                              <td className="py-3 px-4 text-xs">
+                                <div className="font-medium text-zinc-200">{ver.changeSummary || ver.title}</div>
+                                {ver.isAiDrafted && (
+                                  <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.2 text-[10px] font-mono rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                    <Bot className="w-2.5 h-2.5" /> AI Drafted
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                                  ver.status === 'published'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                    : ver.status === 'scheduled'
+                                    ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30'
+                                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                                }`}>
+                                  {ver.status}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-xs text-zinc-400">
+                                {ver.approvedBy ? `Approved by ${ver.approvedBy}` : (ver.createdBy || 'Editor')}
+                              </td>
+                              <td className="py-3 px-4 text-xs text-zinc-500 font-mono">
+                                {new Date(ver.createdAt).toLocaleDateString()}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {ver.status !== 'published' ? (
+                                    <button
+                                      onClick={() => handleApproveVersion(ver.id)}
+                                      className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+                                      title="Approve & Publish to Storefront"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                      <span>Approve &amp; Publish</span>
+                                    </button>
+                                  ) : (
+                                    <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                                      <CheckCircle2 className="w-3.5 h-3.5" /> Active Live
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Schedule Release Bar */}
+                    <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                          <span>Schedule Future Policy Release</span>
+                        </span>
+                        <p className="text-[11px] text-zinc-400">Automatically flip draft version to live on scheduled timestamp.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="datetime-local"
+                          value={scheduleDatetime}
+                          onChange={(e) => setScheduleDatetime(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-mono"
+                        />
+                        <button
+                          onClick={() => handleScheduleRelease(activePolicy.versions?.[0]?.id || 'latest')}
+                          className="px-3.5 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-xs font-bold cursor-pointer"
+                        >
+                          Schedule
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. AI DRAFTER WITH STRICT GOVERNANCE */}
+              {activePolicyTab === 'ai-draft' && (
+                <div className="space-y-4">
+                  <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+                      <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+                      <div className="space-y-1">
+                        <span className="font-bold uppercase tracking-wider block">Legal Governance &amp; Non-Overwriting Guard</span>
+                        <p className="text-amber-300/90 leading-relaxed">
+                          AI may assist with drafting legal policy clauses, GDPR/DPDP updates, and carrier clauses, but will <strong>NEVER silently overwrite published live legal documents</strong>. All AI-generated clauses are placed into a provisional DRAFT version and require explicit administrator approval before publication.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-zinc-200">
+                        Describe Policy Updates or Legal Directives for AI Assistant:
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={aiDraftPrompt}
+                        onChange={(e) => setAiDraftPrompt(e.target.value)}
+                        placeholder="e.g. Update transit damage insurance terms to specify mandatory unboxing video requirement and add 30-day exchange clause for bespoke rings..."
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-xs focus:border-amber-400"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={handleAiDraftLegal}
+                        disabled={isAiGenerating || !aiDraftPrompt.trim()}
+                        className="px-5 py-2.5 rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs hover:bg-amber-300 transition-colors shadow-lg shadow-amber-400/20 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                      >
+                        {isAiGenerating ? (
+                          <div className="w-3.5 h-3.5 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Bot className="w-4 h-4" />
+                        )}
+                        <span>Draft Provisional Legal Revision</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. LIVE PUBLIC STOREFRONT PREVIEW */}
+              {activePolicyTab === 'preview' && (
+                <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-emerald-400" />
+                      <h4 className="font-serif font-bold text-zinc-100 text-sm">Customer Storefront View ({activePolicy.title})</h4>
+                    </div>
+                    <span className="text-xs text-zinc-500 font-mono">Published Version: {activePolicy.version}</span>
+                  </div>
+
+                  <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800 space-y-6">
+                    <div className="border-b border-zinc-800 pb-4">
+                      <h2 className="font-serif text-2xl font-bold text-zinc-100">{activePolicy.title}</h2>
+                      <p className="text-xs text-amber-400 mt-1">Last Updated: {activePolicy.lastUpdated || new Date().toLocaleDateString()}</p>
+                      <p className="text-sm text-zinc-300 mt-2">{activePolicy.description}</p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {(activePolicy.sections && activePolicy.sections.length > 0 ? activePolicy.sections : [
+                        { heading: 'Sovereign Agreement', body: activePolicy.content }
+                      ]).map((sec, idx) => (
+                        <div key={idx} className="space-y-2">
+                          <h3 className="font-serif font-bold text-base text-zinc-100 flex items-center gap-2">
+                            <span className="text-amber-400 font-mono text-sm">{idx + 1}.</span>
+                            {sec.heading}
+                          </h3>
+                          <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line pl-5 border-l border-zinc-800">
+                            {sec.body}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <textarea
-              rows={4}
-              value={policies.privacy}
-              onChange={(e) => setPolicies(prev => ({ ...prev, privacy: e.target.value }))}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs font-mono focus:border-amber-400"
-            />
-          </div>
+          )}
         </div>
       )}
 

@@ -33,11 +33,73 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
   subSection,
   onNavigateSubSection
 }) => {
-  const { products, addProduct, updateProduct, deleteProduct, showToast } = useStore();
+  const { 
+    products, 
+    addProduct, 
+    updateProduct, 
+    deleteProduct, 
+    bulkAddProducts, 
+    bulkDeleteProducts, 
+    showToast 
+  } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
+
+  // Product Selection for Bulk Operations
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+
+  // Product Add / Edit Modal State
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productForm, setProductForm] = useState<Partial<Product>>({
+    name: '',
+    slug: '',
+    category: 'couples',
+    price: 1999,
+    compareAtPrice: 2499,
+    costPrice: 650,
+    stock: 25,
+    description: '',
+    imageUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80',
+    inStock: true,
+    featured: false,
+    rating: 5.0,
+    reviewCount: 1,
+    tags: ['handcrafted', 'sovereign']
+  });
+
+  // Bulk Import Modal State
+  const [isBulkImportModalOpen, setIsBulkImportModalOpen] = useState(false);
+  const [bulkImportJson, setBulkImportJson] = useState<string>(
+    JSON.stringify([
+      {
+        name: "Celestial Orbit Platinum Band",
+        category: "couples",
+        price: 2899,
+        compareAtPrice: 3499,
+        costPrice: 900,
+        stock: 15,
+        description: "Pure PT950 platinum matching promise band with laser etched star map.",
+        imageUrl: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800&auto=format&fit=crop&q=80",
+        tags: ["platinum", "couples", "rings"],
+        inStock: true
+      },
+      {
+        name: "Sovereign Rose Gold Couple Lockets",
+        category: "gifts",
+        price: 3199,
+        compareAtPrice: 3899,
+        costPrice: 1100,
+        stock: 20,
+        description: "18K Rose Gold magnetic holding lockets with velvet keepsake casing.",
+        imageUrl: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80",
+        tags: ["rose gold", "lockets", "keepsakes"],
+        inStock: true
+      }
+    ], null, 2)
+  );
 
   // Categories list
   const [categoriesList, setCategoriesList] = useState<CategoryItem[]>([
@@ -263,15 +325,269 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
     }
   };
 
+  const handleOpenAddProduct = () => {
+    setEditingProduct(null);
+    setProductForm({
+      name: '',
+      slug: '',
+      category: 'couples',
+      price: 1999,
+      compareAtPrice: 2499,
+      costPrice: 650,
+      stock: 25,
+      description: '',
+      imageUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80',
+      inStock: true,
+      featured: false,
+      rating: 5.0,
+      reviewCount: 1,
+      tags: ['handcrafted', 'sovereign'],
+      // SEO & Merchant Center
+      seoTitle: '',
+      seoDescription: '',
+      canonicalUrl: '',
+      ogTitle: '',
+      ogDescription: '',
+      ogImage: '',
+      brand: 'HARCONXS',
+      googleProductCategory: 'Apparel & Accessories > Jewelry',
+      gtin: '',
+      mpn: '',
+      condition: 'new'
+    });
+    setIsProductModalOpen(true);
+  };
+
+  const handleOpenEditProduct = (prod: Product) => {
+    setEditingProduct(prod);
+    setProductForm({
+      name: prod.name,
+      slug: prod.slug,
+      category: prod.category,
+      price: prod.price,
+      compareAtPrice: prod.compareAtPrice || Math.round(prod.price * 1.25),
+      costPrice: prod.costPrice || Math.round(prod.price * 0.35),
+      stock: prod.stock || 25,
+      description: prod.description,
+      imageUrl: prod.imageUrl,
+      inStock: prod.inStock !== false,
+      featured: prod.featured || false,
+      rating: prod.rating || 5.0,
+      reviewCount: prod.reviewCount || 1,
+      tags: prod.tags || ['atelier'],
+      // SEO & Merchant Center
+      seoTitle: prod.seoTitle || prod.name,
+      seoDescription: prod.seoDescription || prod.shortDescription || prod.description || '',
+      canonicalUrl: prod.canonicalUrl || '',
+      ogTitle: prod.ogTitle || prod.name,
+      ogDescription: prod.ogDescription || prod.shortDescription || prod.description || '',
+      ogImage: prod.ogImage || prod.ogImageUrl || prod.imageUrl || (prod.images && prod.images[0]) || '',
+      brand: prod.brand || 'HARCONXS',
+      googleProductCategory: prod.googleProductCategory || 'Apparel & Accessories > Jewelry',
+      gtin: prod.gtin || prod.barcode || '',
+      mpn: prod.mpn || prod.sku || '',
+      condition: prod.condition || 'new'
+    });
+    setIsProductModalOpen(true);
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!productForm.name || !productForm.price) {
+      showToast('Please fill in product name and valid retail price.');
+      return;
+    }
+
+    try {
+      if (editingProduct) {
+        await enforceServerSidePermission('catalog:edit', 'product', editingProduct.id);
+        const updated: Product = {
+          ...editingProduct,
+          name: productForm.name,
+          slug: productForm.slug || productForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          category: productForm.category as CategoryType,
+          price: Number(productForm.price),
+          compareAtPrice: Number(productForm.compareAtPrice || 0),
+          costPrice: Number(productForm.costPrice || 0),
+          stock: Number(productForm.stock || 0),
+          description: productForm.description || '',
+          imageUrl: productForm.imageUrl || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80',
+          inStock: productForm.inStock !== false,
+          featured: !!productForm.featured,
+          tags: Array.isArray(productForm.tags) ? productForm.tags : (typeof productForm.tags === 'string' ? (productForm.tags as string).split(',').map(t => t.trim()) : []),
+          // SEO & Merchant Center
+          seoTitle: productForm.seoTitle || productForm.name,
+          seoDescription: productForm.seoDescription || productForm.description || '',
+          canonicalUrl: productForm.canonicalUrl || undefined,
+          ogTitle: productForm.ogTitle || productForm.seoTitle || productForm.name,
+          ogDescription: productForm.ogDescription || productForm.seoDescription || productForm.description || '',
+          ogImage: productForm.ogImage || productForm.imageUrl || undefined,
+          brand: productForm.brand || 'HARCONXS',
+          googleProductCategory: productForm.googleProductCategory || 'Apparel & Accessories > Jewelry',
+          gtin: productForm.gtin || undefined,
+          mpn: productForm.mpn || editingProduct.sku || undefined,
+          condition: (productForm.condition || 'new') as any
+        };
+        updateProduct(updated);
+        showToast(`Product "${updated.name}" updated successfully.`);
+      } else {
+        await enforceServerSidePermission('catalog:create', 'product', 'new');
+        const generatedSlug = productForm.slug || productForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const newProduct: Product = {
+          id: `prod_${Date.now()}`,
+          sku: `HX-CAT-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: productForm.name,
+          slug: generatedSlug,
+          category: productForm.category as CategoryType,
+          price: Number(productForm.price),
+          compareAtPrice: Number(productForm.compareAtPrice || 0),
+          costPrice: Number(productForm.costPrice || 0),
+          stock: Number(productForm.stock || 25),
+          description: productForm.description || '',
+          imageUrl: productForm.imageUrl || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80',
+          inStock: productForm.inStock !== false,
+          featured: !!productForm.featured,
+          rating: 5.0,
+          reviewCount: 1,
+          tags: Array.isArray(productForm.tags) ? productForm.tags : (typeof productForm.tags === 'string' ? (productForm.tags as string).split(',').map(t => t.trim()) : []),
+          // SEO & Merchant Center
+          seoTitle: productForm.seoTitle || productForm.name,
+          seoDescription: productForm.seoDescription || productForm.description || '',
+          canonicalUrl: productForm.canonicalUrl || undefined,
+          ogTitle: productForm.ogTitle || productForm.seoTitle || productForm.name,
+          ogDescription: productForm.ogDescription || productForm.seoDescription || productForm.description || '',
+          ogImage: productForm.ogImage || productForm.imageUrl || undefined,
+          brand: productForm.brand || 'HARCONXS',
+          googleProductCategory: productForm.googleProductCategory || 'Apparel & Accessories > Jewelry',
+          gtin: productForm.gtin || undefined,
+          mpn: productForm.mpn || undefined,
+          condition: (productForm.condition || 'new') as any,
+          cost: Number(productForm.costPrice || 0),
+          inventory: Number(productForm.stock || 25),
+          shortDescription: productForm.description || '',
+          fullDescription: productForm.description || '',
+          subcategory: 'Atelier',
+          badges: ['New'],
+          productType: 'physical',
+          images: [productForm.imageUrl || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80'],
+          createdAt: new Date().toISOString()
+        };
+        addProduct(newProduct);
+        showToast(`Product "${newProduct.name}" added to catalog.`);
+      }
+      setIsProductModalOpen(false);
+    } catch (err: any) {
+      showToast(err.message || 'Permission Denied: Unable to save product.');
+    }
+  };
+
+  const handleToggleSelectProduct = (id: string) => {
+    setSelectedProductIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = (filteredProds: Product[]) => {
+    if (selectedProductIds.length === filteredProds.length) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(filteredProds.map(p => p.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProductIds.length === 0) return;
+    const confirm = window.confirm(`Permanently delete ${selectedProductIds.length} selected products from catalog?`);
+    if (!confirm) return;
+
+    try {
+      await enforceServerSidePermission('catalog:delete', 'product', 'bulk');
+      bulkDeleteProducts(selectedProductIds);
+      showToast(`Successfully deleted ${selectedProductIds.length} products in bulk.`);
+      setSelectedProductIds([]);
+    } catch (err: any) {
+      showToast(err.message || 'Permission Denied: Unable to delete products in bulk.');
+    }
+  };
+
+  const handleBulkImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const parsed = JSON.parse(bulkImportJson);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        showToast('Please provide a valid JSON array of product objects.');
+        return;
+      }
+      await enforceServerSidePermission('catalog:create', 'product', 'bulk');
+      const preparedProducts: Product[] = parsed.map((p, idx) => {
+        const prodName = p.name || 'Untitled Atelier Item';
+        const prodPrice = Number(p.price || 999);
+        const prodImg = p.imageUrl || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80';
+        const prodDesc = p.description || p.fullDescription || p.shortDescription || '';
+        return {
+          id: p.id || `prod_bulk_${Date.now()}_${idx}`,
+          sku: p.sku || `HX-BULK-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: prodName,
+          slug: p.slug || prodName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          shortDescription: p.shortDescription || prodDesc,
+          fullDescription: p.fullDescription || prodDesc,
+          description: prodDesc,
+          price: prodPrice,
+          compareAtPrice: Number(p.compareAtPrice || 0),
+          cost: Number(p.cost || p.costPrice || 0),
+          costPrice: Number(p.costPrice || p.cost || 0),
+          inventory: Number(p.inventory || p.stock || 20),
+          stock: Number(p.stock || p.inventory || 20),
+          category: (p.category || 'couples') as CategoryType,
+          subcategory: p.subcategory || 'Atelier',
+          tags: Array.isArray(p.tags) ? p.tags : ['sovereign'],
+          badges: Array.isArray(p.badges) ? p.badges : ['New'],
+          brand: p.brand || 'HARCONXS',
+          productType: p.productType || 'physical',
+          images: Array.isArray(p.images) && p.images.length > 0 ? p.images : [prodImg],
+          imageUrl: prodImg,
+          rating: Number(p.rating || 5.0),
+          reviewCount: Number(p.reviewCount || 1),
+          inStock: p.inStock !== false,
+          featured: !!p.featured,
+          createdAt: p.createdAt || new Date().toISOString(),
+          seoTitle: p.seoTitle || prodName,
+          seoDescription: p.seoDescription || prodDesc,
+          ogTitle: p.ogTitle || prodName,
+          ogDescription: p.ogDescription || prodDesc,
+          ogImage: p.ogImage || prodImg,
+          gtin: p.gtin || p.barcode || undefined,
+          barcode: p.barcode || p.gtin || undefined,
+          mpn: p.mpn || p.sku || undefined,
+          googleProductCategory: p.googleProductCategory || 'Apparel & Accessories > Jewelry',
+          condition: (p.condition || 'new') as any
+        };
+      });
+
+      bulkAddProducts(preparedProducts);
+      showToast(`Successfully bulk imported ${preparedProducts.length} products.`);
+      setIsBulkImportModalOpen(false);
+    } catch (err: any) {
+      showToast(`JSON Parsing or Import Error: ${err.message}`);
+    }
+  };
+
   const handleDeleteProduct = async (id: string, name: string) => {
+    const confirm = window.confirm(`Archive and delete product "${name}" from store catalog?`);
+    if (!confirm) return;
     try {
       await enforceServerSidePermission('catalog:delete', 'product', id);
       deleteProduct(id);
+      setSelectedProductIds(prev => prev.filter(x => x !== id));
       showToast(`Product "${name}" archived from catalog.`);
     } catch (err: any) {
       showToast(err.message || 'Permission Denied: Only Super Admin can remove products.');
     }
   };
+
+  const filteredProducts = products
+    .filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || (p.id && p.id.toLowerCase().includes(searchQuery.toLowerCase())))
+    .filter(p => categoryFilter === 'all' || p.category === categoryFilter);
 
   return (
     <div id="catalog-admin-section" className="space-y-6">
@@ -331,38 +647,93 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
       {/* 1. PRODUCTS SUBSECTION */}
       {subSection === 'products' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-              <input
-                type="text"
-                placeholder="Search products by title or SKU..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-amber-400"
-              />
+          {/* Top Controls & Action Buttons */}
+          <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-auto">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  type="text"
+                  placeholder="Search products by title or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-amber-400"
+                />
+              </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm focus:outline-none focus:border-amber-400"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="couples">Couples</option>
+                  <option value="gifts">Gifts & Keepsakes</option>
+                  <option value="custom">Custom Atelier</option>
+                  <option value="websites">Couple Websites</option>
+                  <option value="bots">Bot Panels</option>
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm focus:outline-none focus:border-amber-400"
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button
+                id="bulk-import-products-btn"
+                onClick={() => setIsBulkImportModalOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <option value="all">All Categories</option>
-                <option value="couples">Couples</option>
-                <option value="gifts">Gifts & Keepsakes</option>
-                <option value="custom">Custom Atelier</option>
-                <option value="websites">Couple Websites</option>
-                <option value="bots">Bot Panels</option>
-              </select>
+                <Boxes className="w-4 h-4 text-amber-400" />
+                Bulk Import
+              </button>
+              <button
+                id="add-single-product-btn"
+                onClick={handleOpenAddProduct}
+                className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-amber-400/20 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Add Product
+              </button>
             </div>
           </div>
+
+          {/* BULK ACTION BAR */}
+          {selectedProductIds.length > 0 && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between animate-fadeIn">
+              <div className="flex items-center gap-2 text-xs text-amber-300 font-medium">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span><strong>{selectedProductIds.length}</strong> products selected</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedProductIds([])}
+                  className="px-3 py-1 rounded-xl bg-zinc-800 text-zinc-300 hover:text-zinc-100 text-xs transition-colors"
+                >
+                  Deselect All
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="px-3 py-1 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Selected ({selectedProductIds.length})
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-zinc-300">
                 <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs uppercase tracking-wider">
                   <tr>
+                    <th className="py-3 px-4 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedProductIds.length > 0 && selectedProductIds.length === filteredProducts.length}
+                        onChange={() => handleToggleSelectAll(filteredProducts)}
+                        className="rounded bg-zinc-950 border-zinc-700 text-amber-400 focus:ring-amber-400 cursor-pointer"
+                      />
+                    </th>
                     <th className="py-3 px-4">Item</th>
                     <th className="py-3 px-4">Category</th>
                     <th className="py-3 px-4">Retail Price</th>
@@ -373,11 +744,18 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
-                  {products
-                    .filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .filter(p => categoryFilter === 'all' || p.category === categoryFilter)
-                    .map(product => (
-                      <tr key={product.id} className="hover:bg-zinc-800/40 transition-colors">
+                  {filteredProducts.map(product => {
+                    const isSelected = selectedProductIds.includes(product.id);
+                    return (
+                      <tr key={product.id} className={`hover:bg-zinc-800/40 transition-colors ${isSelected ? 'bg-amber-500/5' : ''}`}>
+                        <td className="py-3 px-4">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectProduct(product.id)}
+                            className="rounded bg-zinc-950 border-zinc-700 text-amber-400 focus:ring-amber-400 cursor-pointer"
+                          />
+                        </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             <img src={product.imageUrl} alt={product.name} className="w-10 h-10 rounded-lg object-cover border border-zinc-700" />
@@ -414,8 +792,15 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              onClick={() => handleOpenEditProduct(product)}
+                              className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+                              title="Edit Product"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => handleDeleteProduct(product.id, product.name)}
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                               title="Delete (Enforces Server RBAC)"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -423,7 +808,8 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -686,18 +1072,398 @@ export const CatalogAdminSection: React.FC<CatalogAdminSectionProps> = ({
               <button
                 type="button"
                 onClick={() => setAdjustInvItem(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-400 text-sm"
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-400 text-sm cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleAdjustStock}
-                className="px-4 py-2 rounded-xl bg-amber-400 text-zinc-950 font-bold text-sm"
+                className="px-4 py-2 rounded-xl bg-amber-400 text-zinc-950 font-bold text-sm cursor-pointer"
               >
                 Confirm Restock
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRODUCT ADD / EDIT MODAL */}
+      {isProductModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+              <div>
+                <h3 className="text-xl font-serif font-bold text-zinc-100 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-amber-400" />
+                  {editingProduct ? 'Edit Catalog Product' : 'Add New Atelier Product'}
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Configure real-time pricing, vault inventory, visual assets, and taxonomy.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsProductModalOpen(false)}
+                className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProduct} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Product Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Celestial Orbit Platinum Promise Band"
+                    value={productForm.name || ''}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">URL Slug</label>
+                  <input
+                    type="text"
+                    placeholder="celestial-orbit-platinum-band"
+                    value={productForm.slug || ''}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, slug: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Category</label>
+                  <select
+                    value={productForm.category || 'couples'}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value as CategoryType }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400 cursor-pointer"
+                  >
+                    <option value="couples">Couples Sanctuary</option>
+                    <option value="gifts">Royal Keepsakes & Gifts</option>
+                    <option value="custom">Custom Atelier</option>
+                    <option value="websites">Couple Websites</option>
+                    <option value="bots">Bot Panels Cloud</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Retail Price (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={productForm.price || ''}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, price: Number(e.target.value) }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-mono font-bold text-sm focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Compare At / Strikethrough Price (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 2999"
+                    value={productForm.compareAtPrice || ''}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, compareAtPrice: Number(e.target.value) }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-400 font-mono text-sm focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Cost Price (₹ COGS)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 700"
+                    value={productForm.costPrice || ''}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, costPrice: Number(e.target.value) }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-400 font-mono text-sm focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Vault Inventory Stock (Units)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={productForm.stock || 0}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, stock: Number(e.target.value) }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 font-mono text-sm focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Main Cover Image URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://images.unsplash.com/..."
+                    value={productForm.imageUrl || ''}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                  />
+                  {productForm.imageUrl && (
+                    <div className="mt-2 flex items-center gap-3">
+                      <img src={productForm.imageUrl} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-zinc-700" />
+                      <span className="text-xs text-zinc-500">Asset preview loaded</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Product Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Exquisite handcrafted heirloom piece created with bespoke precision..."
+                    value={productForm.description || ''}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">Tags (Comma-separated)</label>
+                  <input
+                    type="text"
+                    placeholder="platinum, promise band, couples, 18k"
+                    value={Array.isArray(productForm.tags) ? productForm.tags.join(', ') : (productForm.tags || '')}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 flex flex-wrap items-center gap-6 pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                    <input
+                      type="checkbox"
+                      checked={productForm.inStock !== false}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, inStock: e.target.checked }))}
+                      className="rounded bg-zinc-950 border-zinc-700 text-amber-400 focus:ring-amber-400"
+                    />
+                    <span>Available In Stock</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                    <input
+                      type="checkbox"
+                      checked={!!productForm.featured}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, featured: e.target.checked }))}
+                      className="rounded bg-zinc-950 border-zinc-700 text-amber-400 focus:ring-amber-400"
+                    />
+                    <span>Featured on Storefront</span>
+                  </label>
+                </div>
+
+                {/* SEO & GOOGLE MERCHANT CENTER SECTION */}
+                <div className="sm:col-span-2 pt-4 border-t border-zinc-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" />
+                      Production SEO &amp; Google Merchant Center Configuration
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-mono">Structured Data / XML Feed Ready</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">
+                        SEO Title Tag <span className="text-zinc-500">({(productForm.seoTitle || productForm.name || '').length}/60 chars)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Celestial Orbit Platinum Promise Band | HARCONXS"
+                        value={productForm.seoTitle || ''}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, seoTitle: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">Canonical URL Override (Optional)</label>
+                      <input
+                        type="url"
+                        placeholder="https://harconxs.com/product/celestial-orbit-band"
+                        value={productForm.canonicalUrl || ''}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, canonicalUrl: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-300 mb-1">
+                      SEO Meta Description <span className="text-zinc-500">({(productForm.seoDescription || productForm.description || '').length}/160 chars)</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Handcrafted in sovereign 18K/Platinum fine jewelry atelier with verified gemstone certification and complimentary insured air express."
+                      value={productForm.seoDescription || ''}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, seoDescription: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">OpenGraph (OG) Social Title</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Celestial Orbit Platinum Promise Band"
+                        value={productForm.ogTitle || ''}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, ogTitle: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">OpenGraph (OG) Image URL</label>
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/..."
+                        value={productForm.ogImage || ''}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, ogImage: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">Brand Name</label>
+                      <input
+                        type="text"
+                        value={productForm.brand || 'HARCONXS'}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, brand: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">GTIN / UPC / Barcode</label>
+                      <input
+                        type="text"
+                        placeholder="8904561237890"
+                        value={productForm.gtin || ''}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, gtin: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm font-mono focus:border-amber-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">MPN (Part Number)</label>
+                      <input
+                        type="text"
+                        placeholder="HX-PLT-009"
+                        value={productForm.mpn || ''}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, mpn: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm font-mono focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">Google Product Category</label>
+                      <input
+                        type="text"
+                        value={productForm.googleProductCategory || 'Apparel & Accessories > Jewelry'}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, googleProductCategory: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-300 mb-1">Product Condition</label>
+                      <select
+                        value={productForm.condition || 'new'}
+                        onChange={(e) => setProductForm(prev => ({ ...prev, condition: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm focus:border-amber-400 cursor-pointer"
+                      >
+                        <option value="new">New Condition (Brand New)</option>
+                        <option value="refurbished">Refurbished</option>
+                        <option value="used">Used</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsProductModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-400/20 cursor-pointer"
+                >
+                  {editingProduct ? 'Save Product Changes' : 'Publish Product to Vault'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BULK IMPORT MODAL */}
+      {isBulkImportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+              <div>
+                <h3 className="text-xl font-serif font-bold text-zinc-100 flex items-center gap-2">
+                  <Boxes className="w-5 h-5 text-amber-400" />
+                  Bulk Import Products Batch
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Paste a JSON array of products to add multiple catalog items at once into Supabase.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsBulkImportModalOpen(false)}
+                className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkImportSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1.5">JSON Payload Array</label>
+                <textarea
+                  rows={10}
+                  required
+                  value={bulkImportJson}
+                  onChange={(e) => setBulkImportJson(e.target.value)}
+                  className="w-full font-mono text-xs px-3.5 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-300 focus:border-amber-400 focus:outline-none"
+                  placeholder="[ { name: '...', price: 1999, category: 'couples' } ]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkImportModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-400/20 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Import All Products
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

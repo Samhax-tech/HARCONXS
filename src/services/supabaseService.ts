@@ -26,7 +26,10 @@ import {
   FaqItem,
   PageRecord,
   PageSection,
-  PageRevision
+  PageRevision,
+  PolicyRecord,
+  PolicyVersion,
+  PolicySection
 } from '../types';
 
 /**
@@ -2719,6 +2722,301 @@ export async function executeSqlConsoleQuery(
       error: msg,
       executionTimeMs: Date.now() - startTime
     };
+  }
+}
+
+// ==============================================================================
+// 19. HARCONXS CMS: POLICIES & GOVERNED LEGAL VERSIONS
+// ==============================================================================
+
+/**
+ * Fetch all policies from Supabase
+ */
+export async function fetchPoliciesFromSupabase(): Promise<PolicyRecord[] | null> {
+  try {
+    const { data: policyRows, error } = await supabase
+      .from('policies')
+      .select('*')
+      .order('slug', { ascending: true });
+
+    if (error || !policyRows || policyRows.length === 0) return null;
+
+    // Also attempt to load policy versions for each
+    let versionsMap: Record<string, PolicyVersion[]> = {};
+    try {
+      const { data: versionRows } = await supabase
+        .from('policy_versions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (versionRows) {
+        versionRows.forEach((vr: any) => {
+          if (!versionsMap[vr.policy_id]) {
+            versionsMap[vr.policy_id] = [];
+          }
+          versionsMap[vr.policy_id].push({
+            id: vr.id,
+            policyId: vr.policy_id,
+            version: vr.version || vr.version_number || '1.0.0',
+            title: vr.title || '',
+            content: vr.content || '',
+            sections: typeof vr.sections === 'string' ? JSON.parse(vr.sections) : (vr.sections || []),
+            status: vr.status || 'published',
+            changeSummary: vr.change_summary || vr.changeSummary || '',
+            createdBy: vr.created_by || vr.createdBy || 'Administrator',
+            isAiDrafted: Boolean(vr.is_ai_drafted),
+            requiresApproval: Boolean(vr.requires_approval !== false),
+            approvedBy: vr.approved_by || null,
+            approvedAt: vr.approved_at || null,
+            createdAt: vr.created_at || new Date().toISOString()
+          });
+        });
+      }
+    } catch {}
+
+    return policyRows.map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      slug: row.slug,
+      category: row.category || 'legal',
+      status: row.status || 'published',
+      scheduledAt: row.scheduled_at || null,
+      version: row.version || '1.0.0',
+      lastUpdated: row.last_updated || row.updated_at || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      content: row.content || '',
+      sections: typeof row.sections === 'string' ? JSON.parse(row.sections) : (row.sections || []),
+      requiresAdminApproval: Boolean(row.requires_admin_approval !== false),
+      approvedBy: row.approved_by || null,
+      approvedAt: row.approved_at || null,
+      publishedAt: row.published_at || null,
+      createdAt: row.created_at || new Date().toISOString(),
+      updatedAt: row.updated_at || new Date().toISOString(),
+      versions: versionsMap[row.id] || []
+    }));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch historical versions for a single policy
+ */
+export async function fetchPolicyVersionsFromSupabase(policyId: string): Promise<PolicyVersion[]> {
+  try {
+    const { data, error } = await supabase
+      .from('policy_versions')
+      .select('*')
+      .eq('policy_id', policyId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map((vr: any) => ({
+      id: vr.id,
+      policyId: vr.policy_id,
+      version: vr.version || vr.version_number || '1.0.0',
+      title: vr.title || '',
+      content: vr.content || '',
+      sections: typeof vr.sections === 'string' ? JSON.parse(vr.sections) : (vr.sections || []),
+      status: vr.status || 'published',
+      changeSummary: vr.change_summary || vr.changeSummary || '',
+      createdBy: vr.created_by || vr.createdBy || 'Administrator',
+      isAiDrafted: Boolean(vr.is_ai_drafted),
+      requiresApproval: Boolean(vr.requires_approval !== false),
+      approvedBy: vr.approved_by || null,
+      approvedAt: vr.approved_at || null,
+      createdAt: vr.created_at || new Date().toISOString()
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Upsert or update a policy in Supabase
+ */
+export async function upsertPolicyInSupabase(policy: PolicyRecord): Promise<boolean> {
+  try {
+    const payload = {
+      id: policy.id,
+      title: policy.title,
+      slug: policy.slug,
+      category: policy.category,
+      status: policy.status,
+      scheduled_at: policy.scheduledAt || null,
+      version: policy.version,
+      last_updated: policy.lastUpdated,
+      content: policy.content,
+      sections: policy.sections ? JSON.stringify(policy.sections) : '[]',
+      requires_admin_approval: policy.requiresAdminApproval,
+      approved_by: policy.approvedBy || null,
+      approved_at: policy.approvedAt || null,
+      published_at: policy.publishedAt || null,
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('policies').upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create a new draft or AI-suggested policy version
+ * (AI can propose draft versions, but cannot silently publish)
+ */
+export async function createPolicyVersionInSupabase(
+  policyId: string,
+  versionData: {
+    version: string;
+    title: string;
+    content: string;
+    sections?: PolicySection[];
+    changeSummary: string;
+    createdBy: string;
+    isAiDrafted?: boolean;
+    requiresApproval?: boolean;
+  }
+): Promise<PolicyVersion | null> {
+  try {
+    const versionId = `pver_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const payload = {
+      id: versionId,
+      policy_id: policyId,
+      version: versionData.version,
+      title: versionData.title,
+      content: versionData.content,
+      sections: versionData.sections ? JSON.stringify(versionData.sections) : '[]',
+      status: 'draft',
+      change_summary: versionData.changeSummary,
+      created_by: versionData.createdBy,
+      is_ai_drafted: Boolean(versionData.isAiDrafted),
+      requires_approval: true,
+      approved_by: null,
+      approved_at: null,
+      created_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('policy_versions')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error || !data) {
+      // Fallback local return
+      return {
+        id: versionId,
+        policyId,
+        version: versionData.version,
+        title: versionData.title,
+        content: versionData.content,
+        sections: versionData.sections || [],
+        status: 'draft',
+        changeSummary: versionData.changeSummary,
+        createdBy: versionData.createdBy,
+        isAiDrafted: Boolean(versionData.isAiDrafted),
+        requiresApproval: true,
+        approvedBy: null,
+        approvedAt: null,
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    return {
+      id: data.id,
+      policyId: data.policy_id,
+      version: data.version,
+      title: data.title,
+      content: data.content,
+      sections: typeof data.sections === 'string' ? JSON.parse(data.sections) : (data.sections || []),
+      status: data.status,
+      changeSummary: data.change_summary,
+      createdBy: data.created_by,
+      isAiDrafted: data.is_ai_drafted,
+      requiresApproval: data.requires_approval,
+      approvedBy: data.approved_by,
+      approvedAt: data.approved_at,
+      createdAt: data.created_at
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Administrator Approval & Direct Publish for Legal Policies
+ * Explicitly guards against unauthorized AI silent overwrites
+ */
+export async function approveAndPublishPolicyInSupabase(
+  policyId: string,
+  versionId: string,
+  approvedBy: string = 'Super Administrator'
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const now = new Date().toISOString();
+    const formattedDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+    // 1. Fetch version details
+    const { data: ver, error: verErr } = await supabase
+      .from('policy_versions')
+      .select('*')
+      .eq('id', versionId)
+      .single();
+
+    if (verErr || !ver) {
+      return { success: false, message: 'Policy version not found in database.' };
+    }
+
+    // 2. Mark previous published versions as archived
+    try {
+      await supabase
+        .from('policy_versions')
+        .update({ status: 'archived' })
+        .eq('policy_id', policyId)
+        .eq('status', 'published');
+    } catch {}
+
+    // 3. Mark this version as published & approved
+    const { error: appErr } = await supabase
+      .from('policy_versions')
+      .update({
+        status: 'published',
+        approved_by: approvedBy,
+        approved_at: now
+      })
+      .eq('id', versionId);
+
+    if (appErr) {
+      return { success: false, message: `Failed to update version status: ${appErr.message}` };
+    }
+
+    // 4. Update the live published document in the main 'policies' table
+    const { error: polErr } = await supabase
+      .from('policies')
+      .update({
+        title: ver.title,
+        content: ver.content,
+        sections: ver.sections,
+        version: ver.version,
+        status: 'published',
+        scheduled_at: null,
+        last_updated: formattedDate,
+        approved_by: approvedBy,
+        approved_at: now,
+        published_at: now,
+        updated_at: now
+      })
+      .eq('id', policyId);
+
+    if (polErr) {
+      return { success: false, message: `Failed to update live policy: ${polErr.message}` };
+    }
+
+    return { success: true, message: `Policy successfully approved and published live as v${ver.version}` };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Publish approval failed.' };
   }
 }
 
